@@ -1,7 +1,6 @@
 package gameplatform.game.entity;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
@@ -36,7 +35,7 @@ public class Game {
     private String coverUrl;
 
     @Column(name = "release_date")
-    private LocalDate releaseDate;
+    private LocalDateTime releaseDate;
 
     @Column(name = "price", nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
@@ -44,6 +43,9 @@ public class Game {
     @Column(name = "description")
     private String description;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, insertable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "status", nullable = false, length = 20, insertable = false)
+    private String status;
 }
