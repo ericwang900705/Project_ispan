@@ -48,4 +48,7 @@ public class Game {
 
     @Column(name = "status", nullable = false, length = 20, insertable = false)
     private String status;
+
+    @Column(name = "scheduled_off_shelf_at")
+    private LocalDateTime scheduledOffShelfAt;
 }

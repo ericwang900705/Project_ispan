@@ -79,4 +79,46 @@ public class PublisherGameController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    // 送出遊戲審核
+    @PutMapping("/{gameId}/submit-review")
+    public ResponseEntity<Game> submitForReview(
+            @PathVariable Integer gameId) {
+
+        Game result = gameService.submitForReview(gameId);
+
+        if (result != null) {
+            return ResponseEntity.ok(result);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // 發行商下架遊戲
+    @PutMapping("/{gameId}/request-off-shelf")
+    public ResponseEntity<Game> requestOffShelf(
+            @PathVariable Integer gameId) {
+
+        Game result = gameService.requestOffShelf(gameId);
+
+        if (result != null) {
+            return ResponseEntity.ok(result);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // 發行商取消下架
+    @PutMapping("/{gameId}/cancel-off-shelf")
+    public ResponseEntity<Game> cancelOffShelf(
+            @PathVariable Integer gameId) {
+
+        Game result = gameService.cancelOffShelf(gameId);
+
+        if (result != null) {
+            return ResponseEntity.ok(result);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

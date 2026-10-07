@@ -3,6 +3,10 @@ package gameplatform.game.controller;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,8 +27,10 @@ public class GameController {
 
     // 查詢全部遊戲
     @GetMapping
-    public List<Game> findAll() {
-        return gameService.findAll();
+    public Page<Game> findAll(
+            @PageableDefault(size = 12, sort = "releaseDate", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        return gameService.findAll(pageable);
     }
 
     // 根據 gameId 查詢單一遊戲
