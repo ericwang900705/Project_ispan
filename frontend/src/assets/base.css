@@ -1,0 +1,138 @@
+/* color palette from <https://github.com/vuejs/theme> */
+/* 調色盤：Vue 官方主題的基本顏色，下面用 --名稱 定義成「CSS 變數」，之後用 var(--名稱) 取用 */
+:root {
+  /* :root 代表整個網頁的最外層（<html>），變數定義在這裡，全站都能用 */
+  --vt-c-white: #ffffff;
+  /* 純白色 */
+  --vt-c-white-soft: #f8f8f8;
+  /* 柔和的白（比純白暗一點點） */
+  --vt-c-white-mute: #f2f2f2;
+  /* 更淡的灰白 */
+
+  --vt-c-black: #181818;
+  /* 接近黑色的深灰 */
+  --vt-c-black-soft: #222222;
+  /* 稍亮一點的深灰 */
+  --vt-c-black-mute: #282828;
+  /* 再亮一點的深灰 */
+
+  --vt-c-indigo: #2c3e50;
+  /* 靛藍色（深藍灰），Vue 預設的文字色 */
+
+  --vt-c-divider-light-1: rgba(60, 60, 60, 0.29);
+  /* 淺色模式的分隔線顏色（深灰，29% 不透明） */
+  --vt-c-divider-light-2: rgba(60, 60, 60, 0.12);
+  /* 淺色模式的分隔線顏色（更淡，12% 不透明） */
+  --vt-c-divider-dark-1: rgba(84, 84, 84, 0.65);
+  /* 深色背景用的分隔線顏色（65% 不透明） */
+  --vt-c-divider-dark-2: rgba(84, 84, 84, 0.48);
+  /* 深色背景用的分隔線顏色（較淡，48% 不透明） */
+
+  --vt-c-text-light-1: var(--vt-c-indigo);
+  /* 淺色背景用的主要文字色 = 靛藍色 */
+  --vt-c-text-light-2: rgba(60, 60, 60, 0.66);
+  /* 淺色背景用的次要文字色（灰色，66% 不透明） */
+  --vt-c-text-dark-1: var(--vt-c-white);
+  /* 深色背景用的主要文字色 = 白色 */
+  --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
+  /* 深色背景用的次要文字色（淺灰，64% 不透明） */
+}
+
+/* 調色盤結束 */
+
+/* semantic color variables for this project */
+/* 語意化變數：依「用途」命名（背景、文字、邊框），網站各處實際使用的是這一組 */
+:root {
+  /* 深藍色背景（淺色/深色模式都套用） */
+  --color-background: #0B0C32;
+  /* 網頁主要背景色：深藍色 */
+  --color-background-soft: #111648;
+  /* 稍亮的深藍，用在需要和背景區隔的區塊（例如卡片） */
+  --color-background-mute: #1a3360;
+  /* 再亮一點的深藍，用在更需要凸顯的區塊（例如滑鼠移上去時） */
+
+  --color-border: var(--vt-c-divider-dark-2);
+  /* 一般邊框／分隔線顏色 */
+  --color-border-hover: var(--vt-c-divider-dark-1);
+  /* 滑鼠移上去時的邊框顏色（比較明顯） */
+
+  --color-heading: var(--vt-c-text-dark-1);
+  /* 標題文字顏色：白色 */
+  --color-text: var(--vt-c-text-dark-2);
+  /* 一般內文顏色：淺灰色 */
+
+  --section-gap: 160px;
+  /* 區塊之間的間距：160 像素 */
+}
+
+/* 語意化變數結束 */
+
+*,
+/* * 代表「所有元素」 */
+*::before,
+/* 所有元素前面用 CSS 產生的內容 */
+*::after {
+  /* 所有元素後面用 CSS 產生的內容 */
+  box-sizing: border-box;
+  /* 設定的寬高「包含」內距和邊框，排版比較好算 */
+  margin: 0;
+  /* 清除瀏覽器預設的外距 */
+  font-weight: normal;
+  /* 字體粗細設為一般（不加粗） */
+}
+
+/* 全域重設結束 */
+
+body {
+  /* 整個網頁內容的本體 */
+  min-height: 100vh;
+  /* 最小高度 = 整個視窗高度（100vh），背景色才會填滿畫面 */
+  color: var(--color-text);
+  /* 文字顏色：使用上面定義的一般內文顏色 */
+  background: var(--color-background);
+  /* 背景顏色：使用上面定義的深藍色 */
+  transition:
+    /* 顏色改變時的動畫效果： */
+    color 0.5s,
+    /* 文字顏色變化花 0.5 秒漸變 */
+    background-color 0.5s;
+  /* 背景顏色變化花 0.5 秒漸變 */
+  line-height: 1.6;
+  /* 行高 = 字體大小的 1.6 倍，讓文字不擠 */
+  font-family:
+    /* 字型：由左到右依序找，電腦有哪個就用哪個 */
+    Inter,
+    /* Inter 字型 */
+    -apple-system,
+    /* Mac／iPhone 的系統字型 */
+    BlinkMacSystemFont,
+    /* Mac 上 Chrome 的系統字型 */
+    'Segoe UI',
+    /* Windows 的系統字型 */
+    Roboto,
+    /* Android 的系統字型 */
+    Oxygen,
+    /* Linux（KDE）的字型 */
+    Ubuntu,
+    /* Ubuntu 的字型 */
+    Cantarell,
+    /* Linux（GNOME）的字型 */
+    'Fira Sans',
+    /* Firefox OS 的字型 */
+    'Droid Sans',
+    /* 舊版 Android 的字型 */
+    'Helvetica Neue',
+    /* 舊版 Mac 的字型 */
+    sans-serif;
+  /* 以上都沒有時，用系統預設的無襯線字型 */
+  font-size: 15px;
+  /* 基本文字大小：15 像素 */
+  text-rendering: optimizeLegibility;
+  /* 讓瀏覽器優先讓文字更清楚好讀 */
+  -webkit-font-smoothing: antialiased;
+  /* Chrome／Safari（Mac）：讓文字邊緣更平滑 */
+  -moz-osx-font-smoothing: grayscale;
+  /* Firefox（Mac）：讓文字邊緣更平滑 */
+}
+
+/* body 設定結束 */
