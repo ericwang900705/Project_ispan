@@ -24,8 +24,8 @@ public class JwtTokenProvider {
     // 1. 產生 JWT Token
     public String generateToken(String username, Integer memberId) {
         return Jwts.builder()
-                .setSubject(username) // 主題通常放帳號
-                .claim("memberId", memberId) // 可以把 memberId 塞進去給隊友用
+                .setSubject(username)
+                .claim("memberId", memberId)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)

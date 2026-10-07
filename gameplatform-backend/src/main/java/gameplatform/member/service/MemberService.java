@@ -14,13 +14,19 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import gameplatform.member.dto.MemberProfileResponse;
-import gameplatform.member.repository.PasswordResetRepository;
 import gameplatform.member.entity.PasswordReset;
 import gameplatform.member.dto.ForgotPasswordRequest;
 import gameplatform.member.dto.ResetPasswordRequest;
+import gameplatform.member.dto.GoogleLoginRequest;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.Collections;
 
 @Service
 public class MemberService {
@@ -68,7 +74,7 @@ public class MemberService {
                 .build();
         passwordHistoryRepository.save(passwordHistory);
 
-        // --- 以下為新增的信箱驗證邏輯 ---
+        // --- 以下為信箱驗證邏輯 ---
 
         // 1. 產生一組隨機且唯一的 UUID 作為驗證碼
         String token = UUID.randomUUID().toString();
@@ -97,32 +103,28 @@ public class MemberService {
         // 1. 尋找帳號
         Member member = memberRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("帳號或密碼錯誤"));
-
         // 2. 檢查帳號是否被鎖定
         if (member.getLockedUntil() != null && member.getLockedUntil().isAfter(LocalDateTime.now())) {
             throw new RuntimeException("帳號已被鎖定，請稍後再試");
         }
-
         // 3. 取得最新密碼紀錄
         PasswordHistory latestPassword = passwordHistoryRepository.findFirstByMemberOrderByCreatedAtDesc(member)
                 .orElseThrow(() -> new RuntimeException("帳號或密碼錯誤"));
-
         // 4. 驗證密碼
         if (!passwordEncoder.matches(request.getPassword(), latestPassword.getPasswordHash())) {
             // 密碼錯誤：增加失敗次數
             member.setFailedLoginCount(member.getFailedLoginCount() + 1);
-            if (member.getFailedLoginCount() >= 3) { // 連續錯誤 3 次鎖定 1 分鐘
+            // 連續錯誤 3 次鎖定 1 分鐘
+            if (member.getFailedLoginCount() >= 3) {
                 member.setLockedUntil(LocalDateTime.now().plusMinutes(1));
             }
             memberRepository.save(member);
             throw new RuntimeException("帳號或密碼錯誤");
         }
-
         // 5. 登入成功：重置失敗次數與鎖定時間
         member.setFailedLoginCount(0);
         member.setLockedUntil(null);
         memberRepository.save(member);
-
         // 6. 簽發 JWT Token
         return jwtTokenProvider.generateToken(member.getUsername(), member.getMemberId());
     }
@@ -230,6 +232,60 @@ public class MemberService {
         memberRepository.save(member);
 
         return "密碼重設成功！請使用新密碼登入。";
+    }
+
+    // 1. 從 application.properties 動態讀取 Client ID
+    @Value("${google.client.id}")
+    private String googleClientId;
+
+    @Transactional
+    public String googleLogin(GoogleLoginRequest request) {
+        String email = "";
+        String username = "";
+
+        try {
+            // 2. 建立 Google 官方的驗證器
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(),
+                    new GsonFactory())
+                    .setAudience(Collections.singletonList(googleClientId))
+                    .build();
+
+            // 3. 向 Google 伺服器驗證這串 Token 的真偽
+            GoogleIdToken idToken = verifier.verify(request.getIdToken());
+
+            if (idToken != null) {
+                // 驗證成功，提取 Google 帳號資訊
+                GoogleIdToken.Payload payload = idToken.getPayload();
+                email = payload.getEmail();
+
+                // 從 Google 取得使用者名稱 (去掉空白避免格式問題，並加上 UUID 確保遊戲帳號不重複)
+                String googleName = (String) payload.get("name");
+                if (googleName == null)
+                    googleName = "Player";
+                username = googleName.replaceAll("\\s+", "") + "_" + UUID.randomUUID().toString().substring(0, 4);
+
+            } else {
+                throw new RuntimeException("無效的 Google Token，驗證失敗");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Google 驗證過程發生錯誤: " + e.getMessage());
+        }
+
+        // --- 4. 系統內部登入/註冊邏輯 ---
+        Member member = memberRepository.findByEmail(email).orElse(null);
+
+        if (member == null) {
+            // 資料庫沒這個信箱，自動註冊為會員
+            member = Member.builder()
+                    .username(username)
+                    .email(email)
+                    .authProvider("GOOGLE")
+                    .build();
+            member = memberRepository.save(member);
+        }
+
+        // 5. 簽發並回傳我們系統專屬的 JWT Token
+        return jwtTokenProvider.generateToken(member.getUsername(), member.getMemberId());
     }
 
 }

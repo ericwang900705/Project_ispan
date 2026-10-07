@@ -71,6 +71,10 @@ public class Member {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "auth_provider", length = 20)
+    @Builder.Default
+    private String authProvider = "LOCAL"; // 預設為 "LOCAL"，第三方登入則為 "GOOGLE"
+
     @PrePersist
     protected void onCreate() {
         if (this.createdAt == null) {

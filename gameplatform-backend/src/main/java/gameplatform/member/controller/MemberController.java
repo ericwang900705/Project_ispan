@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import gameplatform.member.dto.ForgotPasswordRequest;
 import gameplatform.member.dto.ResetPasswordRequest;
+import gameplatform.member.dto.GoogleLoginRequest;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -38,18 +39,25 @@ public class MemberController {
         return ResponseEntity.ok(result);
     }
 
-    // --- 申請忘記密碼 API ---
+    // 申請忘記密碼 API
     @PostMapping("/forgot-password")
     public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
         String result = memberService.forgotPassword(request);
         return ResponseEntity.ok(result);
     }
 
-    // --- 執行重設密碼 API ---
+    // 執行重設密碼 API
     @PostMapping("/reset-password")
     public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
         String result = memberService.resetPassword(request);
         return ResponseEntity.ok(result);
+    }
+
+    // Google登入API
+    @PostMapping("/google-login")
+    public ResponseEntity<String> googleLogin(@RequestBody GoogleLoginRequest request) {
+        String token = memberService.googleLogin(request);
+        return ResponseEntity.ok(token);
     }
 
 }
