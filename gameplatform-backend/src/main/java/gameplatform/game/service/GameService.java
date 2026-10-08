@@ -6,12 +6,16 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import lombok.RequiredArgsConstructor;
 import gameplatform.game.dto.GameRequest;
 import gameplatform.game.entity.Game;
+import gameplatform.game.entity.GameAuditLog;
+import gameplatform.game.repository.GameAuditLogRepository;
 import gameplatform.game.repository.GameRepository;
 import jakarta.transaction.Transactional;
 
@@ -20,6 +24,10 @@ import jakarta.transaction.Transactional;
 public class GameService {
 
     private final GameRepository gameRepository;
+
+    private final GameAuditLogRepository gameAuditLogRepository;
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // 查詢所有遊戲(只查詢狀態為 COMING_SOON 或 PUBLISHED 的遊戲)
     public Page<Game> findAll(Pageable pageable) {
@@ -33,6 +41,8 @@ public class GameService {
                 statuses,
                 pageable);
     }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // 模糊查詢
     public List<Game> findByGameName(String keyword) {
@@ -54,6 +64,8 @@ public class GameService {
                 statuses);
     }
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     // 新增遊戲資料邏輯
     public Game insert(GameRequest request) {
 
@@ -68,6 +80,8 @@ public class GameService {
 
         return gameRepository.save(game);
     }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // 修改,更新遊戲資料邏輯
     public Game update(Integer gameId, GameRequest request) {
@@ -108,7 +122,8 @@ public class GameService {
         }
     }
 
-    // 上架遊戲
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // 上架遊戲(直接讓資料庫一次處理所有符合下架條件的遊戲，不需要先把遊戲資料查出來，再用 Java 一筆一筆修改)
     public Game publish(Integer gameId) {
 
         Optional<Game> result = gameRepository.findById(gameId);
@@ -125,7 +140,9 @@ public class GameService {
         }
     }
 
-    // 下架遊戲
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // 下架遊戲(直接讓資料庫一次處理所有符合下架條件的遊戲，不需要先把遊戲資料查出來，再用 Java 一筆一筆修改)
     public Game offShelf(Integer gameId) {
 
         Optional<Game> result = gameRepository.findById(gameId);
@@ -141,6 +158,8 @@ public class GameService {
             return null;
         }
     }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // 預發售邏輯
     public Game comingSoon(Integer gameId) {
@@ -174,6 +193,8 @@ public class GameService {
         }
     }
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     // 自動上架遊戲(不使用for迴圈)
     @Transactional
     @Scheduled(fixedRate = 60000)
@@ -186,6 +207,8 @@ public class GameService {
                     "自動發售完成，本次上架 " + updated + " 款遊戲");
         }
     }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // 自動下架遊戲(不使用for迴圈)
     @Transactional
@@ -202,6 +225,7 @@ public class GameService {
         }
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // 發行商送出遊戲審核
     public Game submitForReview(Integer gameId) {
 
@@ -231,6 +255,7 @@ public class GameService {
         return gameRepository.save(game);
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // 發行商下架邏輯
     public Game requestOffShelf(Integer gameId) {
 
@@ -257,6 +282,7 @@ public class GameService {
         return gameRepository.save(game);
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // 取消下架
     public Game cancelOffShelf(Integer gameId) {
 
@@ -277,6 +303,39 @@ public class GameService {
         game.setScheduledOffShelfAt(null);
 
         return gameRepository.save(game);
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // 發行商查詢自己發行的遊戲(包含分頁)
+    public Page<Game> findMyGames(
+            Integer memberId,
+            Pageable pageable) {
+
+        return gameRepository.findByMemberId(memberId, pageable);
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // 發行商查詢自己遊戲的審核歷史
+    public List<GameAuditLog> findMyGameAuditHistory(
+            Integer gameId,
+            Integer memberId) {
+
+        // 1. 查詢遊戲是否存在
+        Game game = gameRepository.findById(gameId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "找不到此遊戲"));
+
+        // 2. 確認遊戲是否屬於這位發行商
+        if (!game.getMemberId().equals(memberId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "你沒有權限查看此遊戲的審核紀錄");
+        }
+
+        // 3. 查詢遊戲的審核歷史
+        return gameAuditLogRepository
+                .findByGameIdOrderByReviewedAtDesc(gameId);
     }
 
 }

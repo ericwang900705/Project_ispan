@@ -1,8 +1,11 @@
 package gameplatform.game.service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import gameplatform.game.entity.Game;
@@ -81,6 +84,7 @@ public class GameReviewAdminService {
         return savedGame;
     }
 
+    // 管理員拒絕遊戲上架
     @Transactional
     public Game reject(
             Integer gameId,
@@ -121,9 +125,49 @@ public class GameReviewAdminService {
         return savedGame;
     }
 
-    // 管理員核准遊戲下架
+    // // 管理員核准遊戲下架(舊流程不需要)
+    // @Transactional
+    // public Game approveOffShelf(
+    // Integer gameId,
+    // Integer adminId,
+    // String comment) {
+
+    // Optional<Game> result = gameRepository.findById(gameId);
+
+    // if (result.isEmpty()) {
+    // return null;
+    // }
+
+    // Game game = result.get();
+
+    // // 只有等待下架審核的遊戲才能核准
+    // if (!"PENDING_OFF_SHELF".equals(game.getStatus())) {
+    // throw new IllegalStateException(
+    // "此遊戲目前不是等待下架審核狀態");
+    // }
+
+    // // 正式下架
+    // game.setStatus("OFF_SHELF");
+
+    // Game savedGame = gameRepository.save(game);
+
+    // // 寫入審核紀錄
+    // GameAuditLog log = new GameAuditLog();
+
+    // log.setGameId(gameId);
+    // log.setAdminId(adminId);
+    // log.setReviewType("OFF_SHELF");
+    // log.setDecision("APPROVED");
+    // log.setComment(comment);
+
+    // gameAuditLogRepository.save(log);
+
+    // return savedGame;
+    // }
+
+    // 管理員強制下架遊戲
     @Transactional
-    public Game approveOffShelf(
+    public Game forceOffShelf(
             Integer gameId,
             Integer adminId,
             String comment) {
@@ -136,18 +180,30 @@ public class GameReviewAdminService {
 
         Game game = result.get();
 
-        // 只有等待下架審核的遊戲才能核准
-        if (!"PENDING_OFF_SHELF".equals(game.getStatus())) {
+        // 必須填寫強制下架原因
+        if (comment == null || comment.isBlank()) {
             throw new IllegalStateException(
-                    "此遊戲目前不是等待下架審核狀態");
+                    "管理員強制下架必須填寫原因");
         }
 
-        // 正式下架
+        // 只有公開中的遊戲可以強制下架
+        if (!"PUBLISHED".equals(game.getStatus())
+                && !"COMING_SOON".equals(game.getStatus())
+                && !"PENDING_OFF_SHELF".equals(game.getStatus())) {
+
+            throw new IllegalStateException(
+                    "此遊戲目前無法強制下架");
+        }
+
+        // 立即下架
         game.setStatus("OFF_SHELF");
+
+        // 清除原本的預定下架時間
+        game.setScheduledOffShelfAt(null);
 
         Game savedGame = gameRepository.save(game);
 
-        // 寫入審核紀錄
+        // 建立管理員審核紀錄
         GameAuditLog log = new GameAuditLog();
 
         log.setGameId(gameId);
@@ -159,6 +215,18 @@ public class GameReviewAdminService {
         gameAuditLogRepository.save(log);
 
         return savedGame;
+    }
+
+    // 查詢待審核遊戲
+    public List<Game> findPendingReviews() {
+
+        return gameRepository.findByStatus("PENDING_REVIEW");
+    }
+
+    // 查詢審核歷史紀錄
+    public Page<GameAuditLog> findAuditHistory(Pageable pageable) {
+
+        return gameAuditLogRepository.findAll(pageable);
     }
 
 }
