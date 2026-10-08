@@ -1,0 +1,60 @@
+/* Customer service widget follows the existing FriendsList brown/gold dock. */
+.support-ui.support-friend-skin { --ink:#e8dcc8; --muted:#a8988a; --line:#6b4e0f; --teal:#d4a64a; --teal-hover:#e5b859; --danger:#ffafa2; }
+.support-ui.support-friend-skin .chat-widget,
+.support-ui.support-friend-skin.guest-support { position:fixed;right:16px;bottom:0;z-index:1100;width:280px;max-width:calc(100vw - 32px); }
+.support-ui.support-friend-skin.guest-support .chat-widget { position:relative;right:auto;bottom:auto; }
+.support-ui.support-friend-skin .chat-launcher { width:100%;display:flex;gap:8px;padding:10px 14px;min-height:42px;border:1px solid #6b4e0f;border-bottom:0;border-radius:8px 8px 0 0;background:linear-gradient(180deg,#3a261c,#2a1a14);color:#e8dcc8;box-shadow:0 -4px 20px #0009;font-size:14px;transform:none; }
+.support-ui.support-friend-skin .chat-launcher:hover { background:#3a261c;transform:none; }
+.support-ui.support-friend-skin .chat-launcher strong { color:#d4a64a; }
+.support-ui.support-friend-skin .chat-launcher>span { width:auto;height:auto;border-radius:0;background:none;color:#5fc4d8; }
+.support-ui.support-friend-skin .chat-launcher .support-bar-arrow { margin-left:auto;color:#d4a64a; }
+.support-ui.support-friend-skin .chat-panel,
+.support-ui.support-friend-skin .chat-widget.docked .chat-panel { width:100%;max-height: min(600px,calc(100dvh - 16px));border:1px solid #6b4e0f;border-bottom:0;border-radius:8px 8px 0 0;background:#2a1a14;color:#e8dcc8;box-shadow:0 -4px 20px #0009;backdrop-filter:none; }
+.support-ui.support-friend-skin .chat-header { padding:10px 12px;min-height:58px;background:linear-gradient(180deg,#3a261c,#2a1a14);border-bottom:1px solid #6b4e0f;border-radius:8px 8px 0 0; }
+.support-ui.support-friend-skin .chat-header::after { display:none; }
+.support-ui.support-friend-skin .chat-header strong { color:#d4a64a;font-size:14px; }
+.support-ui.support-friend-skin .chat-header small { color:#a8988a;font-size:10px; }
+.support-ui.support-friend-skin .chat-header>button { color:#d4a64a;background:none;border:0;min-width:30px; }
+.support-ui.support-friend-skin .chat-brand-icon { background:linear-gradient(135deg,#6b4e0f,#d4a64a);color:#1b0f0d;width:30px;height:30px;border-radius:50%; }
+.support-ui.support-friend-skin .chat-toolbar { background:#2a1a14;border-color:#6b4e0f;color:#a8988a;padding:10px 12px;flex-wrap:wrap;font-size:11px; }
+.support-ui.support-friend-skin .chat-toolbar .text-button,
+.support-ui.support-friend-skin .chat-panel .text-button { color:#d4a64a; }
+.support-ui.support-friend-skin .chat-welcome,
+.support-ui.support-friend-skin .chat-history { background:#2a1a14;color:#e8dcc8;min-height:0;padding:20px 14px;overflow-y:auto; }
+.support-ui.support-friend-skin .chat-welcome h3,
+.support-ui.support-friend-skin .chat-history h3 { color:#d4a64a; }
+.support-ui.support-friend-skin .chat-welcome p,
+.support-ui.support-friend-skin .chat-welcome small,
+.support-ui.support-friend-skin .chat-history p { color:#a8988a; }
+.support-ui.support-friend-skin .empty-symbol { background:#3a261c;color:#d4a64a;border-color:#6b4e0f; }
+.support-ui.support-friend-skin .chat-panel .primary { background:#d4a64a;color:#1b0f0d;border:0;box-shadow:none;border-radius:16px; }
+.support-ui.support-friend-skin .chat-panel .primary:disabled { background:#4a3a32;color:#a8988a; }
+.support-ui.support-friend-skin .chat-history-row { background:#3a261c;color:#e8dcc8;border-color:#6b4e0f; }
+.support-ui.support-friend-skin .chat-history-row small { color:#a8988a; }
+.support-ui.support-friend-skin .chat-panel .messages { background:#1b0f0d;padding:12px; }
+.support-ui.support-friend-skin .message-bubble { background:#3a261c;color:#e8dcc8;border-radius:12px 12px 12px 2px; }
+.support-ui.support-friend-skin .mine .message-bubble { background:#d4a64a;color:#1b0f0d;border-radius:12px 12px 2px 12px; }
+.support-ui.support-friend-skin .message strong,
+.support-ui.support-friend-skin .message small { color:#a8988a; }
+.support-ui.support-friend-skin .composer { padding:10px;background:#2a1a14;border-color:#6b4e0f; }
+.support-ui.support-friend-skin .composer textarea,
+.support-ui.support-friend-skin .chat-panel input { background:#1b0f0d;color:#e8dcc8;border:1px solid #6b4e0f;border-radius:16px; }
+.support-ui.support-friend-skin .composer textarea { min-height:46px; }
+.support-ui.support-friend-skin .composer textarea::placeholder,
+.support-ui.support-friend-skin .chat-panel input::placeholder { color:#a8988a; }
+.support-ui.support-friend-skin .closed-message,
+.support-ui.support-friend-skin .transfer-notice,
+.support-ui.support-friend-skin .new-chat { background:#2a1a14;color:#e8dcc8;border-color:#6b4e0f; }
+.support-ui.support-friend-skin .chat-panel .muted,
+.support-ui.support-friend-skin .composer small { color:#a8988a; }
+.support-ui.support-friend-skin .chat-panel .error { color:#ffafa2; }
+@media(max-width:700px){.support-ui.support-friend-skin .chat-widget,.support-ui.support-friend-skin.guest-support {right:8px;width:220px;max-width:calc(100vw - 16px);}}
+.support-ui.support-friend-skin .chat-brand {display:flex;align-items:center;gap:10px;min-width:0;}
+.support-ui.support-friend-skin .chat-brand-icon {display:grid;place-items:center;flex-shrink:0;}
+.support-ui.support-friend-skin .chat-brand>div {min-width:0;}
+.support-ui.support-friend-skin .chat-header,
+.support-ui.support-friend-skin .chat-toolbar,
+.support-ui.support-friend-skin .composer {flex-shrink:0;}
+.support-ui.support-friend-skin .chat-panel .conversation {min-height:0;flex:1 1 auto;overflow:hidden;}
+.support-ui.support-friend-skin .chat-panel .messages {height:auto;min-height:0;flex:1 1 300px;}
+.support-ui.support-friend-skin .chat-panel .message-bubble {border:0;box-shadow:none;}

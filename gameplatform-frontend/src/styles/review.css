@@ -1,0 +1,20 @@
+/* Review workspace only. Background and base controls live in common.css. */
+.review-page .review-placeholder {
+  margin-top: 28px;
+  padding: 36px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--shadow-soft);
+}
+
+.review-page .review-placeholder p {
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+@media (max-width: 650px) {
+  .review-page .review-placeholder {
+    padding: 24px;
+  }
+}
