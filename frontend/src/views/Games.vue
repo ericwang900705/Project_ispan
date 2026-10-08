@@ -66,11 +66,12 @@ onMounted(() => {
       <!-- v-for：每款遊戲顯示一張卡片；:key 用遊戲 ID 讓 Vue 辨識每張卡片 -->
       <div v-for="game in filteredGames" :key="game.gameId" class="capsule">
         <!-- 遊戲封面（資料庫 game.cover_url 欄位存的網址） -->
-        <img :src="game.coverUrl" :alt="game.gameName" />
+        <!-- 點封面到遊戲詳情頁（介紹 + 玩家評論） -->
+        <img :src="game.coverUrl" :alt="game.gameName" class="link" @click="router.push(`/games/${game.gameId}`)" />
         <!-- 分類標籤：有填分類才顯示，固定在封面右上角 -->
         <span v-if="game.genre" class="genre-tag">{{ game.genre }}</span>
         <!-- 滑鼠移上去才顯示的遊戲名稱，蓋在封面上方 -->
-        <div class="name">{{ game.gameName }}</div>
+        <div class="name link" @click="router.push(`/games/${game.gameId}`)">{{ game.gameName }}</div>
         <!-- 底部列：左邊加入購物車按鈕，右邊價格條 -->
         <div class="bottom">
           <!-- 加入購物車按鈕，傳入遊戲 ID -->
@@ -130,6 +131,8 @@ onMounted(() => {
   background: linear-gradient(rgba(0, 0, 0, .8), transparent); opacity: 0; transition: opacity .2s;
 }
 .capsule:hover .name { opacity: 1; }
+/* 可以點進遊戲詳情頁的地方 */
+.link { cursor: pointer; }
 /* 底部列：按鈕靠左、價格靠右 */
 .bottom { display: flex; justify-content: space-between; background: rgba(0, 0, 0, .3); }
 /* 加入購物車按鈕：金色漸層（:deep 讓樣式套到子元件的 button 上） */

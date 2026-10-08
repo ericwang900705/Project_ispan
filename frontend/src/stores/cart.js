@@ -4,7 +4,7 @@ import { defineStore } from 'pinia'
 import axios from 'axios'
 
 // 登入功能做好之前，先固定用測試會員（後端啟動時自動建立，memberId = 1）
-const MEMBER_ID = 1
+export const MEMBER_ID = 1
 
 // 把 axios 錯誤轉成後端回傳的訊息（後端格式：{ message: '...' }）
 function toError(e, fallback) {
@@ -83,24 +83,42 @@ export const useCartStore = defineStore('cart', () => {
     await fetchCart()
   }
 
-  // 結帳：後端建立訂單、把遊戲寫進遊戲庫並清空購物車，回傳新訂單
-  async function checkout() {
+  // 綠界付款：後端用購物車建立待付款訂單並回傳綠界表單參數，再整頁跳到綠界付款頁
+  // choosePayment：'Credit'（信用卡）、'ATM'、'CVS'（超商代碼）
+  // 付款完綠界會導回 /shopping-cart?payment=success|pending|fail&tradeNo=...，由購物車頁顯示結果
+  async function payWithEcpay(choosePayment) {
     loading.value = true
-    let order
     try {
-      // POST /api/orders/{memberId}/checkout
-      const { data } = await axios.post(`/api/orders/${MEMBER_ID}/checkout`)
-      order = data
+      // POST /api/payment/{memberId}/checkout：回傳 { actionUrl, params }
+      const { data } = await axios.post(`/api/payment/${MEMBER_ID}/checkout`, { choosePayment })
+      // 綠界要用表單 POST 進去，不能用 axios：動態做一個隱藏表單送出，整頁會跳到綠界
+      const form = document.createElement('form')
+      form.method = 'POST'
+      form.action = data.actionUrl
+      for (const [name, value] of Object.entries(data.params)) {
+        const input = document.createElement('input')
+        input.type = 'hidden'
+        input.name = name
+        input.value = value
+        form.appendChild(input)
+      }
+      document.body.appendChild(form)
+      form.submit()
     } catch (e) {
-      throw toError(e, '結帳失敗')
-    } finally {
       loading.value = false
+      throw toError(e, '結帳失敗')
     }
-    // 結帳後購物車變空、遊戲庫多了新遊戲，兩個都重新抓
-    await Promise.all([fetchCart(), fetchLibrary()])
-    return order
+    // 成功時頁面會跳走，loading 維持 true 讓按鈕不能再按
+  }
+
+  // 從綠界導回來後，用綠界訂單編號查付款結果（ATM / 超商代碼會有繳費資訊）
+  // tradeNo：綠界訂單編號（網址上的 tradeNo）
+  async function fetchPaymentOrder(tradeNo) {
+    // GET /api/payment/{memberId}/orders/{tradeNo}
+    const { data } = await axios.get(`/api/payment/${MEMBER_ID}/orders/${tradeNo}`)
+    return data
   }
 
   // 對外公開的狀態與方法
-  return { items, totalPrice, library, loading, isInCart, isOwned, fetchCart, fetchLibrary, addItem, removeItem, checkout }
+  return { items, totalPrice, library, loading, isInCart, isOwned, fetchCart, fetchLibrary, addItem, removeItem, payWithEcpay, fetchPaymentOrder }
 })

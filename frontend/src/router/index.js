@@ -40,6 +40,12 @@ const routes = [
         path: '/games/all',
         name: 'Games',
         component: () => import('../views/Games.vue')
+    },
+    {
+        // 遊戲詳情：介紹、價格、玩家評論；:id 是遊戲編號
+        path: '/games/:id',
+        name: 'GameDetail',
+        component: () => import('../views/GameDetail.vue')
     }, {
         // 萬用路由：以上路徑都不符合時，顯示 404 頁面（必須放在最後）
         path: '/:pathMatch(.*)*',//404

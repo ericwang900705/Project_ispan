@@ -1,16 +1,44 @@
 <script setup>
 // computed：依其他變數自動算出結果；onMounted：元件顯示到畫面上之後要執行的動作
-import { computed, onMounted } from 'vue'
-// useRouter：結帳完成後換頁用
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+// useRoute：讀網址上綠界導回來的付款結果；useRouter：清掉網址上的參數
+import { useRoute, useRouter } from 'vue-router'
 // 共用的購物車 store
 import { useCartStore } from '@/stores/cart'
 
 // 取得購物車 store（與其他頁面共用同一份資料）
 const cart = useCartStore()
+const route = useRoute()
 const router = useRouter()
-// 進入頁面時向後端抓最新的購物車內容
-onMounted(() => cart.fetchCart())
+
+// 付款方式：value 是送給綠界的 ChoosePayment
+const paymentMethods = [
+  { value: 'Credit', label: '信用卡', icon: '💳' },
+  { value: 'ATM', label: 'ATM 轉帳', icon: '🏦' },
+  { value: 'CVS', label: '超商代碼', icon: '🏪' },
+]
+const choosePayment = ref('Credit')
+
+// 綠界導回來的付款結果：{ status: 'success' | 'pending' | 'fail', order: 後端查到的訂單 }
+const paymentResult = ref(null)
+
+// 進入頁面時向後端抓最新的購物車內容；如果是從綠界導回來的，順便顯示付款結果
+onMounted(async () => {
+  const { payment, tradeNo } = route.query
+  if (payment) {
+    // 網址上的參數只用一次，清掉才不會重新整理又跳一次
+    router.replace({ query: {} })
+    let order = null
+    try {
+      if (tradeNo) order = await cart.fetchPaymentOrder(tradeNo)
+    } catch {
+      // 查不到訂單也照樣顯示結果，只是沒有細節
+    }
+    paymentResult.value = { status: payment, order }
+    if (payment === 'success') cart.fetchLibrary()
+  }
+  cart.fetchCart()
+})
 
 // 套用優惠券前的小計（每項遊戲售價加總）
 const subtotal = computed(() => cart.items.reduce((sum, item) => sum + item.game.price, 0))
@@ -26,12 +54,10 @@ async function remove(cartItemId) {
   }
 }
 
-// 結帳：成功後跳到遊戲庫
+// 結帳：跳到綠界付款頁（測試環境），付款完會導回這一頁
 async function checkout() {
   try {
-    const order = await cart.checkout()
-    alert(`結帳完成！訂單編號 ${order.orderId}，獲得 ${order.pointsEarned} 點`)
-    router.push('/member-games')
+    await cart.payWithEcpay(choosePayment.value)
   } catch (e) {
     alert(e.message) // 例如「購物車是空的」、「已經擁有這款遊戲」
   }
@@ -46,6 +72,43 @@ async function checkout() {
       <div class="head">
         <h1>我的購物車</h1>
         <span v-if="cart.items.length">{{ cart.items.length }} 個項目</span>
+      </div>
+
+      <!-- 從綠界導回來的付款結果 -->
+      <div v-if="paymentResult" class="result" :class="paymentResult.status">
+        <button class="result-close" title="關閉" @click="paymentResult = null">✕</button>
+        <!-- 付款成功 -->
+        <template v-if="paymentResult.status === 'success'">
+          <h2>✅ 付款成功</h2>
+          <p v-if="paymentResult.order">
+            訂單 #{{ paymentResult.order.orderId }}，共 NT$ {{ paymentResult.order.totalAmount }}，獲得 {{ paymentResult.order.pointsEarned }} 點
+          </p>
+          <p>遊戲已經加入你的遊戲庫</p>
+          <RouterLink to="/member-games" class="btn-gold">前往遊戲庫</RouterLink>
+        </template>
+        <!-- ATM / 超商代碼：已取號，等待繳費 -->
+        <template v-else-if="paymentResult.status === 'pending'">
+          <h2>🕒 等待繳費</h2>
+          <template v-if="paymentResult.order">
+            <p>訂單 #{{ paymentResult.order.orderId }}，應繳 NT$ {{ paymentResult.order.totalAmount }}</p>
+            <dl class="pay-info">
+              <template v-if="paymentResult.order.virtualAccount">
+                <dt>銀行代碼</dt><dd>{{ paymentResult.order.bankCode }}</dd>
+                <dt>轉帳帳號</dt><dd>{{ paymentResult.order.virtualAccount }}</dd>
+              </template>
+              <template v-if="paymentResult.order.paymentNo">
+                <dt>繳費代碼</dt><dd>{{ paymentResult.order.paymentNo }}</dd>
+              </template>
+              <dt>繳費期限</dt><dd>{{ paymentResult.order.expireDate }}</dd>
+            </dl>
+          </template>
+          <p class="hint">繳費完成後遊戲才會加入遊戲庫</p>
+        </template>
+        <!-- 付款失敗 / 取消 -->
+        <template v-else>
+          <h2>❌ 付款沒有完成</h2>
+          <p>購物車的遊戲都還在，可以再結帳一次</p>
+        </template>
       </div>
 
       <!-- 沒有任何項目時：大圖示 + 提示 + 去逛逛按鈕 -->
@@ -99,10 +162,17 @@ async function checkout() {
             <span>總金額</span>
             <span>NT$ {{ cart.totalPrice }}</span>
           </div>
+          <!-- 付款方式 -->
+          <div class="methods">
+            <label v-for="m in paymentMethods" :key="m.value" class="method" :class="{ on: choosePayment === m.value }">
+              <input v-model="choosePayment" type="radio" name="payment" :value="m.value" />
+              <span class="method-icon">{{ m.icon }}</span>{{ m.label }}
+            </label>
+          </div>
           <button class="btn-gold checkout" :disabled="cart.loading" @click="checkout">
-            {{ cart.loading ? '處理中…' : '前往結帳' }}
+            {{ cart.loading ? '處理中…' : '前往付款' }}
           </button>
-          <p class="note">結帳後遊戲會直接加入你的遊戲庫</p>
+          <p class="note">將前往綠界付款頁（測試環境，不會真的扣款）</p>
         </aside>
       </div>
     </div>
@@ -183,6 +253,35 @@ async function checkout() {
 .line.total { margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--gold-dark); font-size: 16px; color: var(--text); }
 .line.total span:last-child { font-size: 24px; font-weight: bold; color: var(--gold); }
 .note { margin: 12px 0 0; font-size: 12px; color: var(--text-muted); text-align: center; }
+
+/* ===== 付款方式 ===== */
+.methods { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
+.method {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--surface-2); background: var(--bg); font-size: 14px; color: var(--text-muted);
+  transition: border-color .2s, color .2s;
+}
+.method input { display: none; }
+.method:hover { border-color: var(--gold-dark); }
+.method.on { border-color: var(--gold); color: var(--text); }
+.method-icon { font-size: 18px; }
+
+/* ===== 綠界付款結果 ===== */
+.result {
+  position: relative; margin-bottom: 20px; padding: 18px 20px; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--gold-dark);
+}
+.result.success { border-color: #6a9a4a; }
+.result.fail { border-color: var(--sale); }
+.result h2 { margin: 0 0 8px; font-size: 20px; color: var(--text); }
+.result p { margin: 4px 0; color: var(--text-muted); }
+.result .btn-gold { margin-top: 12px; padding: 8px 20px; font-size: 14px; }
+.result-close { position: absolute; top: 10px; right: 12px; border: none; background: none; color: var(--text-muted); font-size: 16px; cursor: pointer; }
+.result-close:hover { color: var(--text); }
+.pay-info { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 10px 0; font-size: 15px; }
+.pay-info dt { color: var(--text-muted); }
+.pay-info dd { margin: 0; color: var(--gold); font-weight: bold; letter-spacing: 1px; }
+.hint { font-size: 12px; }
 
 /* ===== 金色按鈕（結帳、去逛逛） ===== */
 .btn-gold {

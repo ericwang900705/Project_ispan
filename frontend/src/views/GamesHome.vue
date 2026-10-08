@@ -26,6 +26,11 @@ function search() {
   router.push({ path: '/games/all', query: keyword.value ? { q: keyword.value } : {} })
 }
 
+// 點遊戲封面 / 名稱：到遊戲詳情頁（介紹 + 玩家評論）
+function goDetail(game) {
+  router.push(`/games/${game.gameId}`)
+}
+
 // ===== 精選與推薦（大輪播） =====
 // 輪播的遊戲：有打折的排前面，最多 8 款
 const featured = computed(() =>
@@ -133,9 +138,9 @@ onUnmounted(stopAuto)
               <button class="arrow left" aria-label="上一個" @click="prev">‹</button>
               <!-- 大封面 + 右側資訊 -->
               <div v-if="current" class="main-cap">
-                <img :src="current.coverUrl" :alt="current.gameName" class="main-img" />
+                <img :src="current.coverUrl" :alt="current.gameName" class="main-img link" @click="goDetail(current)" />
                 <div class="info">
-                  <div class="title">{{ current.gameName }}</div>
+                  <div class="title link" @click="goDetail(current)">{{ current.gameName }}</div>
                   <p class="desc">{{ current.description }}</p>
                   <div class="tags">
                     <span v-if="current.genre" class="tag">{{ current.genre }}</span>
@@ -163,7 +168,7 @@ onUnmounted(stopAuto)
               <RouterLink to="/games/all" class="more">瀏覽更多</RouterLink>
             </div>
             <div class="specials">
-              <div v-for="game in discountedGames.slice(0, 4)" :key="game.gameId" class="special">
+              <div v-for="game in discountedGames.slice(0, 4)" :key="game.gameId" class="special link" @click="goDetail(game)">
                 <img :src="game.coverUrl" :alt="game.gameName" />
                 <div class="special-body">
                   <div class="special-label">限時特賣</div>
@@ -200,7 +205,7 @@ onUnmounted(stopAuto)
               <div class="rows">
                 <p v-if="!tabGames.length" class="empty">目前沒有遊戲</p>
                 <div v-for="game in tabGames" :key="game.gameId" class="row"
-                  :class="{ hover: preview && preview.gameId === game.gameId }" @mouseenter="hovered = game">
+                  :class="{ hover: preview && preview.gameId === game.gameId }" @mouseenter="hovered = game" @click="goDetail(game)">
                   <img :src="game.coverUrl" :alt="game.gameName" />
                   <div class="row-text">
                     <div class="row-name">{{ game.gameName }}</div>
@@ -211,7 +216,7 @@ onUnmounted(stopAuto)
               </div>
               <!-- 右邊預覽 -->
               <div v-if="preview" class="preview">
-                <div class="preview-name">{{ preview.gameName }}</div>
+                <div class="preview-name link" @click="goDetail(preview)">{{ preview.gameName }}</div>
                 <div class="tags">
                   <span v-if="preview.genre" class="tag">{{ preview.genre }}</span>
                 </div>
@@ -292,6 +297,7 @@ section { margin-bottom: 36px; }
 .main-img { width: 66%; height: 100%; object-fit: cover; display: block; }
 /* 右側資訊欄 */
 .info { flex: 1; padding: 16px 18px; display: flex; flex-direction: column; background: linear-gradient(180deg, var(--surface-2), var(--surface)); }
+.link { cursor: pointer; }
 .title { font-size: 24px; color: var(--gold); line-height: 1.2; margin-bottom: 10px; font-weight: bold; }
 .desc { font-size: 13px; line-height: 1.6; color: var(--text-muted); flex: 1; overflow: hidden; }
 .tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
