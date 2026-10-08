@@ -71,9 +71,17 @@ public class Member {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "auth_provider", length = 20)
-    @Builder.Default
-    private String authProvider = "LOCAL"; // 預設為 "LOCAL"，第三方登入則為 "GOOGLE"
+    @Column(name = "bank_name", length = 50)
+    private String bankName;
+
+    @Column(name = "bank_account", length = 50)
+    private String bankAccount;
+
+    @Column(name = "publisher_logo_url", length = 500)
+    private String publisherLogoUrl;
+
+    @Column(name = "publisher_description", columnDefinition = "NVARCHAR(MAX)")
+    private String publisherDescription;
 
     @PrePersist
     protected void onCreate() {

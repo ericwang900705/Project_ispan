@@ -32,6 +32,22 @@ public class JwtTokenProvider {
                 .compact();
     }
 
+    // 1.1 專屬管理員的 JWT 簽發方法
+    public String generateAdminToken(String adminAccount, Integer adminId, String roleCode) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + EXPIRATION_TIME);
+
+        return Jwts.builder()
+                .setSubject(adminAccount)
+                .claim("adminId", adminId)
+                .claim("type", "ADMIN")
+                .claim("role", roleCode)
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256) // 沿用密鑰
+                .compact();
+    }
+
     // 2. 驗證 Token 是否合法
     public boolean validateToken(String token) {
         try {
@@ -52,4 +68,14 @@ public class JwtTokenProvider {
                 .getBody()
                 .getSubject();
     }
+
+    // 解析並取得 Token 內所有的 Payload (Claims)
+    public Claims getClaimsFromToken(String token) {
+        return Jwts.parserBuilder() // 1. 改用 parserBuilder()
+                .setSigningKey(getSigningKey()) // 2. 沿用原本的密鑰設定
+                .build() // 3. 呼叫 build() 正式建立解析器
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
 }

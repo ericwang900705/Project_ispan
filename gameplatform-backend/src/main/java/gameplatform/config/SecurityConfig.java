@@ -35,6 +35,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/admin/auth/**").permitAll()
                         // 其他所有 API 都必須經過身分驗證
                         .anyRequest().authenticated())
                 // 將 JWT 攔截器掛載在原生的 UsernamePasswordAuthenticationFilter 之前

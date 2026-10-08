@@ -19,10 +19,14 @@ public class MemberController {
         this.memberService = memberService;
     }
 
+    // 註冊API
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody RegisterRequest request) {
-        String result = memberService.registerTest(request);
-        return ResponseEntity.ok(result);
+
+        memberService.register(request);
+
+        // 執行到這裡代表 service 沒有拋出任何例外，直接回傳成功訊息
+        return ResponseEntity.ok("註冊成功！驗證信已寄至您的信箱，請前往點擊連結完成驗證。");
     }
 
     // 登入 API

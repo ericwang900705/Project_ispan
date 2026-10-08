@@ -23,6 +23,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import org.springframework.beans.factory.annotation.Value;
+import gameplatform.mail.service.MailService;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -35,8 +36,9 @@ public class MemberService {
     private final PasswordHistoryRepository passwordHistoryRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider; // 1. 宣告 JwtTokenProvider
-    private MemberVerificationRepository memberVerificationRepository;
+    private final MemberVerificationRepository memberVerificationRepository;
     private final PasswordResetRepository passwordResetRepository;
+    private final MailService mailService;
 
     // 2. 建構子注入 JwtTokenProvider
     public MemberService(MemberRepository memberRepository,
@@ -44,58 +46,66 @@ public class MemberService {
             MemberVerificationRepository memberVerificationRepository,
             PasswordResetRepository passwordResetRepository,
             PasswordEncoder passwordEncoder,
-            JwtTokenProvider jwtTokenProvider) {
+            JwtTokenProvider jwtTokenProvider,
+            MailService mailService) {
         this.memberRepository = memberRepository;
         this.passwordHistoryRepository = passwordHistoryRepository;
         this.memberVerificationRepository = memberVerificationRepository;
         this.passwordResetRepository = passwordResetRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.mailService = mailService;
     }
 
     @Transactional
-    public String registerTest(RegisterRequest request) {
+    public void register(RegisterRequest request) {
+        // 1. 檢查帳號與信箱是否已存在
         if (memberRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("此帳號已被使用");
+            throw new RuntimeException("帳號已被使用");
         }
         if (memberRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("此信箱已被註冊");
+            throw new RuntimeException("信箱已被註冊");
         }
 
-        Member newMember = Member.builder()
-                .username(request.getUsername())
-                .email(request.getEmail())
-                .build();
-        Member savedMember = memberRepository.save(newMember);
+        // 2. 建立並儲存會員
+        Member member = new Member();
+        member.setUsername(request.getUsername());
+        member.setEmail(request.getEmail());
+        memberRepository.save(member);
 
-        PasswordHistory passwordHistory = PasswordHistory.builder()
-                .member(savedMember)
-                .passwordHash(passwordEncoder.encode(request.getRawPassword()))
-                .build();
+        // 3. 建立密碼歷史紀錄，儲存雜湊後的密碼
+        PasswordHistory passwordHistory = new PasswordHistory();
+        passwordHistory.setMember(member); // 關聯到剛剛建立的會員
+        passwordHistory.setPasswordHash(passwordEncoder.encode(request.getRawPassword()));
+
+        // 儲存密碼紀錄 (你已經在最上面注入了 passwordHistoryRepository)
         passwordHistoryRepository.save(passwordHistory);
 
-        // --- 以下為信箱驗證邏輯 ---
-
-        // 1. 產生一組隨機且唯一的 UUID 作為驗證碼
+        // 4. 產生 UUID 驗證碼
         String token = UUID.randomUUID().toString();
 
-        // 2. 建立驗證紀錄 (設定 24 小時後過期)
-        MemberVerification verification = MemberVerification.builder()
-                .email(savedMember.getEmail())
-                .verificationToken(token)
-                .expiresAt(LocalDateTime.now().plusHours(24))
-                .build();
+        // 5. 儲存驗證紀錄至資料庫 (設定 1 小時後過期)
+        MemberVerification verification = new MemberVerification();
+        verification.setEmail(member.getEmail());
+        verification.setVerificationToken(token);
+        verification.setExpiresAt(LocalDateTime.now().plusHours(1));
+        verification.setIsVerified(false);
         memberVerificationRepository.save(verification);
 
-        // 3. 模擬寄信：在終端機印出驗證連結
-        String verifyLink = "http://localhost:8080/api/auth/verify-email?token=" + token;
-        System.out.println("=================================================");
-        System.out.println("模擬寄信給: " + savedMember.getEmail());
-        System.out.println("請點擊以下連結完成驗證:");
-        System.out.println(verifyLink);
-        System.out.println("=================================================");
+        // 6. 組合驗證信 HTML 內容並寄出
+        // 注意：這裡的 localhost:8080 未來上線要換成你的正式網域或前端的 URL
+        String verifyLink = "http://localhost:8080/api/auth/verify?token=" + token;
+        String emailContent = "<div style='font-family: Arial, sans-serif; padding: 20px;'>" +
+                "<h2>歡迎加入遊戲平台！</h2>" +
+                "<p>親愛的玩家您好，請點擊下方按鈕完成信箱驗證，啟用您的帳號：</p>" +
+                "<a href='" + verifyLink
+                + "' style='display: inline-block; padding: 10px 20px; color: white; background-color: #007BFF; text-decoration: none; border-radius: 5px;'>完成信箱驗證</a>"
+                +
+                "<p>如果您並未註冊本平台，請忽略此信件。</p>" +
+                "<p>本連結將於 1 小時後失效。</p>" +
+                "</div>";
 
-        return "註冊成功！請至信箱點擊驗證連結。會員 ID 為: " + savedMember.getMemberId();
+        mailService.sendHtmlMail(member.getEmail(), "【遊戲平台】請驗證您的註冊信箱", emailContent);
     }
 
     @Transactional
@@ -279,7 +289,6 @@ public class MemberService {
             member = Member.builder()
                     .username(username)
                     .email(email)
-                    .authProvider("GOOGLE")
                     .build();
             member = memberRepository.save(member);
         }
