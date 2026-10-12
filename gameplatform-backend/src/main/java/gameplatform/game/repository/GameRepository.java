@@ -1,18 +1,21 @@
 package gameplatform.game.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import gameplatform.game.entity.Game;
 
-public interface GameRepository extends JpaRepository<Game, Integer> {
+// 利用 JpaSpecificationExecutor 建立動態查詢
+public interface GameRepository extends JpaRepository<Game, Integer>, JpaSpecificationExecutor<Game> {
 
     Optional<Game> findByGameIdAndStatusIn(
             Integer gameId,
@@ -69,4 +72,51 @@ public interface GameRepository extends JpaRepository<Game, Integer> {
 
     // 發行商查詢自己發行的遊戲（包含分頁）
     Page<Game> findByMemberId(Integer memberId, Pageable pageable);
+
+    // 用標籤查詢遊戲
+    @Query("""
+            SELECT g
+            FROM Game g
+            WHERE g.gameId IN (
+                SELECT gt.gameId
+                FROM GameTag gt
+                WHERE gt.tagId = :tagId
+            )
+            AND g.status IN (
+                'COMING_SOON',
+                'PUBLISHED',
+                'PENDING_OFF_SHELF'
+            )
+            """)
+    Page<Game> findPublicGamesByTagId(
+            @Param("tagId") Integer tagId,
+            Pageable pageable);
+
+    // 用多個標籤查詢遊戲
+    @Query("""
+            SELECT g
+            FROM Game g
+            WHERE g.gameId IN (
+                SELECT gt.gameId
+                FROM GameTag gt
+                WHERE gt.tagId IN :tagIds
+                GROUP BY gt.gameId
+                HAVING COUNT(DISTINCT gt.tagId) = :tagCount
+            )
+            AND g.status IN (
+                'COMING_SOON',
+                'PUBLISHED',
+                'PENDING_OFF_SHELF'
+            )
+            """)
+    Page<Game> findPublicGamesByTagIds(
+            @Param("tagIds") List<Integer> tagIds,
+            @Param("tagCount") Long tagCount,
+            Pageable pageable);
+
+    Page<Game> findByStatusInAndGameIdNotIn(
+            List<String> statuses,
+            Collection<Integer> excludedGameIds,
+            Pageable pageable);
+
 }

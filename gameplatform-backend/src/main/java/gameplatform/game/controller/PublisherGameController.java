@@ -27,6 +27,7 @@ import gameplatform.game.entity.Game;
 import gameplatform.game.entity.GameAuditLog;
 import gameplatform.game.entity.GameMedia;
 import gameplatform.game.entity.Tag;
+import gameplatform.game.service.GameCoverUploadService;
 import gameplatform.game.service.GameMediaService;
 import gameplatform.game.service.GameMediaUploadService;
 import gameplatform.game.service.GameService;
@@ -42,6 +43,7 @@ public class PublisherGameController {
     private final GameTagService gameTagService;
     private final GameMediaService gameMediaService;
     private final GameMediaUploadService gameMediaUploadService;
+    private final GameCoverUploadService gameCoverUploadService;
 
     // 新增遊戲
     @PostMapping
@@ -278,5 +280,22 @@ public class PublisherGameController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(media);
+    }
+
+    // 發行商上傳遊戲封面
+    @PostMapping(value = "/{gameId}/cover/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Game> uploadGameCover(
+            @PathVariable Integer gameId,
+            @RequestParam Integer memberId,
+            @RequestParam("file") MultipartFile file) {
+
+        Game game = gameCoverUploadService.uploadCover(
+                gameId,
+                memberId,
+                file);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(game);
     }
 }
