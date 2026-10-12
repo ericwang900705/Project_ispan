@@ -22,10 +22,13 @@ public class JwtTokenProvider {
     }
 
     // 1. 產生 JWT Token
-    public String generateToken(String username, Integer memberId) {
+    public String generateToken(String username, Integer memberId, Boolean isPublisher) {
+        // 判斷角色：如果是發行商給予 ROLE_PUBLISHER，否則給予 ROLE_USER
+        String role = (isPublisher != null && isPublisher) ? "ROLE_PUBLISHER" : "ROLE_USER";
         return Jwts.builder()
                 .setSubject(username)
                 .claim("memberId", memberId)
+                .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
@@ -76,6 +79,12 @@ public class JwtTokenProvider {
                 .build() // 3. 呼叫 build() 正式建立解析器
                 .parseClaimsJws(token)
                 .getBody();
+    }
+
+    // 用來從 Token 中把 role 讀出來
+    public String getRoleFromToken(String token) {
+        Claims claims = getClaimsFromToken(token);
+        return claims.get("role", String.class);
     }
 
 }

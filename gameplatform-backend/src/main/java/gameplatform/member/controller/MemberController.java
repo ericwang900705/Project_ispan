@@ -1,12 +1,18 @@
 package gameplatform.member.controller;
 
 import gameplatform.member.dto.LoginRequest;
+
 import gameplatform.member.dto.RegisterRequest;
+import gameplatform.member.dto.ResendVerificationRequest;
 import gameplatform.member.service.MemberService;
+import jakarta.validation.Valid;
+
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import gameplatform.member.dto.ForgotPasswordRequest;
 import gameplatform.member.dto.ResetPasswordRequest;
+
 import gameplatform.member.dto.GoogleLoginRequest;
 
 @RestController
@@ -22,7 +28,6 @@ public class MemberController {
     // 註冊API
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody RegisterRequest request) {
-
         memberService.register(request);
 
         // 執行到這裡代表 service 沒有拋出任何例外，直接回傳成功訊息
@@ -37,7 +42,7 @@ public class MemberController {
     }
 
     // 接收驗證請求的GET 端點：
-    @GetMapping("/verify-email")
+    @GetMapping("/verify")
     public ResponseEntity<String> verifyEmail(@RequestParam String token) {
         String result = memberService.verifyEmail(token);
         return ResponseEntity.ok(result);
@@ -52,7 +57,7 @@ public class MemberController {
 
     // 執行重設密碼 API
     @PostMapping("/reset-password")
-    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
+    public ResponseEntity<String> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         String result = memberService.resetPassword(request);
         return ResponseEntity.ok(result);
     }
@@ -64,4 +69,17 @@ public class MemberController {
         return ResponseEntity.ok(token);
     }
 
+    // 重發驗證信
+    @PostMapping("/resend-verification")
+    public ResponseEntity<String> resendVerification(@RequestBody ResendVerificationRequest request) {
+        String result = memberService.resendVerificationEmail(request);
+        return ResponseEntity.ok(result);
+    }
+
+    // 測試
+    @GetMapping("/publisher-only")
+    @PreAuthorize("hasRole('PUBLISHER')") // Spring 會自動略去 ROLE_ 前綴來比對
+    public ResponseEntity<String> testPublisherApi() {
+        return ResponseEntity.ok("歡迎進入發行商專屬後台！");
+    }
 }

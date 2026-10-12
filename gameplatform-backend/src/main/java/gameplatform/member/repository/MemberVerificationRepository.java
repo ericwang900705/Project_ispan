@@ -4,6 +4,7 @@ import gameplatform.member.entity.MemberVerification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -14,4 +15,7 @@ public interface MemberVerificationRepository extends JpaRepository<MemberVerifi
 
     // 尋找某個 Email 最新發送的一筆未驗證紀錄
     Optional<MemberVerification> findFirstByEmailAndIsVerifiedFalseOrderBySentAtDesc(String email);
+
+    // 透過信箱找出所有的驗證紀錄
+    List<MemberVerification> findByEmail(String email);
 }

@@ -54,8 +54,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String role = claims.get("role", String.class);
                 authorities.add(new SimpleGrantedAuthority(role));
             } else {
-                // 一般會員：預設賦予 ROLE_MEMBER
-                authorities.add(new SimpleGrantedAuthority("ROLE_MEMBER"));
+                // 會員也從 Token 中取出 "role" (會是 ROLE_PUBLISHER 或 ROLE_MEMBER)
+                String role = claims.get("role", String.class);
+
+                if (role != null) {
+                    authorities.add(new SimpleGrantedAuthority(role));
+                } else {
+                    // 相容舊的 Token：如果舊玩家的 Token 裡面還沒寫入 role，預設給他 MEMBER
+                    authorities.add(new SimpleGrantedAuthority("ROLE_MEMBER"));
+                }
             }
 
             // 5. 建立 Spring Security 認識的 Authentication 物件 (帶入動態生成的 authorities)
@@ -65,6 +72,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 6. 將驗證資訊放進 SecurityContext 中，Spring Security 就會知道這個請求是「已登入」狀態
             SecurityContextHolder.getContext().setAuthentication(authentication);
         }
+        filterChain.doFilter(request, response);// 關鍵：繼續執行後續 Filter 與 Controller
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {
