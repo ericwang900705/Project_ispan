@@ -1,0 +1,88 @@
+package gameplatform.recommendation.controller;
+
+import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.data.domain.Sort;
+import lombok.RequiredArgsConstructor;
+import gameplatform.recommendation.dto.MemberPlayPreferenceDto;
+import gameplatform.recommendation.dto.MemberPreferenceProfileDto;
+import gameplatform.recommendation.dto.MemberReviewPreferenceDto;
+import gameplatform.recommendation.dto.MemberTagPreferenceDto;
+import gameplatform.recommendation.dto.PurchasedGameDto;
+import gameplatform.recommendation.dto.RecommendationCandidateDto;
+import gameplatform.recommendation.entity.AiGameRecommendation;
+import gameplatform.recommendation.service.AiGameRecommendationService;
+
+@RestController
+@RequestMapping("/api/recommendations")
+@RequiredArgsConstructor
+public class AiGameRecommendationController {
+
+    private final AiGameRecommendationService recommendationService;
+
+    // 查詢指定會員的 AI 推薦遊戲
+    @GetMapping("/members/{memberId}")
+    public List<AiGameRecommendation> findByMemberId(
+            @PathVariable Integer memberId) {
+
+        return recommendationService.findByMemberId(memberId);
+    }
+
+    // 查詢會員已購買的遊戲
+    @GetMapping("/members/{memberId}/purchased-games")
+    public List<PurchasedGameDto> findPurchasedGames(
+            @PathVariable Integer memberId) {
+
+        return recommendationService.findPurchasedGames(memberId);
+    }
+
+    // 查詢會員偏好的遊戲類型
+    @GetMapping("/members/{memberId}/tag-preferences")
+    public List<MemberTagPreferenceDto> findMemberTagPreferences(
+            @PathVariable Integer memberId) {
+
+        return recommendationService.findMemberTagPreferences(memberId);
+    }
+
+    // 查詢會員的遊玩偏好
+    @GetMapping("/members/{memberId}/play-preferences")
+    public List<MemberPlayPreferenceDto> findMemberPlayPreferences(
+            @PathVariable Integer memberId) {
+
+        return recommendationService.findMemberPlayPreferences(memberId);
+    }
+
+    // 查詢會員的遊戲評價偏好
+    @GetMapping("/members/{memberId}/review-preferences")
+    public List<MemberReviewPreferenceDto> findMemberReviewPreferences(
+            @PathVariable Integer memberId) {
+
+        return recommendationService.findMemberReviewPreferences(memberId);
+    }
+
+    // 查詢會員完整遊戲偏好資料
+    @GetMapping("/members/{memberId}/profile")
+    public MemberPreferenceProfileDto getMemberPreferenceProfile(
+            @PathVariable Integer memberId) {
+
+        return recommendationService.getMemberPreferenceProfile(memberId);
+    }
+
+    // 查詢 AI 推薦候選遊戲
+    @GetMapping("/members/{memberId}/candidates")
+    public Page<RecommendationCandidateDto> findCandidates(
+            @PathVariable Integer memberId,
+            @PageableDefault(size = 10, sort = "releaseDate", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        return recommendationService.findCandidates(
+                memberId,
+                pageable);
+    }
+}
