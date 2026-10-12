@@ -38,7 +38,25 @@ onMounted(async () => {
     if (payment === 'success') cart.fetchLibrary()
   }
   cart.fetchCart()
+  cart.fetchCoupons()
 })
+
+// 選優惠券：v-model 綁購物車目前的券，改變時請後端整個購物車套用（'' 代表不使用）
+const couponId = computed({
+  get: () => cart.coupon?.couponId ?? '',
+  set: async (id) => {
+    try {
+      await cart.applyCoupon(id === '' ? null : id)
+    } catch (e) {
+      alert(e.message) // 例如「優惠券目前不能使用」
+    }
+  },
+})
+
+// 折扣乘數換成「幾折」文字，例如 0.80 → 8 折、0.75 → 7.5 折
+function discountLabel(c) {
+  return `${Number((c.discountValue * 10).toFixed(1))} 折`
+}
 
 // 套用優惠券前的小計（每項遊戲售價加總）
 const subtotal = computed(() => cart.items.reduce((sum, item) => sum + item.game.price, 0))
@@ -128,11 +146,10 @@ async function checkout() {
             <div class="info">
               <!-- 遊戲名稱 -->
               <div class="name">{{ item.game.gameName }}</div>
-              <!-- 分類、送禮、優惠券以小標籤顯示 -->
+              <!-- 分類、送禮以小標籤顯示（優惠券套在整個購物車，顯示在右邊摘要） -->
               <div class="tags">
                 <span v-if="item.game.genre" class="tag">{{ item.game.genre }}</span>
                 <span v-if="item.isGift" class="tag gift">🎁 送給 {{ item.recipientMember.username }}</span>
-                <span v-if="item.coupon" class="tag coupon">🏷️ {{ item.coupon.couponName }}</span>
               </div>
               <!-- 移除：做成文字連結，比較不搶眼 -->
               <button class="remove" :disabled="cart.loading" @click="remove(item.cartItemId)">移除</button>
@@ -153,9 +170,19 @@ async function checkout() {
             <span>小計</span>
             <span>NT$ {{ subtotal }}</span>
           </div>
+          <!-- 優惠券：整個購物車套用同一張 -->
+          <label class="coupon">
+            <span>🏷️ 優惠券</span>
+            <select v-model="couponId" :disabled="cart.loading">
+              <option value="">不使用優惠券</option>
+              <option v-for="c in cart.coupons" :key="c.couponId" :value="c.couponId">
+                {{ c.couponName }}（{{ discountLabel(c) }}）
+              </option>
+            </select>
+          </label>
           <!-- 有用優惠券省到錢才顯示 -->
           <div v-if="saved > 0" class="line saved">
-            <span>優惠券折抵</span>
+            <span>{{ cart.coupon.couponName }}</span>
             <span>- NT$ {{ saved }}</span>
           </div>
           <div class="line total">
@@ -226,7 +253,6 @@ async function checkout() {
 .tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--bg); border: 1px solid var(--gold-dark); color: var(--text-muted); }
 .tag.gift { border-color: #a8506a; color: #f0a0b8; }
-.tag.coupon { border-color: var(--gold); color: var(--gold); }
 /* 移除：灰色文字按鈕，滑鼠移上去變紅 */
 .remove { align-self: flex-start; margin-top: auto; border: none; background: none; padding: 0; font-size: 12px; color: var(--text-muted); cursor: pointer; text-decoration: underline; }
 .remove:hover:not(:disabled) { color: #ff7a5c; }
@@ -249,6 +275,13 @@ async function checkout() {
 .summary h2 { margin: 0 0 16px; font-size: 18px; color: var(--gold); }
 .line { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; color: var(--text-muted); }
 .line.saved { color: #ff8a6a; }
+/* 優惠券下拉選單 */
+.coupon { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; font-size: 14px; color: var(--text-muted); }
+.coupon select {
+  padding: 8px 10px; border-radius: 6px; font-size: 14px; cursor: pointer; outline: none;
+  border: 1px solid var(--gold-dark); background: var(--bg); color: var(--text);
+}
+.coupon select:focus { border-color: var(--gold); }
 /* 總金額：上方分隔線、大字金色 */
 .line.total { margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--gold-dark); font-size: 16px; color: var(--text); }
 .line.total span:last-child { font-size: 24px; font-weight: bold; color: var(--gold); }

@@ -18,6 +18,10 @@ export const useCartStore = defineStore('cart', () => {
   const items = ref([])
   // 購物車總金額（由後端計算，已套用優惠券）
   const totalPrice = ref(0)
+  // 整個購物車套用的優惠券（沒有就是 null）：{ couponId, couponName, discountValue, ... }
+  const coupon = ref(null)
+  // 現在可以用的優惠券（購物車選券用）
+  const coupons = ref([])
   // 會員遊戲庫（已擁有的遊戲），用來判斷「已擁有」
   const library = ref([])
   // 是否正在與後端溝通中（用來停用按鈕、顯示載入狀態）
@@ -38,12 +42,39 @@ export const useCartStore = defineStore('cart', () => {
   async function fetchCart() {
     loading.value = true
     try {
-      // GET /api/cart/{memberId}：回傳 { items: [...], totalPrice }
+      // GET /api/cart/{memberId}：回傳 { items: [...], coupon, totalPrice }
       const { data } = await axios.get(`/api/cart/${MEMBER_ID}`)
-      items.value = data.items
-      totalPrice.value = data.totalPrice
+      setCart(data)
     } finally {
       // 無論成功或失敗都結束載入狀態
+      loading.value = false
+    }
+  }
+
+  // 把後端回傳的購物車存起來
+  function setCart(data) {
+    items.value = data.items
+    coupon.value = data.coupon
+    totalPrice.value = data.totalPrice
+  }
+
+  // 取得現在可以用的優惠券
+  async function fetchCoupons() {
+    // GET /api/coupons/usable
+    const { data } = await axios.get('/api/coupons/usable')
+    coupons.value = data
+  }
+
+  // 整個購物車套用優惠券；couponId 傳 null 就是取消
+  async function applyCoupon(couponId) {
+    loading.value = true
+    try {
+      // PUT /api/cart/{memberId}/coupon：回傳套用後的購物車
+      const { data } = await axios.put(`/api/cart/${MEMBER_ID}/coupon`, { couponId })
+      setCart(data)
+    } catch (e) {
+      throw toError(e, '套用優惠券失敗')
+    } finally {
       loading.value = false
     }
   }
@@ -120,5 +151,5 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   // 對外公開的狀態與方法
-  return { items, totalPrice, library, loading, isInCart, isOwned, fetchCart, fetchLibrary, addItem, removeItem, payWithEcpay, fetchPaymentOrder }
+  return { items, totalPrice, coupon, coupons, library, loading, isInCart, isOwned, fetchCart, fetchLibrary, fetchCoupons, applyCoupon, addItem, removeItem, payWithEcpay, fetchPaymentOrder }
 })
