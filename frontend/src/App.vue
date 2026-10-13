@@ -51,6 +51,7 @@ onMounted(() => gamesStore.fetchGames())
         <RouterLink to="/about">平台介紹</RouterLink>
         <RouterLink to="/point-store">點數商店</RouterLink>
         <RouterLink to="/member-games">遊戲庫</RouterLink>
+        <RouterLink to="/orders">我的訂單</RouterLink>
         <RouterLink to="/shopping-cart">購物車</RouterLink>
       </nav>
     </div>

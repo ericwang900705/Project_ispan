@@ -1,10 +1,11 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
-import { useGamesStore } from '@/stores/games'
+import { useGamesStore, addRecent } from '@/stores/games'
 import { useCartStore } from '@/stores/cart'
 import { useReviewStore } from '@/stores/reviews'
 import AddToCartButton from '@/components/AddToCartButton.vue'
+import GiftButton from '@/components/GiftButton.vue'
 import PriceBlock from '@/components/PriceBlock.vue'
 import ReviewForm from '@/components/ReviewForm.vue'
 
@@ -36,7 +37,12 @@ onMounted(() => {
   cart.fetchCart()
 })
 // 換到另一款遊戲時（網址 id 改變）重新抓評論
-watch(() => route.params.id, (id) => id && reviewStore.fetchReviews(id), { immediate: true })
+// 同時記到「最近瀏覽」（首頁分頁會用到）
+watch(() => route.params.id, (id) => {
+  if (!id) return
+  reviewStore.fetchReviews(id)
+  addRecent(id)
+}, { immediate: true })
 
 // 推薦比例換成 Steam 風格的文字
 const summary = computed(() => {
@@ -85,6 +91,7 @@ function day(dateTime) {
           <div class="buy">
             <PriceBlock :game="game" />
             <AddToCartButton :game-id="game.gameId" class="cart-btn" />
+            <GiftButton :game-id="game.gameId" :game-name="game.gameName" />
           </div>
         </div>
       </section>

@@ -100,6 +100,31 @@ export const useCartStore = defineStore('cart', () => {
     await fetchCart()
   }
 
+  // 用帳號找受贈者；找不到時把後端的錯誤訊息往外丟
+  async function findMember(username) {
+    try {
+      // GET /api/members/lookup?username=...：回傳 { memberId, username }
+      const { data } = await axios.get('/api/members/lookup', { params: { username } })
+      return data
+    } catch (e) {
+      throw toError(e, '查詢會員失敗')
+    }
+  }
+
+  // 把遊戲當禮物加入購物車；後端會檢查不能送自己、對方已擁有、購物車已有同一份禮物
+  async function addGift(gameId, recipientMemberId) {
+    loading.value = true
+    try {
+      // POST /api/cart/{memberId}/add：送禮要帶 isGift 與 recipientMemberId
+      await axios.post(`/api/cart/${MEMBER_ID}/add`, { gameId, isGift: true, recipientMemberId })
+    } catch (e) {
+      throw toError(e, '加入禮物失敗')
+    } finally {
+      loading.value = false
+    }
+    await fetchCart()
+  }
+
   // 從購物車移除一個項目
   async function removeItem(cartItemId) {
     loading.value = true
@@ -151,5 +176,5 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   // 對外公開的狀態與方法
-  return { items, totalPrice, coupon, coupons, library, loading, isInCart, isOwned, fetchCart, fetchLibrary, fetchCoupons, applyCoupon, addItem, removeItem, payWithEcpay, fetchPaymentOrder }
+  return { items, totalPrice, coupon, coupons, library, loading, isInCart, isOwned, fetchCart, fetchLibrary, fetchCoupons, applyCoupon, addItem, findMember, addGift, removeItem, payWithEcpay, fetchPaymentOrder }
 })

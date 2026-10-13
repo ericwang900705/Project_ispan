@@ -120,7 +120,8 @@ async function checkout() {
               <dt>繳費期限</dt><dd>{{ paymentResult.order.expireDate }}</dd>
             </dl>
           </template>
-          <p class="hint">繳費完成後遊戲才會加入遊戲庫</p>
+          <p class="hint">繳費完成後遊戲才會加入遊戲庫；之後也可以到「我的訂單」查看繳費資訊</p>
+          <RouterLink to="/orders" class="btn-gold">查看我的訂單</RouterLink>
         </template>
         <!-- 付款失敗 / 取消 -->
         <template v-else>

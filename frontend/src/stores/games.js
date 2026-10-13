@@ -22,7 +22,17 @@ export const useGamesStore = defineStore('games', () => {
     games.value = data
   }
 
-  return { games, genres, discountedGames, fetchGames }
+  // 每款遊戲的統計，用 gameId 查：{ 1: { avgRating, reviewCount, soldCount }, ... }
+  const stats = ref({})
+
+  // 取得統計（首頁「評價排行」「暢銷商品」用）
+  async function fetchStats() {
+    // GET /api/games/stats：[{ gameId, avgRating, reviewCount, soldCount }]
+    const { data } = await axios.get('/api/games/stats')
+    stats.value = Object.fromEntries(data.map((s) => [s.gameId, s]))
+  }
+
+  return { games, genres, discountedGames, stats, fetchGames, fetchStats }
 })
 
 // 有原價且原價比售價高，才算有打折
@@ -45,4 +55,24 @@ const GENRE_ICONS = {
 }
 export function genreIcon(genre) {
   return GENRE_ICONS[genre] ?? '🎮'
+}
+
+// ===== 最近瀏覽 =====
+// 存在瀏覽器 localStorage，只記 gameId，最新的在前面，最多 10 款
+const RECENT_KEY = 'recentGames'
+export function getRecentIds() {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY)) ?? []
+  } catch {
+    return []
+  }
+}
+// 看過某款遊戲時呼叫（遊戲詳情頁）
+export function addRecent(gameId) {
+  const ids = [Number(gameId), ...getRecentIds().filter((id) => id !== Number(gameId))].slice(0, 10)
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(ids))
+  } catch {
+    // 無痕模式等情況存不進去就算了
+  }
 }

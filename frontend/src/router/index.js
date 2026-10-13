@@ -22,6 +22,11 @@ const routes = [
         component: () => import('../views/ShoppingCart.vue')
     },
     {
+        path: '/orders',//我的訂單
+        name: 'Orders',
+        component: () => import('../views/Orders.vue')
+    },
+    {
         path: '/point-store',//點數商店
         name: 'PointStore',
         component: () => import('../views/PointStore.vue')

@@ -11,12 +11,12 @@ import AddToCartButton from '@/components/AddToCartButton.vue'
 import PriceBlock from '@/components/PriceBlock.vue'
 // 共用的購物車 store、遊戲 store
 import { useCartStore } from '@/stores/cart'
-import { useGamesStore, hasDiscount, discountPercent } from '@/stores/games'
+import { useGamesStore, hasDiscount, discountPercent, getRecentIds } from '@/stores/games'
 
 const router = useRouter()
 const cart = useCartStore()
 const gamesStore = useGamesStore()
-const { games, genres, discountedGames } = storeToRefs(gamesStore)
+const { games, genres, discountedGames, stats } = storeToRefs(gamesStore)
 
 // ===== 搜尋框 =====
 // 搜尋框輸入的文字
@@ -59,20 +59,53 @@ function stopAuto() {
   clearInterval(timer)
 }
 
-// ===== 底部分頁清單（新上架 / 特價優惠 / 全部遊戲） =====
+// ===== 底部分頁清單 =====
 const tabs = [
   { key: 'new', label: '新上架' },
   { key: 'sale', label: '特價優惠' },
   { key: 'all', label: '全部遊戲' },
+  { key: 'rating', label: '評價排行' },
+  { key: 'upcoming', label: '即將發行' },
+  { key: 'best', label: '暢銷商品' },
+  { key: 'recent', label: '最近瀏覽' },
 ]
 // 目前選的分頁
 const activeTab = ref('new')
-// 依分頁決定清單內容：新上架 = 遊戲編號由大到小（越晚加入的越新）
+// 某款遊戲的統計（還沒抓到就當 0）
+function statOf(game) {
+  return stats.value[game.gameId] ?? { avgRating: 0, reviewCount: 0, soldCount: 0 }
+}
+// 最近瀏覽過的 gameId（進入首頁時從 localStorage 讀一次）
+const recentIds = ref(getRecentIds())
+// 依分頁決定清單內容
 const tabGames = computed(() => {
-  if (activeTab.value === 'new') return [...games.value].sort((a, b) => b.gameId - a.gameId).slice(0, 10)
-  if (activeTab.value === 'sale') return discountedGames.value
-  return games.value
+  switch (activeTab.value) {
+    // 新上架：遊戲編號由大到小（越晚加入的越新）
+    case 'new': return [...games.value].sort((a, b) => b.gameId - a.gameId).slice(0, 10)
+    case 'sale': return discountedGames.value
+    // 評價排行：只列有評論的，平均分數高的在前，同分比評論數
+    case 'rating': return games.value.filter((g) => statOf(g).reviewCount > 0)
+      .sort((a, b) => statOf(b).avgRating - statOf(a).avgRating || statOf(b).reviewCount - statOf(a).reviewCount)
+      .slice(0, 10)
+    // 即將發行：遊戲狀態是 COMING_SOON 的
+    case 'upcoming': return games.value.filter((g) => g.status === 'COMING_SOON')
+    // 暢銷商品：只列有賣出的，賣最多的在前
+    case 'best': return games.value.filter((g) => statOf(g).soldCount > 0)
+      .sort((a, b) => statOf(b).soldCount - statOf(a).soldCount)
+      .slice(0, 10)
+    // 最近瀏覽：照看過的順序
+    case 'recent': return recentIds.value.map((id) => games.value.find((g) => g.gameId === id)).filter(Boolean)
+    default: return games.value
+  }
 })
+// 清單每一列名稱下面那行小字：依分頁顯示評分 / 銷量，其他分頁顯示分類
+function rowSub(game) {
+  const s = statOf(game)
+  if (activeTab.value === 'rating') return `★ ${s.avgRating.toFixed(1)}（${s.reviewCount} 則評論）`
+  if (activeTab.value === 'best') return `已售出 ${s.soldCount} 套`
+  if (activeTab.value === 'upcoming') return '即將推出'
+  return game.genre || '未分類'
+}
 // 右側預覽：滑鼠移到哪一列就預覽哪款，沒移過就預覽第一款
 const hovered = ref(null)
 const preview = computed(() => hovered.value ?? tabGames.value[0])
@@ -97,9 +130,10 @@ function countOf(genre) {
   return games.value.filter((g) => g.genre === genre).length
 }
 
-// 進入頁面：抓遊戲、購物車、遊戲庫，開始自動輪播
+// 進入頁面：抓遊戲、統計、購物車、遊戲庫，開始自動輪播
 onMounted(() => {
   gamesStore.fetchGames()
+  gamesStore.fetchStats()
   cart.fetchCart()
   cart.fetchLibrary()
   startAuto()
@@ -110,8 +144,8 @@ onUnmounted(stopAuto)
 
 <template>
   <main class="home">
-    <!-- ===== 滿版背景大圖：用輪播目前那款遊戲的封面，往下漸漸淡成深藍 ===== -->
-    <div class="hero-bg" :style="current ? { backgroundImage: `url(${current.coverUrl})` } : {}"></div>
+    <!-- ===== 滿版背景大圖：固定一張圖（放在 public/home-bg.jpg），往下漸漸淡成深藍 ===== -->
+    <div class="hero-bg"></div>
 
     <!-- ===== 搜尋框 ===== -->
     <div class="store-nav">
@@ -209,7 +243,7 @@ onUnmounted(stopAuto)
                   <img :src="game.coverUrl" :alt="game.gameName" />
                   <div class="row-text">
                     <div class="row-name">{{ game.gameName }}</div>
-                    <div class="row-genre">{{ game.genre || '未分類' }}</div>
+                    <div class="row-genre">{{ rowSub(game) }}</div>
                   </div>
                   <PriceBlock :game="game" />
                 </div>
@@ -255,8 +289,8 @@ onUnmounted(stopAuto)
    z-index: -1 → 放在所有內容後面（包含最上面的導覽列） */
 .hero-bg {
   position: absolute; top: 0; left: 0; width: 100%; height: 1000px; z-index: -1; overflow: hidden;
-  background-color: var(--bg); background-size: cover; background-position: center top;
-  transition: background-image .6s;
+  background-color: var(--bg); background-image: url('/home-bg.jpg');
+  background-size: cover; background-position: center top;
 }
 /* 蓋在圖上的漸層：上方稍暗、左右兩側壓暗、下方淡成深藍底色 */
 .hero-bg::after {

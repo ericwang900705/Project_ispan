@@ -1,0 +1,1 @@
+import{a as e,b as t,c as n}from"./runtime-core.esm-bundler-D_6faONl.js";var r={class:`point-store`},i={__name:`PointStore`,setup(i){return(i,a)=>(t(),n(`main`,r,[...a[0]||=[e(`h1`,null,`點數商店`,-1)]]))}};export{i as default};
