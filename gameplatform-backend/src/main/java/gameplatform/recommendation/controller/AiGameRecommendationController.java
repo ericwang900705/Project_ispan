@@ -1,6 +1,7 @@
 package gameplatform.recommendation.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,8 +18,10 @@ import gameplatform.recommendation.dto.MemberReviewPreferenceDto;
 import gameplatform.recommendation.dto.MemberTagPreferenceDto;
 import gameplatform.recommendation.dto.PurchasedGameDto;
 import gameplatform.recommendation.dto.RecommendationCandidateDto;
+import gameplatform.recommendation.dto.TopRecommendedGameDto;
 import gameplatform.recommendation.entity.AiGameRecommendation;
 import gameplatform.recommendation.service.AiGameRecommendationService;
+import gameplatform.recommendation.service.AiRecommendationRefreshService;
 
 @RestController
 @RequestMapping("/api/recommendations")
@@ -26,6 +29,7 @@ import gameplatform.recommendation.service.AiGameRecommendationService;
 public class AiGameRecommendationController {
 
     private final AiGameRecommendationService recommendationService;
+    private final AiRecommendationRefreshService refreshService;
 
     // 查詢指定會員的 AI 推薦遊戲
     @GetMapping("/members/{memberId}")
@@ -85,4 +89,29 @@ public class AiGameRecommendationController {
                 memberId,
                 pageable);
     }
+
+    // 查詢會員的前 5 名推薦遊戲
+    @GetMapping("/members/{memberId}/top5")
+    public List<TopRecommendedGameDto> findTop5RecommendedGames(
+            @PathVariable Integer memberId) {
+
+        return recommendationService
+                .findTop5RecommendedGames(memberId);
+    }
+
+    // 查詢會員的 AI 推薦更新狀態
+    @GetMapping("/members/{memberId}/refresh-status")
+    public Map<String, Object> getRefreshStatus(
+            @PathVariable Integer memberId) {
+
+        boolean needsRefresh = refreshService.needsRefresh(memberId);
+
+        return Map.of(
+                "memberId", memberId,
+                "needsRefresh", needsRefresh,
+                "message", needsRefresh
+                        ? "AI 推薦需要更新"
+                        : "AI 推薦目前不需要更新");
+    }
+
 }

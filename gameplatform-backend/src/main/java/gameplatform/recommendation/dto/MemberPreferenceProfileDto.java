@@ -4,15 +4,25 @@ import java.util.List;
 
 public record MemberPreferenceProfileDto(
 
-        Integer memberId,
+                Integer memberId,
 
-        List<PurchasedGameDto> purchasedGames,
+                // 已購買的遊戲
+                List<PurchasedGameDto> purchasedGames,
 
-        List<MemberTagPreferenceDto> tagPreferences,
+                // 從購買紀錄分析出的 Tag 偏好
+                List<MemberTagPreferenceDto> tagPreferences,
 
-        List<MemberPlayPreferenceDto> playPreferences,
+                // 遊戲遊玩偏好
+                List<MemberPlayPreferenceDto> playPreferences,
 
-        List<MemberReviewPreferenceDto> reviewPreferences
+                // 遊戲評論偏好
+                List<MemberReviewPreferenceDto> reviewPreferences,
+
+                // 遊戲詳情頁瀏覽偏好（新增）
+                List<GameViewPreferenceDto> viewPreferences,
+
+                // Tag 搜尋偏好（新增）
+                List<TagSearchPreferenceDto> searchPreferences
 
 ) {
 }
