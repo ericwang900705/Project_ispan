@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import jakarta.mail.MessagingException;
@@ -24,6 +25,7 @@ public class MailService {
     }
 
     // 寄送純文字信件
+    @Async
     public void sendSimpleTextMail(String to, String subject, String text) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(fromEmail);
@@ -35,6 +37,7 @@ public class MailService {
     }
 
     // 寄送 HTML 格式信件 (適合包含按鈕或超連結的驗證信)
+    @Async
     public void sendHtmlMail(String to, String subject, String htmlContent) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
