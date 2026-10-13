@@ -72,7 +72,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 6. 將驗證資訊放進 SecurityContext 中，Spring Security 就會知道這個請求是「已登入」狀態
             SecurityContextHolder.getContext().setAuthentication(authentication);
         }
-        filterChain.doFilter(request, response);// 關鍵：繼續執行後續 Filter 與 Controller
+        filterChain.doFilter(request, response);
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {

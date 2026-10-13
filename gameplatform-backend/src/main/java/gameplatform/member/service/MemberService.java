@@ -21,6 +21,7 @@ import gameplatform.member.dto.ForgotPasswordRequest;
 import gameplatform.member.dto.GoogleLoginRequest;
 import gameplatform.member.dto.LoginRequest;
 import gameplatform.member.dto.MemberProfileResponse;
+import gameplatform.member.dto.PublisherApplicationRequest;
 import gameplatform.member.dto.RegisterRequest;
 import gameplatform.member.dto.ResendVerificationRequest;
 import gameplatform.member.dto.ResetPasswordRequest;
@@ -377,7 +378,35 @@ public class MemberService {
         return "驗證信已重新寄出，請至信箱查收。";
     }
 
-    // ---10.google登入
+    // ---10.申請成為發行商
+    @Transactional
+    public String applyToBePublisher(String username, PublisherApplicationRequest request) {
+
+        // 1. 取得當前登入的會員
+        Member member = memberRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("找不到該會員"));
+
+        // 2. 狀態檢查
+        if (member.getIsPublisher() != null && member.getIsPublisher()) {
+            throw new RuntimeException("您已經是發行商了，無需重複申請");
+        }
+
+        if (member.getCompanyName() != null) {
+            throw new RuntimeException("您的發行商申請正在審核中，請耐心等候");
+        }
+
+        // 3. 寫入公司資料，進入待審核狀態
+        member.setCompanyName(request.getCompanyName());
+        member.setTaxId(request.getTaxId());
+        member.setWebsiteUrl(request.getWebsiteUrl());
+        member.setBankName(request.getBankName());
+
+        memberRepository.save(member);
+
+        return "發行商申請已送出，請等候管理員審核！";
+    }
+
+    // ---11.google登入
     // 1. 從 application.properties 動態讀取 Client ID
     @Value("${google.client.id}")
     private String googleClientId;

@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import gameplatform.member.dto.ChangePasswordRequest;
 import gameplatform.member.dto.MemberProfileResponse;
-import gameplatform.member.dto.ResendVerificationRequest;
+import gameplatform.member.dto.PublisherApplicationRequest;
 import gameplatform.member.dto.UpdateProfileRequest;
 import gameplatform.member.service.MemberService;
 import jakarta.validation.Valid;
@@ -27,6 +27,7 @@ public class MemberProfileController {
         this.memberService = memberService;
     }
 
+    // 取得目前登入狀態
     @GetMapping("/me")
     public ResponseEntity<MemberProfileResponse> getProfile() {
         // 1. 從 JWT 攔截器中取得目前登入的帳號
@@ -58,12 +59,23 @@ public class MemberProfileController {
     public ResponseEntity<MemberProfileResponse> updateProfile(@Valid @RequestBody UpdateProfileRequest request,
             Authentication authentication) {
 
-        String currentUsername = authentication.getName();// 直接從 Token 中取得目前登入的帳號，安全又精簡
+        String currentUsername = authentication.getName();
 
         // 呼叫 Service 執行更新，並取得更新後的資料
         MemberProfileResponse updatedProfile = memberService.updateProfile(currentUsername, request);
 
         return ResponseEntity.ok(updatedProfile);
+    }
+
+    // 申請成為發行商
+    @PostMapping("/apply-publisher")
+    public ResponseEntity<String> applyToBePublisher(@Valid @RequestBody PublisherApplicationRequest request,
+            Authentication authentication) {
+
+        String currentUsername = authentication.getName();// 直接從 Token 中取得目前登入的帳號，安全又精簡
+
+        String result = memberService.applyToBePublisher(currentUsername, request);
+        return ResponseEntity.ok(result);
     }
 
 }
