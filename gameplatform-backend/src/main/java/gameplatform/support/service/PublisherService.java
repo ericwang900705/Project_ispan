@@ -13,10 +13,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
-@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="aki.modules.enabled",havingValue="true")
 @Service
 @Transactional(readOnly = true)
 public class PublisherService {
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private NotificationService notifications;
     private static final List<String> ALLOWED_TAGS=List.of("RPG","多人遊戲","冒險","恐怖","益智","動作","策略","模擬");
     private final JdbcTemplate db;
     private final Clock clock;
@@ -132,6 +133,7 @@ public class PublisherService {
 
     private boolean validUrl(Object value) {
         if(value == null || value.toString().isBlank()) return false;
+        if (PublisherImageStorage.isStoredUrl(value.toString().trim())) return true;
         try { var uri=URI.create(value.toString().trim()); return ("https".equalsIgnoreCase(uri.getScheme()) || "http".equalsIgnoreCase(uri.getScheme())) && uri.getHost()!=null && uri.getUserInfo()==null; }
         catch(IllegalArgumentException e) { return false; }
     }
@@ -162,6 +164,7 @@ public class PublisherService {
 
     private String url(String value) {
         if(value == null || value.isBlank()) return null;
+        if (PublisherImageStorage.isStoredUrl(value.trim())) return value.trim();
         try { var u=URI.create(value.trim()); if(!("https".equalsIgnoreCase(u.getScheme()) || "http".equalsIgnoreCase(u.getScheme())) || u.getHost()==null || u.getUserInfo()!=null) throw new IllegalArgumentException(); }
         catch(IllegalArgumentException e) { throw new Problem(400,"網址須使用完整的 http 或 https 網址"); }
         return value.trim();
@@ -178,13 +181,23 @@ public class PublisherService {
             throw new Problem(409,"只有未送審的草稿或已下架遊戲可以修改；已上架遊戲請先下架");
     }
 
+    /** Save the complete editor as one transaction, including tags and gallery order. */
+    @Transactional(isolation=Isolation.SERIALIZABLE)
+    public Object saveDocument(Actor actor, Integer id, DocumentInput input) {
+        @SuppressWarnings("unchecked")
+        var saved = (Map<String,Object>) (id == null ? create(actor,input.game()) : update(actor,id,input.game()));
+        int gameId = ((Number)saved.get("game_id")).intValue();
+        saveTags(actor,gameId,input.tags());
+        return saveMedia(actor,gameId,input.media());
+    }
+
     @Transactional
     public Object create(Actor actor,GameInput input) {
         check(actor);
         String cover=url(input.coverUrl()), title=name(input.name());
         var key=new GeneratedKeyHolder();
         db.update(connection -> {
-            var ps=connection.prepareStatement("INSERT INTO games(member_id,game_name,price,description,cover_url,release_date,status) VALUES(?,?,?,?,?,?,'DRAFT')",Statement.RETURN_GENERATED_KEYS);
+            var ps=connection.prepareStatement("INSERT INTO games(member_id,game_name,price,description,cover_url,release_date,status) VALUES(?,?,?,?,?,?,'DRAFT')",new String[]{"game_id"});
             ps.setInt(1,actor.id()); ps.setString(2,title); ps.setBigDecimal(3,input.price()); ps.setString(4,input.description()); ps.setString(5,cover); ps.setObject(6,input.releaseDate()); return ps;
         },key);
         return game(actor,Objects.requireNonNull(key.getKey()).intValue());
@@ -212,6 +225,7 @@ public class PublisherService {
         var missing=checks.stream().filter(c->!Boolean.TRUE.equals(c.get("complete"))).map(c->c.get("label").toString()).toList();
         if(!missing.isEmpty()) throw new Problem(400,"上架設定未完成："+String.join("、",missing));
         db.update("UPDATE games SET pending_review_type=?,review_requested_at=CURRENT_TIMESTAMP,review_request_reason=?,pending_request_key=? WHERE game_id=? AND member_id=?",type,input.reason(),UUID.randomUUID().toString(),id,actor.id());
+        if(notifications!=null) notifications.reviewers("GAME_REVIEW","新遊戲審核申請","遊戲 #"+id+" 等待審核","/review");
         return game(actor,id);
     }
 
@@ -306,7 +320,7 @@ public class PublisherService {
     }
     public Object reviewDetail(Actor actor,int id) {
         reviewer(actor);
-        var rows=db.queryForList("SELECT g.game_id AS review_id,g.game_name,g.description,g.price,g.release_date AS release_at,g.pending_request_key AS request_key,g.review_request_reason AS request_reason,m.username AS submitter_name,"+REVIEW_STATUS+" AS status,COALESCE(g.review_requested_at,l.reviewed_at) AS submitted_at,COALESCE(g.pending_review_type,l.review_type) AS review_type,l.comment AS review_comment"+REVIEW_FROM+" WHERE g.game_id=? AND (g.pending_review_type IS NOT NULL OR l.game_audit_id IS NOT NULL)",id);
+        var rows=db.queryForList("SELECT g.game_id AS review_id,g.game_name,g.description,g.price,g.cover_url,g.release_date AS release_at,g.pending_request_key AS request_key,g.review_request_reason AS request_reason,m.username AS submitter_name,"+REVIEW_STATUS+" AS status,COALESCE(g.review_requested_at,l.reviewed_at) AS submitted_at,COALESCE(g.pending_review_type,l.review_type) AS review_type,l.comment AS review_comment"+REVIEW_FROM+" WHERE g.game_id=? AND (g.pending_review_type IS NOT NULL OR l.game_audit_id IS NOT NULL)",id);
         if(rows.isEmpty()) throw new Problem(404,"找不到此審核項目");
         var item=new LinkedHashMap<>(rows.getFirst());
         var builds=db.queryForList("SELECT version,file_url,status FROM game_builds WHERE game_id=? ORDER BY build_id DESC",id);
@@ -321,16 +335,33 @@ public class PublisherService {
     public Object decide(Actor actor,int id,DecisionInput input) {
         reviewer(actor);
         if(input.comment().isBlank()) throw new Problem(400,"請填寫處理說明");
-        var rows=db.queryForList("SELECT status,pending_review_type,pending_request_key FROM games WHERE game_id=?",id);
+        var rows=db.queryForList("SELECT status,pending_review_type,pending_request_key,release_date FROM games WHERE game_id=?",id);
         if(rows.isEmpty()) throw new Problem(404,"找不到此遊戲");
         var g=rows.getFirst();
         if(g.get("pending_review_type")==null || !input.requestKey().equals(g.get("pending_request_key"))) throw new Problem(409,"申請已處理或取消，請重新載入");
         String type=(String)g.get("pending_review_type"), state=(String)g.get("status");
         if(!"PUBLISH".equals(type)) throw new Problem(409,"下架已改為直接處理，請重新載入");
-        if(input.decision().equals("APPROVED")) state=type.equals("PUBLISH")?"PUBLISHED":"OFF_SHELF";
+        if(input.decision().equals("APPROVED")) {
+            // The GitHub release scheduler publishes COMING_SOON at its release time.
+            // No date means immediate publish (legacy ZIP behavior).
+            Object releaseAt = g.get("release_date");
+            if (releaseAt instanceof java.sql.Timestamp timestamp
+                    && timestamp.toLocalDateTime().isAfter(java.time.LocalDateTime.now())) {
+                state = "COMING_SOON";
+            } else if (releaseAt instanceof java.time.LocalDateTime date
+                    && date.isAfter(java.time.LocalDateTime.now())) {
+                state = "COMING_SOON";
+            } else {
+                state = "PUBLISHED";
+            }
+        }
         String reset=input.decision().equals("APPROVED") ? ",off_shelf_source=NULL,off_shelf_at=NULL,restore_until=NULL,off_shelf_previous_status=NULL,off_shelf_reason=NULL,off_shelf_admin_id=NULL" : "";
         if(db.update("UPDATE games SET status=?,pending_review_type=NULL,review_requested_at=NULL,review_request_reason=NULL,pending_request_key=NULL"+reset+" WHERE game_id=? AND pending_request_key=?",state,id,input.requestKey())!=1) throw new Problem(409,"申請已改變");
         db.update("INSERT INTO game_audit_logs(game_id,admin_id,review_type,decision,comment) VALUES(?,?,?,?,?)",id,actor.id(),type,input.decision(),input.comment().trim());
+        if(notifications!=null) {
+            Integer publisherId=db.queryForObject("SELECT member_id FROM games WHERE game_id=?",Integer.class,id);
+            if(publisherId!=null) notifications.member(publisherId,"GAME_DECISION",input.decision().equals("APPROVED")?"遊戲審核已通過":"遊戲審核已退回","遊戲 #"+id+" 審核完成","/publisher/notifications");
+        }
         return reviewDetail(actor,id);
     }
 }

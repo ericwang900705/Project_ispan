@@ -11,6 +11,8 @@ public final class PublisherModels {
     public record GameInput(@NotBlank @Size(max=150) String name,
             @NotNull @DecimalMin("0") @DecimalMax("99999999.99") @Digits(integer=8,fraction=2) BigDecimal price,
             @Size(max=20000) String description, @Size(max=500) String coverUrl, LocalDateTime releaseDate) {}
+    public record DocumentInput(@NotNull @Valid GameInput game,
+            @NotNull @Valid TagsInput tags, @NotNull @Valid MediaList media) {}
     public record RequestInput(@Size(max=500) String reason) {}
     public record TagsInput(@NotNull @Size(max=50) List<@NotNull @Positive Integer> tagIds) {}
     public record BuildInput(@Positive Integer id, @NotBlank @Size(max=30) String version,

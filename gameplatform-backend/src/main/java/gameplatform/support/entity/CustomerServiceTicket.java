@@ -62,6 +62,9 @@ public class CustomerServiceTicket {
     @Column(name = "content", nullable = false, columnDefinition = "nvarchar(max)")
     private String content;
 
+    @Column(name = "priority", nullable = false, length = 10)
+    private String priority = "NORMAL";
+
     @Column(name = "status", nullable = false, length = 20)
     private String status = "OPEN";
 

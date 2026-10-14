@@ -21,7 +21,7 @@ public class Problem extends RuntimeException {
         return new Problem(404, "找不到此對話或案件");
     }
 
-    @RestControllerAdvice(basePackages="gameplatform.support.controller")
+    @RestControllerAdvice
     static class Handler {
         @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
         ResponseEntity<?> tooLarge(Exception e) {
@@ -36,6 +36,12 @@ public class Problem extends RuntimeException {
         @ExceptionHandler(Problem.class)
         ResponseEntity<?> problem(Problem e) {
             return ResponseEntity.status(e.status).body(Map.of("message", e.getMessage()));
+        }
+
+        @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+        ResponseEntity<?> responseStatus(org.springframework.web.server.ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(Map.of("message",
+                    e.getReason() == null ? "請求失敗" : e.getReason()));
         }
 
         @ExceptionHandler(MethodArgumentNotValidException.class)

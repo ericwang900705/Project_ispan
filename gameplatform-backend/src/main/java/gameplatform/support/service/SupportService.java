@@ -16,15 +16,16 @@ import gameplatform.support.model.Actor;
 import gameplatform.support.model.EventHub;
 import gameplatform.support.model.Problem;
 
-@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="aki.modules.enabled",havingValue="true")
 @Service
 @Transactional
 public class SupportService {
     private final JdbcTemplate db;
     private final EventHub events;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private NotificationService notifications;
     private final boolean sqlServer;
 
-    public SupportService(JdbcTemplate db, EventHub events, @Value("${aki.modules.dialect:sqlserver}") String dialect) {
+    public SupportService(JdbcTemplate db, EventHub events, @Value("${app.dialect}") String dialect) {
         this.db = db;
         this.events = events;
         this.sqlServer = dialect.equals("sqlserver");
@@ -51,9 +52,16 @@ public class SupportService {
             rs.getString("category_name"),
             nullableInt(rs, "game_id"), rs.getString("game_name"), rs.getString("subject"), rs.getString("content"),
             rs.getString("status"),
-            nullableInt(rs, "admin_id"), time(rs, "created_at"), time(rs, "updated_at"), List.of());
+            nullableInt(rs, "admin_id"), time(rs, "created_at"), time(rs, "updated_at"), List.of(),
+            rs.getString("priority"), rs.getString("waiting_for"), time(rs, "waiting_since"));
     private static final String ROOM_SELECT = "SELECT r.*,t.ticket_no,m.username AS member_name FROM chat_rooms r JOIN members m ON r.member_id=m.member_id LEFT JOIN customer_service_tickets t ON t.ticket_id=r.ticket_id ";
-    private static final String TICKET_SELECT = "SELECT t.*,m.username AS member_name,c.category_name,g.game_name FROM customer_service_tickets t JOIN members m ON m.member_id=t.member_id JOIN customer_service_categories c ON c.category_id=t.category_id LEFT JOIN games g ON g.game_id=t.game_id ";
+    private static final String TICKET_SELECT = "SELECT t.*,m.username AS member_name,c.category_name,g.game_name, "
+            + "CASE WHEN t.status='CLOSED' THEN 'CLOSED' WHEN (SELECT sender_type FROM customer_service_messages "
+            + "WHERE message_id=(SELECT MAX(message_id) FROM customer_service_messages WHERE ticket_id=t.ticket_id))='ADMIN' "
+            + "THEN 'MEMBER' ELSE 'ADMIN' END AS waiting_for, "
+            + "COALESCE((SELECT MAX(sent_at) FROM customer_service_messages WHERE ticket_id=t.ticket_id),t.created_at) AS waiting_since "
+            + "FROM customer_service_tickets t JOIN members m ON m.member_id=t.member_id "
+            + "JOIN customer_service_categories c ON c.category_id=t.category_id LEFT JOIN games g ON g.game_id=t.game_id ";
 
     private int insert(String keyColumn, String sql, Object... args) {
         var key = new GeneratedKeyHolder();
@@ -162,6 +170,7 @@ public class SupportService {
                 "INSERT INTO chat_rooms(member_id,status,created_at) VALUES (?,'OPEN',CURRENT_TIMESTAMP)",
                 a.id());
         events.changed(a.id());
+        if(notifications!=null) notifications.supportQueue("NEW_CHAT","新的即時聊天室","聊天室 #"+id+" 等待接手","/admin");
         return room(id);
     }
 
@@ -204,10 +213,15 @@ public class SupportService {
     }
 
     public List<Ticket> tickets(Actor a, String status, int page) {
-        return tickets(a, status, page, "");
+        return tickets(a, status, page, "", null, null, null);
     }
 
     public List<Ticket> tickets(Actor a, String status, int page, String q) {
+        return tickets(a, status, page, q, null, null, null);
+    }
+
+    public List<Ticket> tickets(Actor a, String status, int page, String q, Integer categoryId,
+            String priority, String waitingFor) {
         participant(a);
         int offset = pageOffset(page);
         String filter = "WHERE 1=1";
@@ -221,6 +235,26 @@ public class SupportService {
                 throw new Problem(400, "無效的案件狀態");
             filter += " AND t.status=?";
             args.add(status);
+        }
+        if (categoryId != null) {
+            if (categoryId <= 0) throw new Problem(400, "無效的分類");
+            filter += " AND t.category_id=?";
+            args.add(categoryId);
+        }
+        if (priority != null && !priority.isBlank()) {
+            if (!Set.of("URGENT", "HIGH", "NORMAL", "LOW").contains(priority))
+                throw new Problem(400, "無效的優先程度");
+            filter += " AND t.priority=?";
+            args.add(priority);
+        }
+        if (waitingFor != null && !waitingFor.isBlank()) {
+            if (!Set.of("ADMIN", "MEMBER").contains(waitingFor))
+                throw new Problem(400, "無效的回覆對象");
+            filter += " AND t.status<>'CLOSED' AND " +
+                    (waitingFor.equals("MEMBER") ? "" : "NOT ") +
+                    "EXISTS (SELECT 1 FROM customer_service_messages lastMsg WHERE lastMsg.ticket_id=t.ticket_id " +
+                    "AND lastMsg.message_id=(SELECT MAX(mx.message_id) FROM customer_service_messages mx WHERE mx.ticket_id=t.ticket_id) " +
+                    "AND lastMsg.sender_type='ADMIN')";
         }
         String term = searchTerm(q);
         if (!term.isEmpty()) {
@@ -268,6 +302,20 @@ public class SupportService {
         db.update("UPDATE chat_rooms SET admin_id=? WHERE support_room_id=?", a.id(), id);
         events.changed(r.memberId());
         return room(id);
+    }
+
+    public Ticket updateTicketPriority(Actor a, int id, String priority) {
+        admin(a);
+        if (priority == null || !Set.of("URGENT", "HIGH", "NORMAL", "LOW").contains(priority))
+            throw new Problem(400, "無效的優先程度");
+        lock("customer_service_tickets", "ticket_id", id);
+        Ticket t = ticket(id);
+        open(t.status());
+        // 已分配案件僅負責客服能調整；未分配案件由任一客服設定。
+        if (t.adminId() != null) assigned(a, t.adminId());
+        db.update("UPDATE customer_service_tickets SET priority=?, updated_at=CURRENT_TIMESTAMP WHERE ticket_id=?", priority, id);
+        events.changed(t.memberId());
+        return ticket(id);
     }
 
     public Ticket claimTicket(Actor a, int id) {
@@ -335,13 +383,16 @@ public class SupportService {
                     Integer.class, gameIds.toArray());
             if (found != gameIds.size()) throw new Problem(400, "選擇的遊戲不存在，請重新搜尋");
         }
+        String requestedPriority = input.priority() == null ? "NORMAL" : input.priority().strip().toUpperCase(Locale.ROOT);
+        if (!Set.of("URGENT", "HIGH", "NORMAL", "LOW").contains(requestedPriority))
+            throw new Problem(400, "無效的案件優先程度");
         Integer firstGameId = gameIds.isEmpty() ? null : gameIds.get(0);
         Long serial = db.queryForObject("SELECT NEXT VALUE FOR customer_service_ticket_no_seq", Long.class);
         String ticketNo = String.format(Locale.ROOT, "CS%010d", serial);
         int ticketId = insert("ticket_id",
-                "INSERT INTO customer_service_tickets(ticket_no,member_id,category_id,game_id,subject,content,status,created_at,updated_at,admin_id) VALUES (?,?,?,?,?,?,'IN_PROGRESS',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,?)",
+                "INSERT INTO customer_service_tickets(ticket_no,member_id,category_id,game_id,subject,content,status,priority,created_at,updated_at,admin_id) VALUES (?,?,?,?,?,?,'IN_PROGRESS',?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,?)",
                 ticketNo, r.memberId(), input.categoryId(), firstGameId, input.subject().strip(),
-                input.summary().strip(),
+                input.summary().strip(), requestedPriority,
                 a.id());
         for (int i = 0; i < gameIds.size(); i++) {
             db.update("INSERT INTO customer_service_ticket_games(ticket_id,game_id,sort_order) VALUES (?,?,?)",
@@ -351,6 +402,7 @@ public class SupportService {
                 "UPDATE chat_rooms SET ticket_id=?,status='CLOSED',closed_at=CURRENT_TIMESTAMP WHERE support_room_id=?",
                 ticketId, id);
         events.changed(r.memberId());
+        if(notifications!=null) notifications.member(r.memberId(),"TICKET_CREATED","客服已建立正式案件",ticketNo,"/tickets/"+ticketId);
         return ticket(ticketId);
     }
 
@@ -382,6 +434,10 @@ public class SupportService {
         if (!chat)
             db.update("UPDATE customer_service_tickets SET updated_at=CURRENT_TIMESTAMP WHERE ticket_id=?", id);
         events.changed(owner);
+        if(notifications!=null) {
+            if(a.canSupport()) notifications.member(owner,chat?"CHAT_REPLY":"TICKET_REPLY",chat?"客服已回覆聊天室":"客服已回覆案件",chat?"聊天室 #"+id+" 有新訊息":"案件 #"+id+" 有新訊息",chat?"/member/support":"/tickets/"+id);
+            else if(assignedId!=null) notifications.staff(assignedId,chat?"CHAT_MESSAGE":"TICKET_MESSAGE",chat?"聊天室有新訊息":"負責案件有新訊息",chat?"聊天室 #"+id+" 有會員回覆":"案件 #"+id+" 有會員回覆",chat?"/admin":"/tickets/"+id);
+        }
         return messageQuery(chat, "WHERE x." + (chat ? "support_message_id" : "message_id") + "=?", List.of(messageId),
                 false).get(0);
     }
@@ -443,6 +499,10 @@ public class SupportService {
                     VALUES (?,?,?,?,?,?,?)
                     """, message.id(), image.fileName(), image.contentType(), image.bytes().length,
                     image.width(), image.height(), image.bytes());
+        }
+        if(notifications!=null) {
+            if(actor.canSupport()) notifications.member(ticket.memberId(),"TICKET_REPLY","客服已回覆案件","案件 #"+ticketId+" 有新訊息","/tickets/"+ticketId);
+            else if(ticket.adminId()!=null) notifications.staff(ticket.adminId(),"TICKET_MESSAGE","負責案件有新訊息","案件 #"+ticketId+" 有會員回覆","/tickets/"+ticketId);
         }
         return messageQuery(false, "WHERE x.message_id=?", List.of(message.id()), false).get(0);
     }
