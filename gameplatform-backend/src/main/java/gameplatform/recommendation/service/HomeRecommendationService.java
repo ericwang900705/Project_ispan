@@ -96,7 +96,7 @@ public class HomeRecommendationService {
                 .map(game -> new HomeRecommendedGameDto(
                         game.gameId(),
                         game.gameName(),
-                        null,
+                        game.coverUrl(),
                         game.price(),
                         null,
                         null))

@@ -4,12 +4,14 @@ package gameplatform.recommendation.controller;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import gameplatform.recommendation.service.MemberGameViewStatService;
+import gameplatform.support.model.Actor;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -17,20 +19,22 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MemberGameViewStatController {
 
-    private final MemberGameViewStatService viewStatService;
+        private final MemberGameViewStatService viewStatService;
 
-    @PostMapping("/{gameId}/views")
-    public ResponseEntity<Map<String, Boolean>> recordGameView(
-            @PathVariable Integer gameId) {
+        /**
+         * 記錄目前登入會員的遊戲瀏覽行為。
+         * 會員 ID 從 JWT 取得。
+         */
+        @PostMapping("/{gameId}/views")
+        public ResponseEntity<Map<String, Boolean>> recordGameView(
+                        @PathVariable Integer gameId,
+                        @AuthenticationPrincipal Actor actor) {
 
-        // TODO: 正式整合 JWT 後改成取得登入會員 ID
-        Integer memberId = 1;
+                boolean counted = viewStatService.recordGameView(
+                                actor.id(),
+                                gameId);
 
-        boolean counted = viewStatService.recordGameView(
-                memberId,
-                gameId);
-
-        return ResponseEntity.ok(
-                Map.of("counted", counted));
-    }
+                return ResponseEntity.ok(
+                                Map.of("counted", counted));
+        }
 }

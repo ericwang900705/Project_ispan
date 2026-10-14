@@ -31,6 +31,7 @@ public class PopularGameRepository {
                 SELECT TOP (5)
                     g.game_id,
                     g.game_name,
+                    g.cover_url,
                     g.price,
                     COALESCE(
                         SUM(
@@ -69,6 +70,7 @@ public class PopularGameRepository {
                 GROUP BY
                     g.game_id,
                     g.game_name,
+                    g.cover_url,
                     g.price
 
                 ORDER BY
@@ -81,6 +83,7 @@ public class PopularGameRepository {
                 (rs, rowNum) -> new PopularGameDto(
                         rs.getInt("game_id"),
                         rs.getString("game_name"),
+                        rs.getString("cover_url"),
                         rs.getBigDecimal("price"),
                         rs.getLong("purchase_count")));
     }
@@ -104,6 +107,7 @@ public class PopularGameRepository {
                 SELECT TOP (5)
                     g.game_id,
                     g.game_name,
+                    g.cover_url,
                     g.price,
                     COALESCE(
                         SUM(
@@ -172,6 +176,7 @@ public class PopularGameRepository {
                 GROUP BY
                     g.game_id,
                     g.game_name,
+                    g.cover_url,
                     g.price
 
                 ORDER BY
@@ -184,6 +189,7 @@ public class PopularGameRepository {
                 (rs, rowNum) -> new PopularGameDto(
                         rs.getInt("game_id"),
                         rs.getString("game_name"),
+                        rs.getString("cover_url"),
                         rs.getBigDecimal("price"),
                         rs.getLong("purchase_count")),
                 memberId,
