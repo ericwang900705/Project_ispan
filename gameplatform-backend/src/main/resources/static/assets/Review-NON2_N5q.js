@@ -1,1 +1,0 @@
-import{C as e,o as t}from"./runtime-core.esm-bundler-BsnJZi1N.js";import{t as n}from"./ReviewWorkspace-B57b_Ie9.js";var r={__name:`Review`,setup(r){return(r,i)=>(e(),t(n,{kind:`games`}))}};export{r as default};
