@@ -1,10 +1,11 @@
 <script setup>
-import '../styles/support.css'
+
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, session, timeText } from '../api'
 import SearchBar from '../components/SearchBar.vue'
 import UiIcon from '../components/UiIcon.vue'
+import { priorityLabel } from '../utils/ticketEnhancements'
 
 const router = useRouter()
 
@@ -78,8 +79,8 @@ async function load() {
   const token = ++request
   try {
     const [stats, result] = await Promise.all([
-      api('/aki/admin/workload'),
-      api(`/aki/admin/queue?kind=${kind.value}&scope=${scope.value}&q=${encodeURIComponent(search.value)}&page=${page.value}`)
+      api('/admin/workload'),
+      api(`/admin/queue?kind=${kind.value}&scope=${scope.value}&q=${encodeURIComponent(search.value)}&page=${page.value}`)
     ])
 
     if (alive && token === request) {
@@ -116,8 +117,8 @@ function searchNow(q) {
 function open(item) {
   router.push(
     kind.value === 'rooms'
-      ? { path: '/aki/admin/chats', query: { room: item.id } }
-      : '/aki/tickets/' + item.id
+      ? { path: '/admin/chats', query: { room: item.id } }
+      : '/tickets/' + item.id
   )
 }
 
@@ -128,11 +129,11 @@ async function claim(item) {
   const type = kind.value
 
   try {
-    await api(`/aki/admin/${type}/${item.id}/claim`, { method: 'POST' })
+    await api(`/admin/${type}/${item.id}/claim`, { method: 'POST' })
     router.push(
       type === 'rooms'
-        ? { path: '/aki/admin/chats', query: { room: item.id } }
-        : '/aki/tickets/' + item.id
+        ? { path: '/admin/chats', query: { room: item.id } }
+        : '/tickets/' + item.id
     )
   } catch (e) {
     error.value = e.message
@@ -183,7 +184,7 @@ onUnmounted(() => {
       </button>
     </div>
     <section class="work-queue">
-      <div class="queue-heading"><h2>工作佇列</h2><RouterLink :to="kind === 'rooms' ? '/aki/admin/chats' : '/aki/tickets'" class="text-button">查看全部與歷史紀錄 ↗</RouterLink></div>
+      <div class="queue-heading"><h2>工作佇列</h2><RouterLink :to="kind === 'rooms' ? '/admin/chats' : '/tickets'" class="text-button">查看全部與歷史紀錄 ↗</RouterLink></div>
       <div class="queue-toolbar">
         <div class="queue-tabs" aria-label="工作類型">
           <button :class="{ active: kind === 'rooms' }" :aria-pressed="kind === 'rooms'" @click="kind = 'rooms'">即時聊天</button>
@@ -200,7 +201,7 @@ onUnmounted(() => {
         <table class="queue-table"><thead><tr><th scope="col">類型</th><th scope="col">會員／問題</th><th scope="col">建立時間</th><th scope="col">負責狀態</th><th scope="col">操作</th></tr></thead>
           <tbody><tr v-for="item in rows" :key="kind + item.id">
             <td><span class="queue-kind"><UiIcon :name="kind === 'rooms' ? 'chat' : 'file'" />{{ kind === 'rooms' ? '即時聊天' : '案件' }}</span></td>
-            <td><strong>{{ item.memberName }}</strong><p>{{ kind === 'rooms' ? '即時客服詢問 · #' + item.id : item.subject }}</p><small v-if="kind === 'tickets'" class="muted">{{ item.ticketNo }} · {{ item.categoryName }}</small></td>
+            <td><strong>{{ item.memberName }}</strong><p>{{ kind === 'rooms' ? '即時客服詢問 · #' + item.id : item.subject }}</p><small v-if="kind === 'tickets'" class="muted">{{ item.ticketNo }} · {{ item.categoryName }}</small><span v-if="kind === 'tickets'" class="priority-pill queue-priority" :class="item.priority || 'NORMAL'">{{ priorityLabel(item.priority) }}</span></td>
             <td class="queue-time">{{ timeText(item.createdAt) }}</td>
             <td><span class="assignment-pill" :class="{ waiting: !item.adminId }">{{ !item.adminId ? '待接手' : item.adminId === session.user?.id ? '我處理中' : '客服 #' + item.adminId }}</span></td>
             <td><button v-if="!item.adminId" class="primary small" :disabled="busy !== null" @click="claim(item)">{{ busy === item.id ? '接手中…' : '接手' }}</button><button v-else class="secondary small" @click="open(item)">{{ item.adminId === session.user?.id ? '繼續處理' : '查看內容' }}</button></td>

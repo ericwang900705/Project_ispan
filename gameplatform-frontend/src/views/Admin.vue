@@ -1,5 +1,5 @@
 <script setup>
-import '../styles/support.css'
+
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 
@@ -47,6 +47,7 @@ async function closeTransfer() {
 // ==============================
 const categories = ref([])
 const categoryId = ref(null)
+const transferPriority = ref('NORMAL')
 const selectedGames = ref([])
 const gameIds = computed(() => selectedGames.value.map(game => game.id))
 
@@ -174,7 +175,7 @@ async function action(name) {
     let path
 
     if (name === 'claim') {
-      path = `/aki/admin/rooms/${room.value.id}/claim`
+      path = `/admin/rooms/${room.value.id}/claim`
     } else if (name === 'close') {
       path = `/rooms/${room.value.id}/close`
     } else {
@@ -265,6 +266,7 @@ async function openModal() {
   formError.value = ''
 
   categoryId.value = null
+  transferPriority.value = 'NORMAL'
   resetGameState()
 
   subject.value = ''
@@ -300,11 +302,12 @@ async function transfer() {
 
   try {
     const ticket = await api(
-      `/aki/admin/rooms/${transferRoomId.value}/escalate`,
+      `/admin/rooms/${transferRoomId.value}/escalate`,
       {
         method: 'POST',
         body: {
           categoryId: categoryId.value,
+          priority: transferPriority.value,
           gameIds: isGame.value
             ? gameIds.value
             : [],
@@ -316,7 +319,7 @@ async function transfer() {
 
     modal.value = false
 
-    router.push(`/aki/tickets/${ticket.id}`)
+    router.push(`/tickets/${ticket.id}`)
   } catch (e) {
     formError.value = e.message
   } finally {
@@ -570,7 +573,7 @@ onUnmounted(() => {
               </template>
 
               <!-- 已轉案件 -->
-              <RouterLink v-if="room.ticketId" :to="`/aki/tickets/${room.ticketId}`" class="primary">
+              <RouterLink v-if="room.ticketId" :to="`/tickets/${room.ticketId}`" class="primary">
                 查看案件
                 {{ room.ticketNo }}
               </RouterLink>
@@ -670,6 +673,12 @@ onUnmounted(() => {
           </select>
         </label>
 
+
+        <label>案件優先程度
+          <select v-model="transferPriority" aria-label="案件優先程度" required>
+            <option value="LOW">低</option><option value="NORMAL">一般</option><option value="HIGH">高</option><option value="URGENT">緊急</option>
+          </select>
+        </label>
 
         <!-- =========================
        遊戲選擇

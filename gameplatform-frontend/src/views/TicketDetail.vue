@@ -1,9 +1,10 @@
 <script setup>
-import '../styles/support.css'
+
 import { canSupport, canReview, canUseTickets, homeFor, roleName } from '../permissions'
 
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { api, session, timeText, statusText } from '../api'
+import { priorityLabel, waitingLabel, elapsedLabel } from '../utils/ticketEnhancements'
 import Conversation from '../components/Conversation.vue'
 import UiIcon from '../components/UiIcon.vue'
 
@@ -47,8 +48,8 @@ const canSend = computed(() => {
 async function load() {
   try {
     const [t, o] = await Promise.all([
-      api(`/aki/tickets/${props.id}`),
-      api(`/aki/tickets/${props.id}/origins`)
+      api(`/tickets/${props.id}`),
+      api(`/tickets/${props.id}/origins`)
     ])
 
     if (alive) {
@@ -80,7 +81,7 @@ async function action(name) {
 
   try {
     ticket.value = await api(
-      `/aki/admin/tickets/${props.id}/${name}`,
+      `/admin/tickets/${props.id}/${name}`,
       {
         method: 'POST'
       }
@@ -132,12 +133,21 @@ onUnmounted(() => {
     load
   )
 })
+async function changePriority(priority) {
+  if (!ticket.value || busy.value) return
+  busy.value = true
+  try {
+    ticket.value = await api(`/admin/tickets/${ticket.value.id}/priority`, { method:'PUT', body:{priority} })
+    error.value = ''
+  } catch(e) { error.value = e.message }
+  finally { busy.value = false }
+}
 </script>
 
 <template>
   <div class="page ticket-detail-page">
     <!-- 返回 -->
-    <RouterLink to="/aki/tickets" class="back-link">
+    <RouterLink to="/tickets" class="back-link">
       ← 返回案件列表
     </RouterLink>
 
@@ -196,6 +206,17 @@ onUnmounted(() => {
              ================================ -->
         <aside class="ticket-sidebar">
 
+          <section class="summary-card ticket-status-overview">
+            <h2>處理狀態</h2>
+            <div class="ticket-extra"><span class="priority-pill" :class="ticket.priority">{{ priorityLabel(ticket.priority) }}</span>
+              <span class="reply-pill">{{ waitingLabel(ticket) }}</span></div>
+            <p v-if="ticket.status !== 'CLOSED'" class="muted">已等待 {{ elapsedLabel(ticket.waitingSince || ticket.createdAt) }}</p>
+            <label v-if="isAdmin && ticket.status !== 'CLOSED' && (!ticket.adminId || ticket.adminId === session.user?.id)">調整優先程度
+              <select :value="ticket.priority" :disabled="busy" @change="changePriority($event.target.value)">
+                <option value="URGENT">緊急</option><option value="HIGH">高</option><option value="NORMAL">一般</option><option value="LOW">低</option>
+              </select>
+            </label>
+          </section>
           <!-- 問題摘要 -->
           <section class="summary-card">
 

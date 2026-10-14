@@ -13,7 +13,7 @@ export const publisherFunctions = [
   { mode: 'media', label: '遊戲圖片與影片管理', description: '維護封面、圖片與影片網址及顯示順序。' },
   { mode: 'buyers', label: '購買人數', description: '查看每款遊戲已付款的不重複購買會員數。' }
 ]
-export const publisherLink = mode => ['sales','notifications'].includes(mode) ? { path: '/aki/publisher/' + mode } : ({ path: '/aki/publisher/games', query: { mode } })
+export const publisherLink = mode => ['sales','notifications'].includes(mode) ? { path: '/publisher/' + mode } : ({ path: '/publisher/games', query: { mode } })
 
 // 呈現分組沿用相同功能模式及路由。
 export const publisherGroups = [

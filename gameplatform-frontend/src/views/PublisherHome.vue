@@ -4,12 +4,11 @@ import { RouterLink } from 'vue-router'
 import { api, session } from '../api'
 import { publisherFunctions, publisherLink, publisherGroups, publisherIcons } from '../publisher-functions'
 import UiIcon from '../components/UiIcon.vue'
-import '../styles/publisher.css'
 
 const data = ref(null)
 const error = ref('')
 onMounted(async () => {
-  try { data.value = await api('/aki/publisher/overview') }
+  try { data.value = await api('/publisher/overview') }
   catch (e) { error.value = e.message }
 })
 </script>

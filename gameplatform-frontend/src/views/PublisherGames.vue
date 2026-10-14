@@ -8,13 +8,14 @@ import UiIcon from '../components/UiIcon.vue'
 import PublisherDialog from '../components/PublisherDialog.vue'
 import PublisherSaveActions from '../components/PublisherSaveActions.vue'
 import PublisherPreview from '../components/PublisherPreview.vue'
+import PublisherStoreEditor from '../components/PublisherStoreEditor.vue'
 import PublisherOperations from '../components/PublisherOperations.vue'
-import '../styles/publisher.css'
 
 const route = useRoute(), router = useRouter()
 const mode = computed(() => publisherFunctions.some(x => x.mode === route.query.mode) ? route.query.mode : 'list')
 const title = computed(() => publisherFunctions.find(x => x.mode === mode.value)?.label)
 const items = ref([]), total = ref(0), page = ref(0), q = ref('')
+const uploading = ref(false)
 const loading = ref(false), busy = ref(false), error = ref('')
 const selected = ref(null), allTags = ref([]), tagIds = ref([]), builds = ref([]), media = ref([]), reason = ref('')
 const emptyForm = () => ({ name: '', price: 0, description: '', coverUrl: '', releaseDate: '' })
@@ -38,7 +39,7 @@ const downloadSpace = (() => {
 function payload() { return { ...form.value, price: Number(form.value.price), releaseDate: form.value.releaseDate || null } }
 function buildPayload() { return builds.value.map(x => ({ ...x, fileSize: x.fileSize === '' || x.fileSize == null ? null : Number(x.fileSize) })) }
 function snapshot() {
-  if (['new', 'edit'].includes(mode.value)) return JSON.stringify(payload())
+  if (['new', 'edit'].includes(mode.value)) return JSON.stringify({ game: payload(), tags: tagIds.value, media: media.value })
   if (mode.value === 'tags') return JSON.stringify([...tagIds.value].sort((a,b) => a-b))
   if (mode.value === 'builds') return JSON.stringify(buildPayload())
   if (mode.value === 'media') return JSON.stringify(media.value)
@@ -60,7 +61,7 @@ async function load() {
   const run = ++listRun
   loading.value = true
   try {
-    const result = await api('/aki/publisher/games?page=' + page.value + '&q=' + encodeURIComponent(q.value.trim()))
+    const result = await api('/publisher/games?page=' + page.value + '&q=' + encodeURIComponent(q.value.trim()))
     if (run !== listRun) return
     items.value = result.items; total.value = result.total
     if (!items.value.length && page.value > 0) { page.value--; return load() }
@@ -70,25 +71,25 @@ async function load() {
 async function choose(id) {
   const run = ++detailRun
   selected.value = null; error.value = ''
-  try { const game = await api('/aki/publisher/games/' + id); if (run === detailRun) assign(game) }
+  try { const game = await api('/publisher/games/' + id); if (run === detailRun) assign(game) }
   catch (e) { if (run === detailRun) error.value = e.message }
 }
 async function goTo(next, id = selected.value?.game_id) {
   allowRoute = true
-  try { await router.replace({ path: '/aki/publisher/games', query: { mode: next, ...(id ? { game: id } : {}) } }) }
+  try { await router.replace({ path: '/publisher/games', query: { mode: next, ...(id ? { game: id } : {}) } }) }
   finally { allowRoute = false }
 }
-function select(game) { if (!busy.value) router.replace({ path: '/aki/publisher/games', query: { mode: mode.value, game: game.game_id } }) }
+function select(game) { if (!busy.value) router.replace({ path: '/publisher/games', query: { mode: mode.value, game: game.game_id } }) }
 function search() { page.value = 0; load() }
-function endpoint(suffix) { return '/aki/publisher/games/' + selected.value.game_id + '/' + suffix }
+function endpoint(suffix) { return '/publisher/games/' + selected.value.game_id + '/' + suffix }
 async function saveEditor(next = '', syncRoute = true) {
-  if (busy.value) return null
+  if (busy.value || uploading.value) return null
   if (!editorForm.value?.reportValidity()) { dialogError.value = '請先完成必填欄位並修正格式，再儲存。'; return null }
   const current = mode.value
   let path, body, method = 'PUT'
   if (['new', 'edit'].includes(current)) {
-    path = '/aki/publisher/games' + (selected.value ? '/' + selected.value.game_id : '')
-    method = selected.value ? 'PUT' : 'POST'; body = payload()
+    path = '/publisher/games' + (selected.value ? '/' + selected.value.game_id : '') + '/document'
+    method = selected.value ? 'PUT' : 'POST'; body = { game: payload(), tags: { tagIds: tagIds.value }, media: { media: media.value } }
   } else {
     path = endpoint(current)
     body = current === 'tags' ? { tagIds: tagIds.value } : current === 'builds' ? { builds: buildPayload() } : { media: media.value }
@@ -112,7 +113,7 @@ function closeDialog() {
 }
 function guard(to) {
   if (allowRoute || !session.user) return true
-  if (busy.value) return false
+  if (busy.value || uploading.value) return false
   if (!dirty.value) return true
   if (pendingLeave) return false
   openDialog('leave')
@@ -127,7 +128,7 @@ async function finishLeave(save) {
   if (save && !game) return
   baseline.value = snapshot(); pendingLeave = null; dialog.value = null
   const to = pending.to
-  if (game && to.path === '/aki/publisher/games' && to.query.mode !== 'new' && !to.query.game) pending.resolve({ path: to.path, query: { ...to.query, game: game.game_id }, hash: to.hash })
+  if (game && to.path === '/publisher/games' && to.query.mode !== 'new' && !to.query.game) pending.resolve({ path: to.path, query: { ...to.query, game: game.game_id }, hash: to.hash })
   else pending.resolve(true)
 }
 async function action(suffix, message, next = '') {
@@ -148,7 +149,7 @@ function discardBuild() {
   else builds.value.splice(index, 1)
   closeDialog()
 }
-function beforeUnload(event) { if (dirty.value || busy.value) { event.preventDefault(); event.returnValue = '' } }
+function beforeUnload(event) { if (dirty.value || busy.value || uploading.value) { event.preventDefault(); event.returnValue = '' } }
 onMounted(() => { clockTimer = setInterval(() => { tick.value = Date.now() }, 1000); window.addEventListener('beforeunload', beforeUnload) })
 onUnmounted(() => { clearInterval(clockTimer); window.removeEventListener('beforeunload', beforeUnload); pendingLeave?.resolve(false) })
 watch(() => [route.query.mode, route.query.game], async () => {
@@ -157,25 +158,19 @@ watch(() => [route.query.mode, route.query.game], async () => {
   if (route.query.game && /^\d+$/.test(String(route.query.game))) await choose(route.query.game)
 }, { immediate: true })
 load()
-api('/aki/publisher/tags').then(data => { allTags.value = data }).catch(e => { error.value = e.message })
+api('/publisher/tags').then(data => { allTags.value = data }).catch(e => { error.value = e.message })
 </script>
 
 <template>
   <section class="platform-dashboard publisher-games">
     <header class="publisher-page-heading">
       <div><span class="eyebrow">PUBLISHER CENTER / GAME WORKSPACE</span><h1>{{ title }}</h1><p class="muted">{{ publisherFunctions.find(x => x.mode === mode)?.description }}</p></div>
-      <RouterLink class="secondary publisher-home-link" to="/aki/publisher/overview"><UiIcon name="dashboard" />發行商主頁</RouterLink>
+      <RouterLink class="secondary publisher-home-link" to="/publisher/overview"><UiIcon name="dashboard" />發行商主頁</RouterLink>
     </header>
     <div class="publisher-management-layout">
-      <nav class="publisher-tools" aria-label="發行商功能">
-        <div class="publisher-navigation-heading"><UiIcon name="game" /><strong>遊戲工作區</strong></div>
-        <section v-for="group in publisherGroups" :key="group.title" class="publisher-nav-group"><h2>{{ group.title }}</h2>
-          <RouterLink v-for="key in group.modes" :key="key" :to="{ ...publisherLink(key), query: { mode: key, ...(key !== 'new' && selected ? { game: selected.game_id } : {}) } }" :class="{ active: mode === key }" :aria-current="mode === key ? 'page' : undefined"><UiIcon :name="publisherIcons[key]" /><span>{{ publisherFunctions.find(x => x.mode === key).label }}</span></RouterLink>
-        </section>
-      </nav>
       <div class="publisher-management-main">
     <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <div class="publisher-work-columns" :class="{ 'publisher-create': mode === 'new' }">
+    <div class="publisher-work-columns" :class="{ 'publisher-create': mode === 'new', 'publisher-editing': ['new', 'edit'].includes(mode) }">
       <section v-if="mode !== 'new'" class="publisher-panel publisher-list-panel"><header class="publisher-panel-heading"><h2>遊戲清單</h2><span>{{ total }} 款</span></header>
         <form class="publisher-game-search" @submit.prevent="search"><input v-model="q" maxlength="100" aria-label="搜尋我的遊戲" placeholder="搜尋遊戲名稱"><button class="primary" :disabled="loading || busy">搜尋</button></form>
         <p v-if="loading" role="status">載入中…</p>
@@ -190,13 +185,7 @@ api('/aki/publisher/tags').then(data => { allTags.value = data }).catch(e => { e
         <template v-if="mode === 'new' || selected">
           <p v-if="selected?.off_shelf_source === 'ADMIN'" class="publisher-pending">管理員強制下架原因：{{ selected.off_shelf_reason }}</p><header v-if="selected" class="publisher-selected-heading"><div class="publisher-game-title"><span class="publisher-selected-icon"><UiIcon name="game" /></span><div><h2>{{ selected.game_name }}</h2><span class="publisher-status-pill" :class="selected.status.toLowerCase()">{{ selected.pending_review_type ? '審核中' : labels[selected.status] }}</span></div></div><span class="publisher-selected-buyers"><UiIcon name="users" />{{ selected.buyer_count }} 人購買</span><p v-if="selected.pending_review_type" class="publisher-pending">{{ selected.pending_review_type === 'PUBLISH' ? '上架' : '下架' }}申請待審核 · {{ date(selected.review_requested_at) }}</p></header>
           <form v-if="['new', 'edit'].includes(mode)" class="publisher-form" ref="editorForm" @submit.prevent="submitEditor">
-            <fieldset :disabled="busy || (selected && !editable)">
-              <label>遊戲名稱<input v-model="form.name" maxlength="150" required></label>
-              <div class="publisher-form-pair"><label>售價（NT$）<input v-model.number="form.price" type="number" min="0" max="99999999.99" step="0.01" required></label><label>預定發行時間<input v-model="form.releaseDate" type="datetime-local"></label></div>
-              <label>遊戲介紹<textarea v-model="form.description" maxlength="20000" rows="6"></textarea></label>
-              <label>封面網址<input v-model="form.coverUrl" type="url" maxlength="500" placeholder="https://…"></label>
-              <PublisherSaveActions :secondary="mode === 'new' ? '儲存草稿' : '僅儲存修改'" :primary="mode === 'new' ? '儲存並前往：設定遊戲版本' : '儲存並前往：設定標籤與版本'" :next="mode === 'new' ? 'builds' : 'tags'" :busy="busy" />
-            </fieldset>
+            <PublisherStoreEditor v-model:form="form" v-model:tag-ids="tagIds" v-model:media="media" :tags="allTags" :disabled="!!selected && !editable" :busy="busy" @uploading="uploading = $event" />
           </form>
           <template v-else-if="mode === 'publish'">
             <div class="publisher-notice-toolbar"><h3>上架條件檢核</h3><button class="secondary" @click="goTo('preview')">預覽商品頁</button></div>
@@ -214,7 +203,7 @@ api('/aki/publisher/tags').then(data => { allTags.value = data }).catch(e => { e
             <fieldset :disabled="busy || !editable"><p class="muted">只能勾選平台提供的8種標籤，可複選。</p><div class="publisher-tag-grid"><label v-for="tag in allTags" :key="tag.tag_id"><input v-model="tagIds" type="checkbox" :value="tag.tag_id">{{ tag.tag_name }}</label></div><p v-if="!allTags.length" class="muted">尚未建立可選用的標籤。</p><PublisherSaveActions primary="儲存並前往：設定圖片與影片" next="media" :busy="busy" /></fieldset>
           </form>
           <form v-else-if="mode === 'media'" class="publisher-form" ref="editorForm" @submit.prevent="submitEditor">
-            <fieldset :disabled="busy || !editable"><div v-for="(item, index) in media" :key="index" class="publisher-resource-card"><div class="publisher-form-pair"><label>類型<select v-model="item.type"><option value="IMAGE">圖片</option><option value="VIDEO">影片</option></select></label><label>顯示順序<input v-model.number="item.order" type="number" min="1" max="1000" required></label></div><label>媒體網址<input v-model="item.url" type="url" maxlength="500" required></label><button type="button" @click="media.splice(index, 1)">移除</button></div><div class="publisher-button-row"><button type="button" :disabled="media.length >= 50" @click="media.push({ type: 'IMAGE', url: '', order: media.length + 1 })">新增圖片或影片</button></div><PublisherSaveActions primary="儲存並前往：上架檢核" next="publish" :busy="busy" /></fieldset><p class="muted">封面請至「修改遊戲」設定；圖片與影片使用已上傳的網址。</p>
+            <fieldset :disabled="busy || !editable"><div v-for="(item, index) in media" :key="index" class="publisher-resource-card"><div class="publisher-form-pair"><label>類型<select v-model="item.type"><option value="IMAGE">圖片</option><option value="VIDEO">影片</option></select></label><label>顯示順序<input v-model.number="item.order" type="number" min="1" max="1000" required></label></div><label>媒體網址<input v-model="item.url" type="text" maxlength="500" required></label><button type="button" @click="media.splice(index, 1)">移除</button></div><div class="publisher-button-row"><button type="button" :disabled="media.length >= 50" @click="media.push({ type: 'IMAGE', url: '', order: media.length + 1 })">新增圖片或影片</button></div><PublisherSaveActions primary="儲存並前往：上架檢核" next="publish" :busy="busy" /></fieldset><p class="muted">封面請至「修改遊戲」設定；圖片與影片使用已上傳的網址。</p>
           </form>
           <PublisherPreview v-else-if="mode === 'preview'" :game="selected" @navigate="goTo" />
           <PublisherOperations v-else :game="selected" :mode="mode" :can-restore="!!canRestore" :remaining="remaining" :editable="!!editable" :busy="busy" @off-shelf="reason = ''; openDialog('offShelf')" @restore="action('restore', '已恢復原上架狀態')" @navigate="goTo" />

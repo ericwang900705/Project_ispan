@@ -1,11 +1,12 @@
 <script setup>
-import '../styles/support.css'
+
 import { canSupport, canReview, canUseTickets, homeFor, roleName } from '../permissions'
 
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { api, session, statusText, timeText } from '../api'
 import SearchBar from '../components/SearchBar.vue'
 import UiIcon from '../components/UiIcon.vue'
+import { priorityLabel, waitingLabel, elapsedLabel } from '../utils/ticketEnhancements'
 function openSupport(){window.dispatchEvent(new Event('open-chat'))}
 
 // --- 狀態定義 ---
@@ -15,6 +16,15 @@ const page = ref(0)
 const error = ref('')
 const loading = ref(true)
 const search = ref('')
+const categoryId = ref('')
+const categories = ref([])
+const priority = ref('')
+const waitingFor = ref('')
+const sortBy = ref('NEWEST')
+const categorySearch = ref('')
+const visibleCategories = computed(() => categories.value.filter(c => c.name.includes(categorySearch.value.trim())))
+const now = ref(Date.now())
+let ticker
 
 let alive = true
 let request = 0
@@ -23,9 +33,17 @@ let request = 0
 async function load() {
   const token = ++request
   try {
-    const result = await api(`/aki/tickets?status=${status.value}&page=${page.value}&q=${encodeURIComponent(search.value)}`)
+    const params = new URLSearchParams({status:status.value,page:String(page.value),q:search.value})
+    if(categoryId.value) params.set('categoryId',categoryId.value)
+    if(priority.value) params.set('priority',priority.value)
+    if(waitingFor.value) params.set('waitingFor',waitingFor.value)
+    const result = await api(`/tickets?${params}`)
     if (alive && token === request) {
-      rows.value = result
+      rows.value = [...result].sort((a,b) => {
+        if(sortBy.value==='PRIORITY'){const levels={URGENT:4,HIGH:3,NORMAL:2,LOW:1};return (levels[b.priority]||0)-(levels[a.priority]||0)}
+        const date=x=>new Date(x.waitingSince||x.createdAt||0).getTime()
+        return sortBy.value==='OLDEST'?date(a)-date(b):date(b)-date(a)
+      })
       error.value = ''
     }
   } catch (e) {
@@ -44,7 +62,7 @@ function searchNow(q) {
 }
 
 // --- 偵聽器與生命週期 ---
-watch(status, () => {
+watch([status,categoryId,priority,waitingFor,sortBy], () => {
   page.value = 0
   load()
 })
@@ -52,12 +70,15 @@ watch(status, () => {
 watch(page, load)
 
 onMounted(() => {
+  api('/categories').then(data => { if(alive) categories.value = data }).catch(() => {})
   load()
+  ticker = setInterval(() => { now.value = Date.now() }, 30000)
   window.addEventListener('support-refresh', load)
 })
 
 onUnmounted(() => {
   alive = false
+  clearInterval(ticker)
   window.removeEventListener('support-refresh', load)
 })
 </script>
@@ -87,6 +108,16 @@ onUnmounted(() => {
       </label>
     </div>
 
+    <div v-if="canSupport(session.user?.role)" class="ticket-filters">
+      <label>分類名稱搜尋<input v-model="categorySearch" type="search" placeholder="輸入退款、付款、帳號…" /></label>
+      <label>案件分類<select v-model="categoryId"><option value="">全部分類</option>
+        <option v-for="c in visibleCategories" :key="c.id" :value="c.id">{{c.name}}</option>
+      </select></label>
+      <label>優先程度<select v-model="priority"><option value="">全部優先程度</option><option value="URGENT">緊急</option><option value="HIGH">高</option><option value="NORMAL">一般</option><option value="LOW">低</option></select></label>
+      <label>等待對象<select v-model="waitingFor"><option value="">全部</option><option value="ADMIN">等待客服</option><option value="MEMBER">等待會員</option></select></label>
+      <label>顯示順序<select v-model="sortBy"><option value="NEWEST">最新案件優先</option><option value="OLDEST">等待最久優先</option><option value="PRIORITY">緊急程度優先</option></select></label>
+      <button type="button" class="secondary" @click="status='';categoryId='';categorySearch='';priority='';waitingFor='';sortBy='NEWEST';searchNow('')">清除篩選</button>
+    </div>
     <p v-if="error" class="error">
       {{ error }}
     </p>
@@ -120,7 +151,7 @@ onUnmounted(() => {
         需要協助時，請從線上客服開始詢問。
       </p>
 
-      <RouterLink v-for="t in rows" :key="t.id" :to="'/aki/tickets/' + t.id" class="ticket-row">
+      <RouterLink v-for="t in rows" :key="t.id" :to="'/tickets/' + t.id" class="ticket-row">
         <div>
           <small class="muted">
             {{ t.ticketNo }} · {{ t.categoryName }}
@@ -129,6 +160,10 @@ onUnmounted(() => {
             </template>
           </small>
           <h3>{{ t.subject }}</h3>
+          <div class="ticket-extra"><span class="priority-pill" :class="t.priority">{{ priorityLabel(t.priority) }}</span>
+            <span class="reply-pill">{{ waitingLabel(t) }}</span>
+            <span v-if="t.status !== 'CLOSED'" class="wait-duration">已等待 {{ elapsedLabel(t.waitingSince || t.createdAt, now) }}</span>
+          </div>
           <p>{{ t.content }}</p>
         </div>
 

@@ -16,6 +16,8 @@ const paths = {
   shield: ['M12 2 3 6v6c0 5 9 10 9 10s9-5 9-10V6ZM8 12l3 3 5-6'],
   menu: ['M3 6h18M3 12h18M3 18h18'],
   chevron: ['m8 5 7 7-7 7'],
+  'chevron-down': ['m6 9 6 6 6-6'],
+  'log-out': ['M10 17l5-5-5-5', 'M15 12H3', 'M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7'],
   trend: ['M3 17 9 11l4 4 8-10M15 5h6v6'],
   chat: ['M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2V11.5A8.5 8.5 0 0 1 10.5 3h2a8.5 8.5 0 0 1 8.5 8.5Z', 'M7 10h10M7 14h6'],
   headset: ['M3 13v-1a9 9 0 0 1 18 0v1', 'M3 12h3v8H3a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1ZM21 12h-3v8h3a1 1 0 0 0 1-1v-6a1 1 0 0 0-1-1Z', 'M18 20v1h-6'],
@@ -35,4 +37,7 @@ const paths = {
     <path v-for="(path, index) in paths[name] || paths.chat" :key="index" :d="path" />
   </svg>
 </template>
-<style scoped>.ui-icon { width: 22px; height: 22px; flex-shrink: 0; vertical-align: middle; }</style>
+<style scoped>
+/* Scoped styles for components/UiIcon.vue; Vue supplies data-v scope. */
+.ui-icon { width: 22px; height: 22px; flex-shrink: 0; vertical-align: middle; }
+</style>

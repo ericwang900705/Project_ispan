@@ -1,5 +1,5 @@
 <script setup>
-import '../styles/support.css'
+
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, session, timeText } from '../api'
@@ -120,7 +120,7 @@ function openWidget() {
 function goTicket() {
   const id = room.value.ticketId
   expanded.value = false
-  router.push('/aki/tickets/' + id)
+  router.push('/tickets/' + id)
 }
 
 // --- 生命週期 ---
@@ -156,7 +156,7 @@ onUnmounted(() => {
     <section v-else id="member-support-panel" class="chat-panel" aria-label="線上客服聊天視窗">
       <header class="chat-header">
         <div class="chat-brand"><span class="chat-brand-icon"><UiIcon name="headset" /></span><div>
-          <strong>森遊線上客服</strong>
+          <strong>赫洛線上客服</strong>
           <small>
             {{ session.online ? '訊息連線正常' : '重新連線中…' }} ·
             {{ room?.adminId ? '客服已接手' : '可先留言等候回覆' }}

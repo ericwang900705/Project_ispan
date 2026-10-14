@@ -1,7 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue'
 import { api } from '../api'
-import '../styles/publisher.css'
 
 const keyword = ref('')
 const status = ref('')

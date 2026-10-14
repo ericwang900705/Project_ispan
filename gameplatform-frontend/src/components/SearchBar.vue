@@ -52,10 +52,7 @@ function clear() {
       <button class="secondary search-button" type="submit">
         搜尋
       </button>
+      <button v-if="text" class="text-button clear-button" type="button" @click="clear" aria-label="清除搜尋">清除</button>
     </div>
-
-    <button v-if="text" class="text-button clear-button" type="button" @click="clear">
-      清除
-    </button>
   </form>
 </template>

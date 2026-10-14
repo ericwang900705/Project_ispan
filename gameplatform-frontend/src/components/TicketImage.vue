@@ -50,7 +50,7 @@ async function load() {
   error.value = ''
 
   try {
-    const blob = await apiImage(`/aki/tickets/${props.ticketId}/attachments/${props.attachment.id}`, {
+    const blob = await apiImage(`/tickets/${props.ticketId}/attachments/${props.attachment.id}`, {
       signal: controller.signal
     })
     if (v === version) {
