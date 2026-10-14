@@ -1,0 +1,24 @@
+# Edit this file on your own computer. Never commit it to GitHub.
+# Local SQL Server development only; use a trusted certificate for deployment.
+spring.datasource.url=jdbc:sqlserver://localhost:1433;databaseName=GamePlatformDB;encrypt=true;trustServerCertificate=true
+spring.datasource.username=sa
+spring.datasource.password=
+
+app.jwt.secret=
+
+# Required for registration / verification / reset email.
+spring.mail.host=
+spring.mail.port=587
+spring.mail.username=
+spring.mail.password=
+app.member.mail.from=
+app.member.public-url=http://localhost:5173
+
+# ECPay AIO: fill in the test merchant and public HTTPS callback URL before enabling.
+ecpay.enabled=false
+ecpay.merchant-id=
+ecpay.hash-key=
+ecpay.hash-iv=
+ecpay.action-url=https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5
+ecpay.backend-url=
+ecpay.frontend-url=http://localhost:5173
