@@ -1,0 +1,289 @@
+/* HERO theme.css — 整合後共用樣式。單一畫面 CSS 請在對應 Vue 的 scoped style 修改。 */
+
+/* ===== global/hero-polish.css ===== */
+/* HERO visual enhancement — presentation only; all existing flows and data stay intact. */
+.support-ui {
+  --hero-card-radius: 19px;
+  --hero-border: rgba(91, 137, 157, .22);
+  --hero-elevation: 0 8px 26px rgba(19, 64, 88, .075);
+  --hero-focus: #1b8197;
+}
+.support-ui :is(button, a, input, select, textarea):focus-visible {
+  outline: 3px solid rgba(34, 149, 175, .44);
+  outline-offset: 2px;
+}
+.support-ui :is(button, .management-module, .review-list-item, .review-stat) {
+  transition: background-color .18s ease, box-shadow .18s ease, border-color .18s ease, transform .18s ease;
+}
+.support-ui button:not(:disabled) { cursor: pointer; }
+.support-ui button:disabled { cursor: not-allowed; opacity: .58; }
+.support-ui :is(input, select, textarea) { accent-color: #167c95; }
+.support-ui :is(input, select, textarea):focus { border-color: #3199a9; }
+.support-ui :is(.management-module, .review-list-card, .review-detail-card) { box-shadow: var(--hero-elevation); }
+.support-ui .management-module:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(16, 75, 105, .12); }
+
+/* Review-specific clarity and consistent status semantics. */
+.support-ui .review-workspace { --review-green: #08764b; --review-amber: #9c6311; --review-red: #b13a42; }
+.support-ui .review-title-row { padding: 8px 0; }
+.support-ui .review-title-row h1 { font-weight: 800; letter-spacing: -.025em; }
+.support-ui .review-title-icon { background: linear-gradient(140deg,#d8f1ee,#e6f3ff); box-shadow: inset 0 0 0 1px #c7e7e8; }
+.support-ui .review-stat { position: relative; overflow: hidden; text-align: left; border: 1px solid var(--hero-border); box-shadow: var(--hero-elevation); }
+.support-ui .review-stat::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:#9aafb5; }
+.support-ui .review-stat.pending::before { background:#e1a029; }
+.support-ui .review-stat.approved::before { background:#17966b; }
+.support-ui .review-stat.rejected::before, .support-ui .review-stat.removed::before { background:#d25a65; }
+.support-ui .review-stat-label { display:flex; align-items:center; gap:9px; font-weight:750; }
+.support-ui .review-stat-dot { height:9px; width:9px; border-radius:50%; background:#9aafb5; display:inline-block; }
+.support-ui .review-stat.pending .review-stat-dot { background:#e1a029; }
+.support-ui .review-stat.approved .review-stat-dot { background:#17966b; }
+.support-ui .review-stat.rejected .review-stat-dot, .support-ui .review-stat.removed .review-stat-dot { background:#d25a65; }
+.support-ui .review-stat:hover:not(:disabled) { transform:translateY(-2px); }
+.support-ui .review-stat.active { border-color:#379f9c; box-shadow:0 0 0 2px rgba(38,156,155,.15), var(--hero-elevation); }
+.support-ui .review-status { display:inline-flex!important; align-items:center; gap:6px; padding:6px 11px!important; border:1px solid transparent; font-size:12px!important; font-weight:800!important; letter-spacing:.02em; }
+.support-ui .review-status.pending { background:#fff1d7!important; color:#95600a!important; border-color:#f3d9a7; }
+.support-ui .review-status.approved { background:#dcf6e8!important; color:#086a44!important; border-color:#ace4c4; }
+.support-ui .review-status.rejected, .support-ui .review-status.removed { background:#ffe8e9!important; color:#a12c39!important; border-color:#f5c2c6; }
+.support-ui .review-state-symbol { font-size:14px; line-height:1; font-weight:900; }
+.support-ui .review-list-item { border-left:3px solid transparent; }
+.support-ui .review-list-item:hover:not(:disabled) { background:#f5fbfb; }
+.support-ui .review-list-item.selected { border-left-color:#188b94; background:#effaf8; }
+.support-ui .review-card-heading { gap:12px; }
+.support-ui .review-card-heading h2 { line-height:1.35; overflow-wrap:anywhere; }
+.support-ui .review-completed { border-radius:14px; border:1px solid #d3e4e6; padding:17px 19px; background:#f2f8fa; }
+.support-ui .review-completed.approved { border-color:#a8dfc1; background:#ebfbf2; color:#136846; }
+.support-ui .review-completed.rejected, .support-ui .review-completed.removed { border-color:#f1b9bf; background:#fff1f1; color:#a12c39; }
+.support-ui .review-completed strong { font-size:15px; }
+.support-ui .review-completed p { color:inherit; opacity:.86; }
+.support-ui .review-history { border-left:3px solid #a9d6d4; }
+.support-ui .review-store-preview { border:1px solid #c6e4e7; border-radius:16px; overflow:hidden; }
+.support-ui .review-success { border-radius:12px; }
+@media (max-width: 760px) {
+  .support-ui .review-title-row h1 { font-size:25px; }
+  .support-ui .review-stat { min-width:0; }
+  .support-ui .review-status { white-space:nowrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .support-ui :is(button, .management-module, .review-list-item, .review-stat) { transition:none; }
+  .support-ui .management-module:hover, .support-ui .review-stat:hover { transform:none; }
+}
+
+
+/* ===== global/hero-background.css ===== */
+/* HERO GLOBAL DESIGN TOKENS — change the shared palette here only.
+ * Vertical gradient is a SINGLE canvas, never restarted on cards or sections.
+ * Surface alpha keeps some blue visible while providing readable dark text.
+ */
+:root {
+  --hero-gradient-top: #eaf6ff;
+  --hero-gradient-mid-light: #c5e0f7;
+  --hero-gradient-mid: #7eadd8;
+  --hero-gradient-bottom: #194771;
+  --hero-page-background: linear-gradient(to bottom,
+    var(--hero-gradient-top) 0%,
+    var(--hero-gradient-mid-light) 32%,
+    var(--hero-gradient-mid) 67%,
+    var(--hero-gradient-bottom) 100%);
+  --hero-page-surface: rgba(247, 252, 255, .90);
+  --hero-page-surface-soft: rgba(231, 244, 255, .89);
+  --hero-page-surface-strong: rgba(250, 253, 255, .96);
+  --hero-page-ink: #17364e;
+  --hero-page-muted: #45637b;
+  --hero-page-dim: #4c677a;
+  --hero-page-border: rgba(126, 170, 204, .56);
+  --hero-page-accent: #086d8b;
+  --hero-page-shadow: 0 12px 30px rgba(10, 41, 73, .16);
+  --hero-card-blur: blur(10px);
+  --workspace-background: var(--hero-page-background);
+}
+html { min-height: 100%; background: var(--hero-gradient-bottom); }
+body, body.support-portal, body.support-portal.publisher-workspace,
+body.support-portal.staff-workspace {
+  min-height: 100dvh;
+  background-image: var(--hero-page-background);
+  background-color: var(--hero-gradient-bottom);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
+  color: var(--hero-page-ink);
+}
+#app { min-height: 100dvh; }
+body.support-portal .support-ui.support-page,
+body.support-portal.publisher-workspace .support-ui.support-page,
+.hero-store-layout, .hero-store-layout .home,
+.hero-store-layout .store, .hero-store-layout .shopping-cart {
+  background: transparent;
+}
+.hero-store-layout {
+  --color-background: var(--hero-page-surface-soft);
+  --color-background-soft: var(--hero-page-surface);
+  --color-background-mute: var(--hero-page-surface-soft);
+  --color-text: var(--hero-page-ink);
+  --color-heading: var(--hero-page-ink);
+  color: var(--hero-page-ink);
+}
+
+
+/* ===== global/hero-page-heading.css ===== */
+/* Shared HERO page headings — visually matched to /tickets (CASE TRACKING).
+   Keep text directly on the shared blue gradient; no rounded white title box. */
+.hero-store-layout .hero-page-heading.hero-case-heading {
+  display: flex; flex-direction: column; align-items: stretch;
+  gap: 12px; padding: 0;
+  /* Same centered content column as product filters/cards */
+  width: 100%; max-width: 1200px; box-sizing: border-box;
+  margin: 0 auto 26px;
+  border: 0; border-radius: 0; background: transparent;
+  box-shadow: none; backdrop-filter: none;
+  color: var(--hero-page-ink);
+}
+.hero-store-layout .hero-case-heading__eyebrow {
+  display: block; color: #155c80; font-size: 11px;
+  line-height: 1.5; letter-spacing: 2.4px; font-weight: 650;
+}
+.hero-store-layout .hero-case-heading__main {
+  width: 100%; display: flex; justify-content: space-between;
+  align-items: flex-end; gap: 20px; flex-wrap: wrap;
+}
+.hero-store-layout .hero-case-heading .hero-page-heading__content {
+  display: flex; flex-direction: column; gap: 9px;
+  align-items: flex-start; min-width: 0;
+}
+.hero-store-layout .hero-case-heading .hero-page-heading__title {
+  padding: 0; margin: 0; border: none; background: transparent;
+  color: #123b57; font-size: clamp(27px, 2.5vw, 34px); line-height: 1.36;
+  font-weight: 790; letter-spacing: .2px;
+}
+.hero-store-layout .hero-case-heading .hero-page-heading__caption {
+  padding: 0; margin: 0; color: #456880;
+  font-size: 15px; line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 650px) {
+  .hero-store-layout .hero-case-heading .hero-page-heading__title { font-size: 28px; }
+  .hero-store-layout .hero-case-heading .hero-page-heading__caption { font-size: 14px; }
+  .hero-store-layout .hero-case-heading__main { align-items: flex-start; gap: 12px; }
+}
+
+
+/* ===== global/hero-glass-contrast.css ===== */
+/* HERO global GLASS + ACCESSIBILITY rules.
+ * All regular cards use an opaque-enough pale-blue surface and dark typography.
+ * Only buttons, image overlays and status badges may use white on dark.
+ * Intentionally scoped to HERO content so modals/status severity retain meaning.
+ */
+body.support-portal :is(.hero-store-layout, .support-ui.publisher-global-content, .support-ui.support-page) {
+  background: transparent;
+}
+/* One unified surface across member/publisher/admin/support cards. */
+.support-ui :is(
+  .publisher-metrics article, .publisher-panel, .publisher-resource-card,
+  .publisher-edit-section, .publisher-live-preview, .publisher-game-list,
+  .publisher-game-detail, .publisher-history, .publisher-shortcut-group,
+  .publisher-quick-group, .publisher-function-group, .publisher-tools,
+  .publisher-notice, .publisher-sales-metrics article, .member-support-hero,
+  .member-support-options article, .member-help-strip,
+  .management-module, .platform-stat, .platform-trend, .publisher-actions article
+) {
+  background: var(--hero-page-surface);
+  border-color: var(--hero-page-border);
+  box-shadow: var(--hero-page-shadow);
+  backdrop-filter: var(--hero-card-blur);
+  color: var(--hero-page-ink);
+}
+.support-ui :is(.publisher-home, .publisher-games, .publisher-panel, .publisher-resource-card, .member-support-home) {
+  color: var(--hero-page-ink);
+}
+.support-ui :is(.publisher-home, .publisher-games, .publisher-panel, .publisher-resource-card, .member-support-home)
+:is(h1,h2,h3,h4) { color: var(--hero-page-ink); }
+.support-ui :is(.publisher-home, .publisher-games, .member-support-home)
+:is(.muted, .eyebrow, .publisher-section-heading p, .publisher-metrics small, .publisher-metrics article > div > span, .publisher-welcome p) { color: var(--hero-page-muted); }
+.support-ui :is(.publisher-panel, .publisher-edit-section, .publisher-live-preview) :is(label, dd, dt) {
+  color: var(--hero-page-ink);
+}
+/* Small text on feature shortcuts must reach readable contrast too. */
+.support-ui :is(.publisher-function-group, .publisher-function-link, .publisher-metrics article,
+  .publisher-panel, .publisher-global-sidebar, .member-support-hero,
+  .member-support-options article) :is(small, .muted) {
+  color: var(--hero-page-muted);
+}
+.support-ui .publisher-function-link > .ui-icon { color: #32617c; }
+.support-ui :is(.publisher-section-heading, .publisher-home-note) {
+  border-radius: 12px;
+  background: var(--hero-page-surface);
+  padding: 16px;
+  border: 1px solid var(--hero-page-border);
+  color: var(--hero-page-ink);
+}
+.support-ui .publisher-home-note { color: var(--hero-page-muted); }
+.support-ui .publisher-sales-metrics article :is(span,small),
+.support-ui .publisher-sales-day small, .support-ui .publisher-notice small,
+.support-ui .publisher-sales-table th { color: var(--hero-page-muted); }
+.support-ui .publisher-preview-heading {
+  background: var(--hero-page-surface);
+  border: 1px solid var(--hero-page-border);
+  border-radius: 14px;
+  padding: 16px;
+}
+.support-ui :is(.member-support-hero p, .member-support-options p, .member-support-tip) {
+  color: var(--hero-page-muted);
+}
+.hero-store-layout .prices s, .hero-store-layout .meta, .hero-store-layout .stats {
+  color: var(--hero-page-muted);
+}
+/* Keep inputs opaque, even over a deep-blue gradient. */
+.support-ui :is(input:not([type='checkbox']):not([type='radio']),textarea,select),
+.hero-store-layout :is(input,textarea,select) {
+  background-color: var(--hero-page-surface-strong);
+  color: var(--hero-page-ink);
+  border-color: var(--hero-page-border);
+}
+.support-ui :is(input,textarea,select)::placeholder,
+.hero-store-layout :is(input,textarea)::placeholder { color: var(--hero-page-muted); opacity: 1; }
+.support-ui :is(input,textarea,select):focus-visible,
+.hero-store-layout :is(input,textarea,select):focus-visible {
+  outline: 3px solid #085a84;
+  outline-offset: 2px;
+}
+/* Publisher sidebar is part of the theme, but stays almost opaque for legibility. */
+body.publisher-workspace .publisher-global-sidebar,
+body.staff-workspace .management-sidebar {
+  background: var(--hero-page-surface-strong);
+  border-color: var(--hero-page-border);
+  backdrop-filter: var(--hero-card-blur);
+}
+body.publisher-workspace .publisher-global-sidebar :is(a, h2, strong, small) { color: var(--hero-page-ink); }
+body.publisher-workspace .publisher-global-sidebar a.active { color: #084d71; }
+/* Sticky member/publisher top bar must be readable on both ends of the gradient. */
+body.support-portal .support-ui.member-ui.site-header-shell > .site-header {
+  background: rgba(250,253,255,.97);
+  border-bottom: 1px solid var(--hero-page-border);
+  backdrop-filter: blur(12px);
+  color: var(--hero-page-ink);
+}
+/* Store listings and content: shared translucent palette, dark readable text. */
+.hero-store-layout { color: var(--hero-page-ink); }
+.hero-store-layout :is(.panel, .main-cap, .review, .empty, .item, .summary, .result, .card) {
+  border-color: var(--hero-page-border);
+}
+/* Price and descriptive text must remain visible. */
+.hero-store-layout :is(.detail,.library,.shopping-cart,.home,.store) {
+  --text: var(--hero-page-ink);
+  --text-muted: var(--hero-page-muted);
+  --text-dim: var(--hero-page-dim);
+  --surface: var(--hero-page-surface);
+  --surface-2: var(--hero-page-surface-soft);
+  --bg: var(--hero-page-surface-soft);
+}
+/* Buttons with bright or dark backgrounds retain their own semantic colors. */
+/* Older page components don't all share the same HTML, so only the warning is styled here. */
+.hero-store-layout .store-api-warning {
+  background: rgba(255, 247, 226, .95);
+  color: #694216;
+  border-color: #c49e65;
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root { --hero-page-surface: #eff7ff; --hero-page-surface-soft: #e5f1fb; --hero-page-surface-strong: #fafcff; --hero-card-blur: none; }
+}
+@media (max-width: 650px) {
+  .support-ui :is(.publisher-panel, .member-support-hero) { box-shadow: 0 5px 15px rgba(10,41,73,.13); }
+}

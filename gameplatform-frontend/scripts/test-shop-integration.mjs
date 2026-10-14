@@ -1,0 +1,11 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import vm from 'node:vm'
+import fs from 'node:fs'
+const content=name=>fs.readFileSync(new URL('../src/cart/stores/'+name,import.meta.url),'utf8').replace(/^import .+$/gm,'').replace(/export (const|function)/g,'$1')
+function cart(api){let watcher;const session={user:{id:1,role:'MEMBER'}};const source=content('cart.js');const store=vm.runInNewContext(source+'\nuseCartStore()', {api,session,ref:v=>({value:v}),watch:(_get,fn)=>{watcher=fn},defineStore:(_name,fn)=>fn,document:{createElement(){throw Error('Form must not submit after account switch')}}});return {store,session,switchAccount(id){session.user={id,role:'MEMBER'};watcher()}}}
+const response={items:[{cartItemId:1,game:{gameId:1}}],totalPrice:100,coupon:null}
+test('cart response from previous login cannot populate the next account',async()=>{let finish;const t=cart(()=>new Promise(r=>finish=r));const pending=t.store.fetchCart();t.switchAccount(2);finish(response);await pending;assert.equal(t.store.items.value.length,0)})
+test('library response from previous login cannot leak owned games',async()=>{let finish;const t=cart(()=>new Promise(r=>finish=r));const pending=t.store.fetchLibrary();t.switchAccount(2);finish([{game:{gameId:1}}]);await pending;assert.equal(t.store.library.value.length,0)})
+test('checkout form cannot submit when user switches during the request',async()=>{let finish;const t=cart(()=>new Promise(r=>finish=r));const pending=t.store.payWithEcpay('Credit');t.switchAccount(2);finish({actionUrl:'https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5',params:{}});await assert.rejects(pending,/帳號已變更/)})
+test('anonymous reviewers can read; late responses cannot overwrite newer game',async()=>{let first;const api=url=>url.endsWith('/1')?new Promise(r=>first=r):Promise.resolve([{id:2}]);const source=content('reviews.js');const store=vm.runInNewContext(source+'\nuseReviewStore()', {api,session:{user:null},currentMemberId:()=>{throw Error('Anonymous must not need member ID')},ref:v=>({value:v}),computed:f=>({get value(){return f()}}),watch:()=>{},defineStore:(_n,fn)=>fn});const pending=store.fetchReviews(1);await store.fetchReviews(2);first([{id:1}]);await pending;assert.equal(store.gameId.value,2);assert.equal(store.reviews.value[0].id,2)})

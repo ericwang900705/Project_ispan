@@ -1,4 +1,3 @@
-[README.md](https://github.com/user-attachments/files/33415596/README.md)
 # HERO 已串接／未串接功能
 
 更新日期：2026-10-14。資料庫基準：使用者最新提供的 `SQL_server資料庫_1013-2.txt`。依據目前專案前端呼叫、後端 Controller／Service 與 SQL 操作判斷。本次商城來源為 [cart 分支](https://github.com/ericwang900705/Project_ispan/tree/cart)，固定比對 commit `11d6653c77bdcd218cec35370f90317e8b65405f`。其他分支目前僅檢查，尚未併入。
@@ -47,7 +46,7 @@
 
 ## 驗證
 
-前端 36 項測試與正式建置通過；後端 Java 25 編譯、79 項測試通過（含 20 項商城資料流程、3 項 HTTP 授權測試）。測試涵蓋跨會員拒絕、待付款不發遊戲、簽章／金額／特店錯誤、並發回呼、付款交易回滾、優惠券名額、送禮、評論作者權限，以及切換帳號後不沿用舊請求資料。
+本版已移除 H2 依賴、H2 整合測試、測試資料庫設定與資料初始化檔。移除後 Java 25 重新編譯及剩餘 10 項後端測試通過。前端上次 36 項測試與建置通過；本次未修改前端。
 
 SQL Server／SMTP／綠界外部環境未實測。多實例 JWT 撤銷仍需共享儲存。本檔集中說明串接狀態、使用方式與主要 API，不另附舊說明或更新文件。
 
@@ -78,4 +77,4 @@ GET /api/auth/verification-status?ticket=... 回傳 verified；只接受秘密�
 
 GET /api/members/me 讀取本人資料。PATCH /api/members/profile 接收 birthDate（僅未設定時）、address、avatarUrl。POST /api/members/change-password 接收 oldPassword、newPassword。受保護 API 都帶 `Authorization: Bearer <accessToken>`。
 
-本次驗證：前端共 36 項、後端共 79 項通過。新增測試確認生日鎖定且其他欄位可修改、等待憑證不能啟用帳號、舊等待頁能查到重寄信驗證結果，以及新驗證分頁不自動進第二個登入頁。正式 SQL Server／SMTP 尚需使用者環境驗證。
+本次移除 H2 後，剩餘 10 項後端測試通過。SQL Server／SMTP／綠界外部環境仍需實測；原 H2 資料庫整合測試已移除，未改為連線正式資料庫。
