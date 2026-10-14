@@ -1,5 +1,0 @@
-export { akiRoutes } from './routes'
-export { configureAkiModule, createAkiFetchAdapter, session, integration, stopEvents } from './api'
-export { default as AkiMemberChat } from './components/AkiMemberChat.vue'
-export { default as PublisherToast } from './components/PublisherToast.vue'
-export { default as PublisherNotificationBell } from './components/PublisherNotificationBell.vue'
