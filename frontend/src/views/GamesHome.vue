@@ -9,6 +9,8 @@ import { storeToRefs } from 'pinia'
 // 加入購物車按鈕、Steam 風格價格區塊
 import AddToCartButton from '@/components/AddToCartButton.vue'
 import PriceBlock from '@/components/PriceBlock.vue'
+// 整頁背景：粒子連線（滑鼠靠近會互動）
+import ParticleBackground from '@/components/ParticleBackground.vue'
 // 共用的購物車 store、遊戲 store
 import { useCartStore } from '@/stores/cart'
 import { useGamesStore, hasDiscount, discountPercent, getRecentIds } from '@/stores/games'
@@ -144,8 +146,10 @@ onUnmounted(stopAuto)
 
 <template>
   <main class="home">
-    <!-- ===== 滿版背景大圖：固定一張圖（放在 public/home-bg.jpg），往下漸漸淡成深藍 ===== -->
-    <div class="hero-bg"></div>
+    <!-- ===== 粒子連線背景（滑鼠靠近會互動） ===== -->
+    <ParticleBackground />
+      
+
 
     <!-- ===== 搜尋框 ===== -->
     <div class="store-nav">
@@ -282,22 +286,6 @@ onUnmounted(stopAuto)
   --text-dim: #5e6894;    /* 最淡的文字 */
 
   min-height: 100vh; padding: 16px; color: var(--text);
-}
-
-/* ===== 滿版背景大圖 =====
-   position: absolute + 沒有定位的父層 → 以整個網頁為基準，寬度撐滿整個視窗（不受 #app 1280px 限制）
-   z-index: -1 → 放在所有內容後面（包含最上面的導覽列） */
-.hero-bg {
-  position: absolute; top: 0; left: 0; width: 100%; height: 1000px; z-index: -1; overflow: hidden;
-  background-color: var(--bg); background-image: url('/home-bg.jpg');
-  background-size: cover; background-position: center top;
-}
-/* 蓋在圖上的漸層：上方稍暗、左右兩側壓暗、下方淡成深藍底色 */
-.hero-bg::after {
-  content: ''; position: absolute; inset: 0;
-  background:
-    linear-gradient(90deg, rgba(11, 12, 50, .85) 0%, transparent 25%, transparent 75%, rgba(11, 12, 50, .85) 100%),
-    linear-gradient(180deg, rgba(11, 12, 50, .55) 0%, rgba(11, 12, 50, .35) 30%, rgba(11, 12, 50, .8) 65%, var(--bg) 100%);
 }
 /* 共用：主要內容最寬 1180px 置中 */
 .store-nav, .layout { max-width: 1180px; margin: 0 auto; }

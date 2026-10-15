@@ -138,6 +138,17 @@ export const useCartStore = defineStore('cart', () => {
     }
     await fetchCart()
   }
+  async function clearCart() {
+    loading.value = true
+    try {
+      const { data } = await axios.delete(`/api/cart/${MEMBER_ID}`)
+      setCart(data)
+    } catch (e) {
+      throw toError(e, '清空購物車失敗')
+    } finally {
+      loading.value = false
+    }
+  }
 
   // 綠界付款：後端用購物車建立待付款訂單並回傳綠界表單參數，再整頁跳到綠界付款頁
   // choosePayment：'Credit'（信用卡）、'ATM'、'CVS'（超商代碼）
@@ -176,5 +187,5 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   // 對外公開的狀態與方法
-  return { items, totalPrice, coupon, coupons, library, loading, isInCart, isOwned, fetchCart, fetchLibrary, fetchCoupons, applyCoupon, addItem, findMember, addGift, removeItem, payWithEcpay, fetchPaymentOrder }
+  return { items, totalPrice, coupon, coupons, library, loading, isInCart, isOwned, fetchCart, fetchLibrary, fetchCoupons, applyCoupon, addItem, findMember, addGift, removeItem, clearCart, payWithEcpay, fetchPaymentOrder }
 })

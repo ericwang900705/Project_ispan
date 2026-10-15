@@ -71,6 +71,14 @@ async function remove(cartItemId) {
     alert(e.message)
   }
 }
+async function clearAll(){
+  if (!confirm('確定要清空購物車嗎？')) return
+  try {
+    await cart.clearCart()
+  }catch(e){
+    alert(e.message)
+  }
+}
 
 // 結帳：跳到綠界付款頁（測試環境），付款完會導回這一頁
 async function checkout() {
@@ -90,6 +98,7 @@ async function checkout() {
       <div class="head">
         <h1>我的購物車</h1>
         <span v-if="cart.items.length">{{ cart.items.length }} 個項目</span>
+        <button v-if="cart.items.length" class="clear-all" :disabled="cart.loading" @click="clearAll">清空購物車</button>
       </div>
 
       <!-- 從綠界導回來的付款結果 -->
@@ -230,6 +239,10 @@ async function checkout() {
 .head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; }
 .head h1 { margin: 0; font-size: 26px; font-weight: bold; color: var(--text); padding-left: 12px; border-left: 4px solid var(--gold); }
 .head span { color: var(--text-muted); font-size: 14px; }
+/* 清空購物車：靠右的灰色文字按鈕，滑鼠移上去變紅 */
+.clear-all { margin-left: auto; border: none; background: none; padding: 0; font-size: 13px; color: var(--text-muted); cursor: pointer; text-decoration: underline; }
+.clear-all:hover:not(:disabled) { color: #ff7a5c; }
+.clear-all:disabled { opacity: .5; cursor: default; }
 
 /* ===== 空購物車 ===== */
 .empty { text-align: center; padding: 60px 0; background: var(--surface); border-radius: 8px; border: 1px dashed var(--gold-dark); }
