@@ -1,13 +1,14 @@
 # HERO 客服系統
 
 所有以下新建帳號密碼：Demo1234!
-| 身分 | 帳號 | 入口 |
-|---|---|---|
-| 管理者 | `hero_demo_admin` | `http://localhost:5174` |
-| 客服一 | `hero_demo_support1` | `http://localhost:5174` |
-| 客服二 | `hero_demo_support2` | `http://localhost:5174` |
-| 會員一 | `hero_demo_member1` | `http://localhost:5173` |
-| 會員二 | `hero_demo_member2` | `http://localhost:5173` |
+| 身分 | 帳號 |
+|---|---|
+| 管理者 | hero_demo_admin |
+| 客服一 | hero_demo_support1 |
+| 客服二 | hero_demo_support2 |
+| 會員一 | hero_demo_member1 |
+| 會員二 | hero_demo_member2 |
+| 發行商 | hero_demo_publisher |
 
 ## 功能範圍
 
