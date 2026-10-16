@@ -23,4 +23,6 @@ public class MemberProfileResponse {
     private Boolean isPublisher;
 
     private LocalDateTime createdAt;
+
+    private Boolean hasPassword;// 標記是否有密碼（用以限制前端顯示「修改密碼」）
 }

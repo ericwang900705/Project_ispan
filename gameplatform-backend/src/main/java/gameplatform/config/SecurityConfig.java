@@ -68,6 +68,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/auth/**").permitAll()// 其他所有 API 都必須經過身分驗證
                         .requestMatchers("/ws/**").permitAll() // 放行聊天室驗證
                         .requestMatchers("/uploads/**").permitAll()// 放行預覽大頭貼
+                        .requestMatchers("/api/auth/forgot-password", "/api/auth/reset-password").permitAll()// 放行忘記密碼、重設密碼
+                        .requestMatchers("/api/games/**").permitAll()// 放行遊戲列表
+                        .requestMatchers("/error").permitAll()// 放行錯誤訊息
                         .anyRequest().authenticated())
                 // 將 JWT 攔截器掛載在原生的 UsernamePasswordAuthenticationFilter 之前
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

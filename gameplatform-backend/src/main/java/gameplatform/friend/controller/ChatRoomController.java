@@ -84,7 +84,6 @@ public class ChatRoomController {
     }
 
     // 3. 取得聊天室歷史對話
-    // 呼叫範例: GET /api/chat/rooms/1/history
     @GetMapping("/rooms/{roomId}/history")
     public ResponseEntity<List<ChatMessageDTO>> getRoomHistory(
             @PathVariable Integer roomId,

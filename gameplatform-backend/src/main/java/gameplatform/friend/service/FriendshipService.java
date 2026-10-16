@@ -74,9 +74,8 @@ public class FriendshipService {
             friendshipRepository.save(friendship);
             return "已接受好友邀請！";
         } else {
-            // 拒絕邀請，將狀態改為 REJECTED
-            friendship.setFriendStatus("REJECTED");
-            friendshipRepository.save(friendship);
+            // 拒絕邀請，直接刪除，不留留紀錄
+            friendshipRepository.delete(friendship);
             return "已拒絕好友邀請。";
         }
     }

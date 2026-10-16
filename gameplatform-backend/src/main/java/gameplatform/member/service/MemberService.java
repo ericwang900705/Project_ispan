@@ -9,12 +9,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
-
 import gameplatform.mail.service.MailService;
 import gameplatform.member.dto.ChangePasswordRequest;
 import gameplatform.member.dto.ForgotPasswordRequest;
@@ -30,13 +28,20 @@ import gameplatform.member.entity.Member;
 import gameplatform.member.entity.MemberVerification;
 import gameplatform.member.entity.PasswordHistory;
 import gameplatform.member.entity.PasswordReset;
+import gameplatform.member.repository.MemberLoginLogRepository;
 import gameplatform.member.repository.MemberRepository;
 import gameplatform.member.repository.MemberVerificationRepository;
 import gameplatform.member.repository.PasswordHistoryRepository;
 import gameplatform.member.repository.PasswordResetRepository;
 import gameplatform.member.util.JwtTokenProvider;
 import gameplatform.member.util.NationalIdValidator;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import gameplatform.member.entity.MemberLoginLog;
+import gameplatform.member.entity.MemberOAuthAccount;
+import gameplatform.member.repository.MemberOAuthAccountRepository;
 
+@RequiredArgsConstructor
 @Service
 public class MemberService {
 
@@ -47,23 +52,9 @@ public class MemberService {
     private final MemberVerificationRepository memberVerificationRepository;
     private final PasswordResetRepository passwordResetRepository;
     private final MailService mailService;
-
-    // 建構子注入 JwtTokenProvider
-    public MemberService(MemberRepository memberRepository,
-            PasswordHistoryRepository passwordHistoryRepository,
-            MemberVerificationRepository memberVerificationRepository,
-            PasswordResetRepository passwordResetRepository,
-            PasswordEncoder passwordEncoder,
-            JwtTokenProvider jwtTokenProvider,
-            MailService mailService) {
-        this.memberRepository = memberRepository;
-        this.passwordHistoryRepository = passwordHistoryRepository;
-        this.memberVerificationRepository = memberVerificationRepository;
-        this.passwordResetRepository = passwordResetRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.jwtTokenProvider = jwtTokenProvider;
-        this.mailService = mailService;
-    }
+    private final MemberLoginLogRepository memberLoginLogRepository;
+    private final HttpServletRequest httpServletRequest;
+    private final MemberOAuthAccountRepository memberOAuthAccountRepository;
 
     // ---1.註冊
     @Transactional
@@ -123,13 +114,17 @@ public class MemberService {
     }
 
     // ---2.登入
-    @Transactional
+    @Transactional(noRollbackFor = RuntimeException.class)
     public String login(LoginRequest request) {
+
+        String clientIp = getClientIp(httpServletRequest);
+
         // 1. 尋找帳號
         Member member = memberRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("帳號或密碼錯誤"));
         // 2. 檢查帳號是否被鎖定
         if (member.getLockedUntil() != null && member.getLockedUntil().isAfter(LocalDateTime.now())) {
+            recordLoginLog(member, clientIp, "LOCKED");// 寫入 LOCKED 紀錄
             throw new RuntimeException("帳號已被鎖定，請稍後再試");
         }
         // 3. 取得最新密碼紀錄
@@ -144,14 +139,45 @@ public class MemberService {
                 member.setLockedUntil(LocalDateTime.now().plusMinutes(1));
             }
             memberRepository.save(member);
+            recordLoginLog(member, clientIp, "FAILED");// 寫入 FAILED 紀錄
             throw new RuntimeException("帳號或密碼錯誤");
         }
         // 5. 登入成功：重置失敗次數與鎖定時間
         member.setFailedLoginCount(0);
         member.setLockedUntil(null);
         memberRepository.save(member);
+        recordLoginLog(member, clientIp, "SUCCESS");// 寫入 SUCCESS 紀錄
+
         // 6. 簽發 JWT Token
         return jwtTokenProvider.generateToken(member.getUsername(), member.getMemberId(), member.getIsPublisher());
+    }
+
+    // 輔助方法：儲存登入紀錄
+    private void recordLoginLog(Member member, String ipAddress, String status) {
+        MemberLoginLog log = MemberLoginLog.builder()
+                .member(member)
+                .ipAddress(ipAddress)
+                .loginStatus(status)
+                .loginAt(LocalDateTime.now())
+                .build();
+        memberLoginLogRepository.save(log);
+    }
+
+    // 輔助方法：取得真實客戶端 IP (防範代理或反向代理)
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        // 本機 IPv6 localhost 會是 0:0:0:0:0:0:0:1，轉成 127.0.0.1 方便閱讀
+        return "0:0:0:0:0:0:0:1".equals(ip) ? "127.0.0.1"
+                : (ip != null && ip.contains(",") ? ip.split(",")[0].trim() : ip);
     }
 
     // ---3.取得個人資料
@@ -160,12 +186,22 @@ public class MemberService {
         Member member = memberRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("找不到該會員"));
 
+        boolean hasPassword = passwordHistoryRepository.existsByMember_MemberId(member.getMemberId());
+
         // 將 Entity 轉換成前端需要的 DTO 格式
         return MemberProfileResponse.builder()
                 .memberId(member.getMemberId())
                 .username(member.getUsername())
                 .email(member.getEmail())
+                .nationalId(member.getNationalId())
+                .birthDate(member.getBirthDate())
+                .address(member.getAddress())
+                .avatarUrl(member.getAvatarUrl())
+                .totalPoints(member.getTotalPoints())
+                .balance(member.getBalance())
+                .isPublisher(member.getIsPublisher())
                 .createdAt(member.getCreatedAt())
+                .hasPassword(hasPassword)
                 .build();
     }
 
@@ -238,6 +274,10 @@ public class MemberService {
 
     // --- 將 Entity 轉為 Response 的共用小工具 ---
     private MemberProfileResponse buildProfileResponse(Member member) {
+
+        // 判斷密碼歷程是否存在
+        boolean hasPassword = passwordHistoryRepository.existsByMember_MemberId(member.getMemberId());
+
         return MemberProfileResponse.builder()
                 .memberId(member.getMemberId())
                 .username(member.getUsername())
@@ -250,6 +290,7 @@ public class MemberService {
                 .balance(member.getBalance())
                 .isPublisher(member.getIsPublisher())
                 .createdAt(member.getCreatedAt())
+                .hasPassword(hasPassword) // 帶入密碼狀態
                 .build();
     }
 
@@ -278,12 +319,23 @@ public class MemberService {
         return "信箱驗證成功！";
     }
 
+    // 輔助方法：檢查會員是否被停權或鎖定
+    private void checkMemberSuspended(Member member) {
+        // 檢查停權/鎖定依 lockedUntil ()
+        if (member.getLockedUntil() != null && member.getLockedUntil().isAfter(LocalDateTime.now())) {
+            throw new RuntimeException("該帳號已被鎖定或停權，無法執行此操作");
+        }
+    }
+
     // --- 7. 登入狀態下修改密碼
     @Transactional
     public String changePassword(String username, ChangePasswordRequest request) {
         // 1. 取得目前登入的會員
         Member member = memberRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("找不到該會員"));
+
+        // 【新增】檢查是否被管理員停權 / 鎖定
+        checkMemberSuspended(member);
 
         // 2. 取得他最新的密碼紀錄
         PasswordHistory latestPassword = passwordHistoryRepository.findFirstByMemberOrderByCreatedAtDesc(member)
@@ -317,6 +369,9 @@ public class MemberService {
         Member member = memberRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("找不到此信箱對應的帳號"));
 
+        // 【新增】檢查是否被管理員停權 / 鎖定
+        checkMemberSuspended(member);
+
         // 2. 產生重設 Token
         String token = UUID.randomUUID().toString();
 
@@ -329,9 +384,7 @@ public class MemberService {
         passwordResetRepository.save(passwordReset);
 
         // 4. 真實寄出重設密碼信
-        // 目前先導向後端網址方便測試。實務上有了前端後，這裡要改成前端的忘記密碼頁面網址 (例如
-        // http://localhost:5173/reset-password?token=)
-        String resetLink = "http://localhost:8080/api/auth/reset-password?token=" + token;
+        String resetLink = "http://localhost:5173/reset-password?token=" + token;
 
         String subject = "【遊戲平台】密碼重設要求";
         String content = "<h3>親愛的會員您好：</h3>"
@@ -349,6 +402,7 @@ public class MemberService {
     // ---9.執行重設密碼
     @Transactional
     public String resetPassword(ResetPasswordRequest request) {
+
         // 1. 驗證 Token 是否存在且有效
         PasswordReset passwordReset = passwordResetRepository.findByResetToken(request.getToken())
                 .orElseThrow(() -> new RuntimeException("無效的重設連結"));
@@ -377,7 +431,7 @@ public class MemberService {
 
         // 5. 解除帳號鎖定 (如果他之前因為密碼錯太多次被鎖定，重設密碼後直接幫他解鎖)
         member.setFailedLoginCount(0);
-        member.setLockedUntil(null);
+        // member.setLockedUntil(null); 避免被停權的忘記密碼後可解除停權
         memberRepository.save(member);
 
         return "密碼重設成功！請使用新密碼登入。";
@@ -459,6 +513,7 @@ public class MemberService {
     public String googleLogin(GoogleLoginRequest request) {
         String email = "";
         String username = "";
+        String googleSub = "";
 
         try {
             // 2. 建立 Google 官方的驗證器
@@ -474,6 +529,7 @@ public class MemberService {
                 // 驗證成功，提取 Google 帳號資訊
                 GoogleIdToken.Payload payload = idToken.getPayload();
                 email = payload.getEmail();
+                googleSub = payload.getSubject(); // 取得 Google 唯一的 sub ID
 
                 // 從 Google 取得使用者名稱 (去掉空白避免格式問題，並加上 UUID 確保遊戲帳號不重複)
                 String googleName = (String) payload.get("name");
@@ -488,19 +544,48 @@ public class MemberService {
             throw new RuntimeException("Google 驗證過程發生錯誤: " + e.getMessage());
         }
 
-        // --- 4. 系統內部登入/註冊邏輯 ---
-        Member member = memberRepository.findByEmail(email).orElse(null);
+        // --- 4 外部登入 (OAuth) 綁定與登入邏輯 (更新)---
+        Member member = null;
+        var oauthOpt = memberOAuthAccountRepository.findByProviderAndProviderUserId("GOOGLE", googleSub);
 
-        if (member == null) {
-            // 資料庫沒這個信箱，自動註冊為會員
-            member = Member.builder()
-                    .username(username)
+        if (oauthOpt.isPresent()) {
+            // 情況 A：此 Google 帳號已綁定過，直接取得對應的會員
+            member = oauthOpt.get().getMember();
+        } else {
+            // 情況 B：尚未綁定此 Google 帳號，檢查 Email 是否已有本地帳號
+            var memberOpt = memberRepository.findByEmail(email);
+            if (memberOpt.isPresent()) {
+                member = memberOpt.get();
+            } else {
+                // 沒此信箱則自動註冊新會員
+                Member newMember = Member.builder()
+                        .username(username)
+                        .email(email)
+                        .build();
+                member = memberRepository.save(newMember);
+            }
+
+            // 建立 OAuth 外部帳號綁定紀錄並存入 member_oauth_accounts
+            MemberOAuthAccount oauthAccount = MemberOAuthAccount.builder()
+                    .member(member)
+                    .provider("GOOGLE")
+                    .providerUserId(googleSub)
                     .email(email)
                     .build();
-            member = memberRepository.save(member);
+            memberOAuthAccountRepository.save(oauthAccount);
         }
 
-        // 5. 簽發並回傳我們系統專屬的 JWT Token
+        // 5. 檢查會員是否被鎖定
+        if (member.getLockedUntil() != null
+                && member.getLockedUntil().isAfter(LocalDateTime.now())) {
+            recordLoginLog(member, getClientIp(httpServletRequest), "LOCKED");
+            throw new RuntimeException("帳號已被鎖定，請稍後再試");
+        }
+
+        // 記錄 Google 登入成功
+        recordLoginLog(member, getClientIp(httpServletRequest), "SUCCESS");
+
+        // 6. 簽發並回傳我們系統專屬的 JWT Token
         return jwtTokenProvider.generateToken(member.getUsername(), member.getMemberId(), member.getIsPublisher());
     }
 }

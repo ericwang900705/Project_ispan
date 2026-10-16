@@ -10,6 +10,7 @@ import java.util.Optional;
 @Repository
 public interface PasswordHistoryRepository extends JpaRepository<PasswordHistory, Integer> {
 
-    // 找出該會員最新的一筆密碼紀錄
-    Optional<PasswordHistory> findFirstByMemberOrderByCreatedAtDesc(Member member);
+    Optional<PasswordHistory> findFirstByMemberOrderByCreatedAtDesc(Member member);// 找出該會員最新的一筆密碼紀錄
+
+    boolean existsByMember_MemberId(Integer memberId);// 檢查該會員是否擁有密碼紀錄
 }

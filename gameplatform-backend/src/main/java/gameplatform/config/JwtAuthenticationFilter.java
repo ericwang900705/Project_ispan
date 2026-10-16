@@ -1,5 +1,7 @@
 package gameplatform.config;
 
+import gameplatform.member.entity.Member;
+import gameplatform.member.repository.MemberRepository;
 import gameplatform.member.util.JwtTokenProvider;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -15,6 +17,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,9 +25,11 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final MemberRepository memberRepository; // 1. 新增注入 MemberRepository
 
-    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider) {
+    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, MemberRepository memberRepository) {
         this.jwtTokenProvider = jwtTokenProvider;
+        this.memberRepository = memberRepository;
     }
 
     @Override
@@ -37,7 +42,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 2. 驗證 Token 是否存在且合法
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
 
-            // 取出 Token 中所有的 Payload (需確保 JwtTokenProvider 中已新增並存檔 getClaimsFromToken 方法)
+            // 取出 Token 中所有的 Payload
             Claims claims = jwtTokenProvider.getClaimsFromToken(token);
 
             // 3. 從 Token 取得帳號(會員或admin)
@@ -54,6 +59,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String role = claims.get("role", String.class);
                 authorities.add(new SimpleGrantedAuthority(role));
             } else {
+                // ==================== 新增：檢查已登入會員是否被管理員停權 ====================
+                Member member = memberRepository.findByUsername(account).orElse(null);
+
+                // 如果帳號不存在，或是 lockedUntil 晚於現在時間 (代表正處於停權/鎖定期間)
+                if (member == null || (member.getLockedUntil() != null
+                        && member.getLockedUntil().isAfter(LocalDateTime.now()))) {
+
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN); // 回傳 403
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"message\": \"您的帳號已被停權或鎖定，無法繼續操作\"}");
+                    return; // 直接中斷請求，不往下放行！
+                }
+                // =========================================================================
+
                 // 會員也從 Token 中取出 "role" (會是 ROLE_PUBLISHER 或 ROLE_MEMBER)
                 String role = claims.get("role", String.class);
 

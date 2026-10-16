@@ -30,11 +30,17 @@ public class FriendshipController {
         return member.getMemberId();
     }
 
-    // 1. 發送好友邀請
-    @PostMapping("/request/{receiverId}")
-    public ResponseEntity<String> sendRequest(@PathVariable Integer receiverId, Authentication authentication) {
+    // 1. 發送好友邀請(更新為用username送出邀請)
+    @PostMapping("/request/{receiverUsername}")
+    public ResponseEntity<String> sendRequest(@PathVariable String receiverUsername, Authentication authentication) {
         Integer currentUserId = getCurrentMemberId(authentication);
-        String result = friendshipService.sendFriendRequest(currentUserId, receiverId);
+
+        // 透過對方的 username 查找他的會員資料與 memberId
+        Member receiver = memberRepository.findByUsername(receiverUsername)
+                .orElseThrow(() -> new RuntimeException("找不到該玩家帳號: " + receiverUsername));
+
+        // 拿到 receiver.getMemberId() 後，直接傳給Service
+        String result = friendshipService.sendFriendRequest(currentUserId, receiver.getMemberId());
         return ResponseEntity.ok(result);
     }
 
