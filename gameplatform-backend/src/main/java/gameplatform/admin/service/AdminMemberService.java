@@ -7,13 +7,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import gameplatform.member.entity.Member;
 import gameplatform.member.repository.MemberRepository;
-import lombok.RequiredArgsConstructor;
 
-@RequiredArgsConstructor
 @Service
 public class AdminMemberService {
 
     private final MemberRepository memberRepository;
+
+    public AdminMemberService(MemberRepository memberRepository) {
+        super();
+        this.memberRepository = memberRepository;
+    }
 
     // --- 停權 (鎖定會員) ---
     // days: 停權天數。若想永久停權，可傳入一個極大的數字，例如 3650 (十年)

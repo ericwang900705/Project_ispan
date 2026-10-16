@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <title>遊戲平台 - 即時聊天室與上線狀態測試</title>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 640px;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: #f4f6f9;
+        }
+
+        .card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            margin-bottom: 15px;
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        input[type="number"],
+        input[type="text"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+        }
+
+        button {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 4px;
+            background-color: #0d6efd;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        button.disconnect {
+            background-color: #6c757d;
+        }
+
+        button.leave {
+            background-color: #dc3545;
+            margin-left: auto;
+        }
+
+        #status {
+            font-weight: bold;
+            color: #dc3545;
+        }
+
+        .chat-header {
+            background: #212529;
+            color: white;
+            padding: 12px 15px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-header .title {
+            font-size: 1.15em;
+            font-weight: bold;
+        }
+
+        .chat-header .badge {
+            background: #0dcaf0;
+            color: #000;
+            font-size: 0.75em;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: bold;
+        }
+
+        #chat-box {
+            height: 320px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-top: none;
+            padding: 12px;
+            background: #fff;
+        }
+
+        .msg {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: #f1f3f5;
+            max-width: 75%;
+            width: fit-content;
+        }
+
+        .msg.me {
+            background: #d1e7dd;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .meta {
+            font-size: 0.8em;
+            color: #6c757d;
+            margin-bottom: 4px;
+        }
+
+        .sys-msg {
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.85em;
+            margin: 8px 0;
+            background: #f8f9fa;
+            padding: 4px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>💬 WebSocket 聊天室 & 🟢 上下線狀態測試</h2>
+
+    <div class="card">
+        <div class="row">
+            <label>房間 ID (Room ID):</label>
+            <input type="number" id="roomId" value="1" style="width: 65px;">
+            <label>我的 ID (Sender ID):</label>
+            <input type="number" id="senderId" value="1" style="width: 65px;">
+        </div>
+        <div class="row">
+            <label>JWT Token (選填):</label>
+            <input type="text" id="jwtToken" placeholder="貼上 Bearer Token 可自動顯示名稱、載入歷史與測試退群">
+        </div>
+        <div class="row" style="margin-bottom: 0;">
+            <button id="connectBtn" onclick="connect()">1. 連線並上線</button>
+            <button id="disconnectBtn" class="disconnect" onclick="disconnect()" disabled>離線 (中斷連線)</button>
+            <span>狀態：<span id="status">未連線</span></span>
+            <button id="leaveBtn" class="leave" onclick="leaveRoom()" disabled title="需填寫 JWT Token">🚪 退出此聊天室</button>
+        </div>
+    </div>
+
+    <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="chat-header">
+            <span class="title" id="roomTitle">尚未進入聊天室</span>
+            <span class="badge" id="roomTypeBadge" style="display: none;">DIRECT</span>
+        </div>
+
+        <div id="chat-box"></div>
+
+        <div class="row" style="padding: 12px; margin-bottom: 0; background: #f8f9fa; border-top: 1px solid #dee2e6;">
+            <input type="text" id="messageInput" placeholder="輸入訊息..." disabled
+                onkeydown="if(event.key==='Enter') sendMessage()">
+            <button id="sendBtn" onclick="sendMessage()" disabled>發送</button>
+        </div>
+    </div>
+
+    <script>
+        let stompClient = null;
+        let currentRoomType = 'DIRECT';
+
+        async function connect() {
+            const roomId = parseInt(document.getElementById('roomId').value);
+            const senderId = parseInt(document.getElementById('senderId').value);
+            const token = document.getElementById('jwtToken').value.trim();
+
+            if (!roomId || !senderId) {
+                alert('請輸入 Room ID 與 Sender ID');
+                return;
+            }
+
+            document.getElementById('chat-box').innerHTML = '';
+
+            if (token) {
+                await loadRoomInfoAndHistory(roomId, token);
+            } else {
+                document.getElementById('roomTitle').innerText = `聊天室 #${roomId} (等待對方發話自動顯示名稱...)`;
+                document.getElementById('roomTypeBadge').style.display = 'none';
+            }
+
+            stompClient = new StompJs.Client({
+                brokerURL: 'ws://localhost:8080/ws',
+                // 💡 關鍵：連線時把 memberId 放在 STOMP Header 傳給後端 WebSocketEventListener
+                connectHeaders: {
+                    memberId: senderId.toString()
+                },
+                onConnect: () => {
+                    document.getElementById('status').innerText = '🟢 在線上';
+                    document.getElementById('status').style.color = '#198754';
+                    toggleControls(true);
+
+                    // 1. 訂閱房間聊天訊息
+                    stompClient.subscribe('/topic/room/' + roomId, (message) => {
+                        const msgDto = JSON.parse(message.body);
+                        showMessage(msgDto);
+
+                        if (!token && msgDto.senderId !== senderId && currentRoomType === 'DIRECT') {
+                            document.getElementById('roomTitle').innerText = `👤 ${msgDto.senderName}`;
+                        }
+                    });
+
+                    // 2. 訂閱全服上下線狀態廣播 (/topic/presence)
+                    stompClient.subscribe('/topic/presence', (message) => {
+                        const presence = JSON.parse(message.body);
+                        const stateIcon = presence.isOnline ? '🟢 上線了' : '⚪ 離線了';
+                        showSystemNotice(`會員 ID [${presence.memberId}] ${stateIcon}`);
+                    });
+                },
+                onWebSocketError: (error) => {
+                    console.error('WebSocket Error:', error);
+                    alert('WebSocket 連線失敗！');
+                }
+            });
+
+            stompClient.activate();
+        }
+
+        async function loadRoomInfoAndHistory(roomId, token) {
+            try {
+                const roomsRes = await fetch('http://localhost:8080/api/chat/rooms', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (roomsRes.ok) {
+                    const rooms = await roomsRes.json();
+                    const targetRoom = rooms.find(r => r.roomId === roomId);
+                    if (targetRoom) {
+                        currentRoomType = targetRoom.roomType;
+                        const icon = targetRoom.roomType === 'DIRECT' ? '👤 ' : '👥 ';
+                        document.getElementById('roomTitle').innerText = icon + targetRoom.roomName;
+                        const badge = document.getElementById('roomTypeBadge');
+                        badge.innerText = targetRoom.roomType === 'DIRECT' ? '一對一私訊' : '多人聊天室';
+                        badge.style.display = 'inline-block';
+                    }
+                }
+
+                const historyRes = await fetch(`http://localhost:8080/api/chat/rooms/${roomId}/history`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (historyRes.ok) {
+                    const historyList = await historyRes.json();
+                    historyList.forEach(msg => showMessage(msg));
+                } else {
+                    showSystemNotice('⚠️ 無法讀取歷史訊息（您可能已退出此聊天室或非房間成員）');
+                }
+            } catch (err) {
+                console.warn('無法載入房間資訊:', err);
+            }
+        }
+
+        // 呼叫退群 API (PATCH /api/chat/rooms/{roomId}/leave)
+        async function leaveRoom() {
+            const roomId = parseInt(document.getElementById('roomId').value);
+            const token = document.getElementById('jwtToken').value.trim();
+
+            if (!token) {
+                alert('請先在上方填入您的 JWT Token 才能執行退群 API！');
+                return;
+            }
+            if (!confirm(`確定要退出聊天室 #${roomId} 嗎？退出後將無法再發話或查看歷史紀錄。`)) return;
+
+            const res = await fetch(`http://localhost:8080/api/chat/rooms/${roomId}/leave`, {
+                method: 'PATCH',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+
+            const text = await res.text();
+            if (res.ok) {
+                alert(text);
+                disconnect();
+            } else {
+                alert('退群失敗：' + text);
+            }
+        }
+
+        function disconnect() {
+            if (stompClient !== null) {
+                stompClient.deactivate();
+            }
+            document.getElementById('status').innerText = '⚪ 離線';
+            document.getElementById('status').style.color = '#dc3545';
+            document.getElementById('roomTitle').innerText = '尚未進入聊天室';
+            document.getElementById('roomTypeBadge').style.display = 'none';
+            toggleControls(false);
+        }
+
+        function sendMessage() {
+            const roomId = parseInt(document.getElementById('roomId').value);
+            const senderId = parseInt(document.getElementById('senderId').value);
+            const content = document.getElementById('messageInput').value.trim();
+
+            if (!content) return;
+
+            stompClient.publish({
+                destination: '/app/chat.send',
+                body: JSON.stringify({
+                    roomId: roomId,
+                    senderId: senderId,
+                    content: content,
+                    messageType: 'TEXT'
+                })
+            });
+
+            document.getElementById('messageInput').value = '';
+        }
+
+        function showMessage(msg) {
+            const currentSenderId = parseInt(document.getElementById('senderId').value);
+            const chatBox = document.getElementById('chat-box');
+            const div = document.createElement('div');
+
+            const isMe = (msg.senderId === currentSenderId);
+            div.className = 'msg ' + (isMe ? 'me' : '');
+
+            const timeStr = msg.createdAt ? msg.createdAt.replace('T', ' ').substring(0, 19) : '';
+            div.innerHTML = `
+                <div class="meta"><strong>${msg.senderName}</strong> (ID: ${msg.senderId}) · ${timeStr}</div>
+                <div>${msg.content}</div>
+            `;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function showSystemNotice(text) {
+            const chatBox = document.getElementById('chat-box');
+            const div = document.createElement('div');
+            div.className = 'sys-msg';
+            div.innerText = `--- 系統通知：${text} ---`;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function toggleControls(connected) {
+            document.getElementById('connectBtn').disabled = connected;
+            document.getElementById('disconnectBtn').disabled = !connected;
+            document.getElementById('leaveBtn').disabled = !connected;
+            document.getElementById('messageInput').disabled = !connected;
+            document.getElementById('sendBtn').disabled = !connected;
+            document.getElementById('roomId').disabled = connected;
+            document.getElementById('senderId').disabled = connected;
+            document.getElementById('jwtToken').disabled = connected;
+        }
+    </script>
+</body>
+
+</html>

@@ -10,7 +10,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/publishers")
-@PreAuthorize("hasAnyRole('ADMIN', 'REVIEWER')") // 限制登入權限
+@PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN', 'ROLE_PUBLISHER_ADMIN')") // 限制登入權限
 public class AdminPublisherController {
 
     private final AdminPublisherService adminPublisherService;
