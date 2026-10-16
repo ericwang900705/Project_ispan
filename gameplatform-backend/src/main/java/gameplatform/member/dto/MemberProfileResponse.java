@@ -23,4 +23,5 @@ public class MemberProfileResponse {
     private Boolean isPublisher;
 
     private LocalDateTime createdAt;
+    private Boolean hasPassword;
 }
