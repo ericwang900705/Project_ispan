@@ -16,5 +16,6 @@ public class ChatRoomDTO {
     private String roomType;
     private String roomName;
     private String avatarUrl;
+    private String memberNames;
     private LocalDateTime joinedAt;
 }

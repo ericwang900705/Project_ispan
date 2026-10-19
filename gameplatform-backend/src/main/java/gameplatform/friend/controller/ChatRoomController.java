@@ -65,10 +65,15 @@ public class ChatRoomController {
             FriendRoom room = frm.getFriendRoom();
             String displayRoomName = room.getRoomName();
             String displayAvatar = null;
+            String memberNames = null;
 
             // 一對一聊天，找出對方的資料來當房間名稱跟大頭貼
             if ("DIRECT".equals(room.getRoomType())) {
                 displayRoomName = "與好友的對話 (Room " + room.getFriendRoomId() + ")";
+            } else {
+                // GROUP 多人群組：取得所有成員名字並用逗號串接
+                List<String> names = chatRoomService.getRoomMemberUsernames(room.getFriendRoomId());
+                memberNames = String.join(", ", names);
             }
 
             return ChatRoomDTO.builder()
@@ -77,6 +82,7 @@ public class ChatRoomController {
                     .roomName(displayRoomName)
                     .avatarUrl(displayAvatar)
                     .joinedAt(frm.getJoinedAt())
+                    .memberNames(memberNames)
                     .build();
         }).collect(Collectors.toList());
 
@@ -115,10 +121,12 @@ public class ChatRoomController {
         Integer currentUserId = getCurrentMemberId(authentication);
         FriendRoom room = chatRoomService.createGroupRoom(currentUserId, roomName, targetUserIds);
 
+        List<String> names = chatRoomService.getRoomMemberUsernames(room.getFriendRoomId());
         ChatRoomDTO dto = ChatRoomDTO.builder()
                 .roomId(room.getFriendRoomId())
                 .roomType(room.getRoomType())
                 .roomName(room.getRoomName())
+                .memberNames(String.join(", ", names))
                 .build();
 
         return ResponseEntity.ok(dto);

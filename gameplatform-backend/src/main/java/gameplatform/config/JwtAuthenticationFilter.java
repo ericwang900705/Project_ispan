@@ -25,7 +25,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final MemberRepository memberRepository; // 1. 新增注入 MemberRepository
+    private final MemberRepository memberRepository;
 
     public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, MemberRepository memberRepository) {
         this.jwtTokenProvider = jwtTokenProvider;
@@ -59,7 +59,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String role = claims.get("role", String.class);
                 authorities.add(new SimpleGrantedAuthority(role));
             } else {
-                // ==================== 新增：檢查已登入會員是否被管理員停權 ====================
+                // ==================== 檢查已登入會員是否被管理員停權 ====================
                 Member member = memberRepository.findByUsername(account).orElse(null);
 
                 // 如果帳號不存在，或是 lockedUntil 晚於現在時間 (代表正處於停權/鎖定期間)
@@ -71,7 +71,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     response.getWriter().write("{\"message\": \"您的帳號已被停權或鎖定，無法繼續操作\"}");
                     return; // 直接中斷請求，不往下放行！
                 }
-                // =========================================================================
+                // =====================================================================
 
                 // 會員也從 Token 中取出 "role" (會是 ROLE_PUBLISHER 或 ROLE_MEMBER)
                 String role = claims.get("role", String.class);
@@ -96,7 +96,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private String getJwtFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
-        if (org.springframework.util.StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7); // 切掉 "Bearer " 這 7 個字元，只保留 Token 本體
         }
         return null;

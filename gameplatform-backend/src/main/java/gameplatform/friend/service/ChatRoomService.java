@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -155,9 +156,19 @@ public class ChatRoomService {
             Member newMember = memberRepository.findById(newMemberId)
                     .orElseThrow(() -> new RuntimeException("找不到受邀的使用者 ID: " + newMemberId));
 
-            // 檢查是否已經在群組內
             FriendRoomMemberId newId = new FriendRoomMemberId(roomId, newMemberId);
-            if (!friendRoomMemberRepository.existsById(newId)) {
+            Optional<FriendRoomMember> existingMemberOpt = friendRoomMemberRepository.findById(newId);
+
+            if (existingMemberOpt.isPresent()) {
+                FriendRoomMember member = existingMemberOpt.get();
+                if (member.getLeftAt() != null) {
+                    member.setLeftAt(null); // 清空離開時間，恢復群組成員身份
+                    member.setJoinedAt(java.time.LocalDateTime.now()); // 更新重新加入時間
+                    friendRoomMemberRepository.save(member);
+                }
+                // 若 member.getLeftAt() == null 代表他已經在群內，直接略過
+            } else {
+                // 從未加入過的新成員，新增實體
                 FriendRoomMember groupMember = FriendRoomMember.builder()
                         .friendRoom(room)
                         .member(newMember)
@@ -233,5 +244,13 @@ public class ChatRoomService {
         // 紀錄離開時間 (軟刪除)
         roomMember.setLeftAt(java.time.LocalDateTime.now());
         friendRoomMemberRepository.save(roomMember);
+    }
+
+    // 取得指定聊天室內所有未退群成員的 Username 清單
+    public List<String> getRoomMemberUsernames(Integer roomId) {
+        return friendRoomMemberRepository.findByFriendRoom_FriendRoomIdAndLeftAtIsNull(roomId)
+                .stream()
+                .map(frm -> frm.getMember().getUsername())
+                .collect(Collectors.toList());
     }
 }
