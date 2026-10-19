@@ -1,0 +1,519 @@
+/* Cart's palette and page CSS are shared by storefront and publisher workspace. */
+body.cart-portal {
+    background: var(--color-background, #0b0c32);
+    color: var(--color-text, #dfe6ff)
+}
+
+.cart-portal #app {
+    max-width: none;
+    padding: 0;
+    margin: 0
+}
+
+.cart-portal .publisher-content {
+    padding: 32px;
+    min-width: 0;
+    margin-left: 236px;
+    width: calc(100% - 236px);
+    color: #dfe6ff
+}
+
+body.cart-portal.publisher-workspace {
+    --publisher-header-height: 70px;
+    background: var(--color-background, #0b0c32);
+    --hero-page-background: var(--color-background, #0b0c32);
+    --workspace-background: var(--color-background, #0b0c32)
+}
+
+.publisher-workspace {
+    font-family: inherit;
+    line-height: 1.7;
+    --line: #35406f;
+    --muted: #a5b1d7;
+    --ink: #e6ecff;
+    --surface: #111648;
+    --surface-soft: #192050;
+    --teal: #d4a64a;
+    --teal-hover: #f0c060;
+    --shadow: 0 12px 30px #0003
+}
+
+.publisher-workspace * {
+    box-sizing: border-box
+}
+
+.publisher-workspace h1 {
+    font-size: 30px;
+    line-height: 1.4;
+    margin: 0 0 12px;
+    color: #f5f6ff
+}
+
+.publisher-workspace h2,
+.publisher-workspace h3 {
+    color: #f0c060;
+    margin: 0 0 14px
+}
+
+.publisher-workspace p {
+    margin: 0 0 12px;
+    line-height: 1.8
+}
+
+.publisher-workspace .muted,
+.publisher-workspace small {
+    color: #a5b1d7
+}
+
+.publisher-workspace a {
+    color: #f0c060;
+    text-decoration: none
+}
+
+.publisher-workspace button,
+.publisher-workspace .secondary,
+.publisher-workspace .primary {
+    font: inherit;
+    border: 1px solid #485383;
+    border-radius: 8px;
+    padding: 10px 16px;
+    cursor: pointer;
+    background: #20295c;
+    color: #dfe6ff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px
+}
+
+.publisher-workspace button:disabled {
+    opacity: .45;
+    cursor: not-allowed
+}
+
+.publisher-workspace .primary {
+    background: #d4a64a;
+    border-color: #d4a64a;
+    color: #171832;
+    font-weight: 600
+}
+
+.publisher-workspace :is(input, textarea, select) {
+    font: inherit;
+    color: #e6ecff;
+    background: #0b1035;
+    border: 1px solid #485383;
+    border-radius: 8px;
+    padding: 11px;
+    min-width: 0;
+    max-width: 100%
+}
+
+.publisher-workspace :is(input, textarea, select):disabled {
+    background: #141b42;
+    color: #8792b8
+}
+
+.publisher-workspace input[type=checkbox] {
+    width: 18px;
+    height: 18px;
+    accent-color: #d4a64a
+}
+
+.publisher-workspace .eyebrow {
+    display: block;
+    color: #d4a64a;
+    font-size: 11px;
+    letter-spacing: 2px;
+    margin-bottom: 10px
+}
+
+.publisher-workspace :is(.publisher-panel, .publisher-function-group, .publisher-metrics article, .publisher-resource-card, .publisher-history, .publisher-live-preview, .publisher-store-fields, .publisher-preview, .publisher-buyer-total) {
+    background: #111648;
+    border-color: #35406f;
+    color: #dfe6ff
+}
+
+.publisher-workspace :is(.publisher-game-row, .publisher-tag-grid label, .publisher-function-link, .publisher-preview-facts, .publisher-preflight li) {
+    background: #192050;
+    border-color: #35406f;
+    color: #dfe6ff
+}
+
+.publisher-workspace .publisher-game-row.active,
+.publisher-workspace .publisher-game-row:hover {
+    background: #232c62;
+    border-color: #d4a64a
+}
+
+.publisher-workspace :is(.publisher-game-row strong, .publisher-metrics strong, .publisher-buyers b, .publisher-buyer-total strong, .publisher-selected-heading h2) {
+    color: #f0c060
+}
+
+.publisher-workspace :is(.publisher-game-row small, .publisher-selected-heading span, .publisher-metrics span, .publisher-home-note, .publisher-function-link small) {
+    color: #b7c4e8
+}
+
+.publisher-workspace :is(.publisher-panel-heading, .publisher-selected-heading) {
+    border-color: #35406f
+}
+
+.publisher-workspace .publisher-pending {
+    background: #3b321d;
+    color: #f3d592
+}
+
+.publisher-workspace .error {
+    background: #4b2535;
+    color: #ffd3d3;
+    padding: 14px;
+    border-radius: 8px
+}
+
+.publisher-workspace .publisher-form label {
+    color: #ccd8ff
+}
+
+.publisher-workspace .publisher-sales-metrics article {
+    background: #111648;
+    border-color: #35406f;
+    color: #dfe6ff
+}
+
+.publisher-workspace .publisher-sales-metrics strong {
+    color: #f0c060
+}
+
+.publisher-workspace .publisher-sales-table :is(td, th) {
+    color: #dfe6ff;
+    border-color: #35406f
+}
+
+.cart-portal .publisher-global-sidebar {
+    background: #111648;
+    border-color: #35406f;
+    top: var(--publisher-header-height, 70px)
+}
+
+.cart-portal .publisher-global-sidebar a {
+    color: #c2ccef
+}
+
+.cart-portal .publisher-global-sidebar a:hover,
+.cart-portal .publisher-global-sidebar a.active {
+    background: #232c62;
+    color: #f0c060;
+    box-shadow: none
+}
+
+.cart-portal .publisher-global-group h2 {
+    color: #d4a64a
+}
+
+.cart-portal .publisher-modal,
+.cart-portal .publisher-toast {
+    color: #dfe6ff;
+    background: #111648;
+    border: 1px solid #485383
+}
+
+.cart-portal .publisher-modal :is(input, textarea) {
+    background: #0b1035;
+    color: #dfe6ff;
+    border: 1px solid #485383;
+    border-radius: 8px;
+    padding: 12px;
+    width: 100%;
+    box-sizing: border-box
+}
+
+.cart-portal .publisher-modal button {
+    padding: 10px 16px;
+    border: 1px solid #485383;
+    border-radius: 8px;
+    background: #232c62;
+    color: #f0c060;
+    cursor: pointer
+}
+
+.cart-portal .support-page {
+    padding: 32px 24px;
+    max-width: 1280px;
+    margin: auto;
+    min-height: calc(100vh - 70px)
+}
+
+.cart-portal .member-login .login-story {
+    background: #111648;
+    color: #dfe6ff
+}
+
+.cart-portal .member-login .login-story h1 {
+    color: #f0c060
+}
+
+@media(max-width:850px) {
+    .cart-portal .publisher-global-sidebar {
+        position: static;
+        width: auto;
+        max-height: 220px
+    }
+
+    .cart-portal .publisher-content {
+        margin: 0;
+        width: 100%;
+        padding: 24px 16px
+    }
+
+    .publisher-workspace .publisher-work-columns {
+        grid-template-columns: 1fr
+    }
+}
+
+@media(prefers-reduced-motion:reduce) {
+    .cart-portal * {
+        transition: none !important;
+        scroll-behavior: auto !important
+    }
+}
+
+.cart-portal .publisher-workspace .publisher-edit-section {
+    background: #192050;
+    border-color: #35406f
+}
+
+.cart-portal .publisher-workspace .publisher-edit-section h3 {
+    color: #f0c060
+}
+
+.cart-portal .publisher-workspace .publisher-form :is(input, textarea, select) {
+    background: #0b1035;
+    color: #e6ecff;
+    border-color: #485383
+}
+
+.cart-portal .publisher-workspace .publisher-game-search input {
+    background: #0b1035;
+    color: #e6ecff;
+    border-color: #485383
+}
+
+.cart-portal .publisher-workspace :is(.publisher-preview-cover, .publisher-image-placeholder, .publisher-upload-empty) {
+    background: #0b1035;
+    color: #a5b1d7;
+    border-color: #485383
+}
+
+.cart-portal .publisher-workspace .publisher-preview-price {
+    color: #f0c060
+}
+
+.cart-portal .publisher-workspace :is(.publisher-draft-label, .publisher-preview-tags span, .publisher-upload-button) {
+    background: #232c62;
+    color: #f0c060;
+    border-color: #485383
+}
+
+.cart-portal .publisher-workspace .publisher-select-tags label {
+    background: #232c62;
+    color: #dfe6ff;
+    border-color: #485383
+}
+
+.cart-portal .publisher-workspace .publisher-select-tags label.selected {
+    background: #594722;
+    color: #fff0c5
+}
+
+.cart-portal .publisher-workspace .publisher-editor-actions .primary {
+    background: #d4a64a;
+    border-color: #d4a64a;
+    color: #171832
+}
+
+body.support-portal #app {
+    max-width: none;
+    padding: 0;
+    margin: 0
+}
+
+.cart-portal .member-login-links {
+    display: flex;
+    gap: 18px;
+    margin-top: 20px;
+    flex-wrap: wrap
+}
+
+.cart-portal .member-login-links a {
+    color: #d4a64a
+}
+
+.cart-portal .member-account-page {
+    color: #dfe6ff
+}
+
+.cart-portal .member-account-card,
+.cart-portal .member-settings-nav {
+    background: #111648;
+    color: #dfe6ff;
+    border-color: #35406f
+}
+
+.cart-portal .member-account-card :is(h1, h2, h3) {
+    color: #f0c060
+}
+
+.cart-portal .member-account-card :is(input, textarea, select) {
+    background: #0b1035;
+    color: #e6ecff;
+    border-color: #485383
+}
+
+.cart-portal .member-account-card label,
+.cart-portal .member-account-card :is(p, small) {
+    color: #b9c8eb
+}
+
+.cart-portal .member-account-card .primary {
+    background: #d4a64a;
+    color: #151735
+}
+
+.cart-portal .member-settings-nav a {
+    color: #dfe6ff
+}
+
+.cart-portal .member-settings-nav a.active {
+    background: #232c62;
+    color: #f0c060
+}
+
+.cart-portal .member-account-card .member-account-error {
+    background: #4b2535;
+    color: #ffd3d3
+}
+
+.cart-portal .member-account-card .member-account-success {
+    background: #183f36;
+    color: #bff3dc
+}
+
+.cart-portal .member-bell {
+    display: inline-flex;
+    padding: 0 8px
+}
+
+.cart-portal .member-bell .notification-toggle {
+    background: #232c62;
+    color: #f0c060
+}
+
+.cart-portal .member-social-dock {
+    z-index: 1200
+}
+
+.staff-register-link {
+    display: block;
+    text-align: center;
+    margin-top: 20px;
+    color: #17647d
+}
+
+.cart-portal .member-social-dock {
+    position: fixed;
+    bottom: 0;
+    right: 16px;
+    width: 300px;
+    max-width: calc(100vw - 32px);
+    display: flex;
+    flex-direction: column;
+    gap: 0
+}
+
+.cart-portal .member-profile-nav {
+    background: #111648;
+    color: #dfe6ff;
+    border-color: #35406f
+}
+
+.cart-portal .member-profile-nav a {
+    color: #b9c8eb
+}
+
+.cart-portal .member-profile-nav a.active {
+    background: #232c62;
+    color: #f0c060
+}
+
+.cart-portal .member-account-card .member-profile-summary {
+    background: #192050;
+    color: #dfe6ff
+}
+
+.cart-portal .member-account-links a {
+    color: #f0c060
+}
+
+/* Lazy account pages keep cart colors after their component styles are loaded. */
+body.cart-portal .member-ui :is(.member-account-card, .member-profile-nav) {
+    background: #111648;
+    color: #dfe6ff;
+    border-color: #35406f
+}
+
+body.cart-portal .member-ui .member-account-card :is(h1, h2, h3) {
+    color: #f0c060
+}
+
+body.cart-portal .member-ui .member-account-card :is(label, p, small) {
+    color: #b9c8eb
+}
+
+body.cart-portal .member-ui .member-account-card input {
+    background: #0b1035;
+    color: #e6ecff;
+    border-color: #485383
+}
+
+body.cart-portal .member-ui .member-account-card button.primary {
+    background: #d4a64a;
+    color: #151735
+}
+
+body.cart-portal .member-ui .member-profile-nav a {
+    color: #b9c8eb
+}
+
+body.cart-portal .member-ui .member-profile-nav a.active {
+    background: #232c62;
+    color: #f0c060
+}
+
+body.cart-portal .member-ui .member-account-card .member-avatar {
+    background: #232c62;
+    color: #f0c060;
+    border-color: #485383
+}
+
+body.cart-portal .member-ui .member-account-card .member-account-error {
+    background: #4b2535;
+    color: #ffd3d3
+}
+
+body.cart-portal .member-ui .member-account-card .member-account-success {
+    background: #183f36;
+    color: #bff3dc
+}
+
+.cart-portal .member-social-dock .chat-widget.docked {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: 100%;
+    max-width: 100%
+}
+
+body.cart-portal .member-ui .member-account-card .member-account-links a {
+    color: #f0c060
+}
