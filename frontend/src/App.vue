@@ -2,8 +2,8 @@
 // 引入 vue-router 提供的元件：
 // RouterLink：產生導覽連結（取代 <a>，切換頁面不會重新整理）
 // RouterView：依目前路由顯示對應的頁面元件
-import { RouterLink, RouterView } from 'vue-router'
-import { onMounted, ref } from 'vue'
+import { RouterLink, RouterView, useRouter, useRoute } from 'vue-router'
+import { onMounted, ref, computed } from 'vue'
 // 共用的遊戲 store：下拉選單的分類清單從這裡來
 // genreIcon：依分類名稱拿到對應的圖示
 import { useGamesStore, genreIcon } from '@/stores/games'
@@ -11,8 +11,27 @@ import { useGamesStore, genreIcon } from '@/stores/games'
 import FriendsList from '@/components/FriendsList.vue'
 // 右下角客服：獨立一條，疊在好友名單上面
 import CustomerService from '@/components/CustomerService.vue'
+// 整個網站共用的背景：粒子連線（放在這裡，每一頁都會有）
+import ParticleBackground from '@/components/ParticleBackground.vue'
+// 發行商
+import { useModeStore } from '@/stores/mode'
+// 開發商模式時，右上角顯示目前的工作室
+import { useStudioStore } from '@/stores/studio'
 
 const gamesStore = useGamesStore()
+const modeStore = useModeStore()
+const studioStore = useStudioStore()
+const router = useRouter()
+const route = useRoute()
+
+// 現在是不是在開發商後台（/developer 開頭）：後台不顯示右下角的客服和好友，避免擋到表格
+const inDeveloper = computed(() => route.path.startsWith('/developer'))
+
+function switchMode(mode){
+  modeStore.mode = mode
+  router.push(mode === 'developer' ? '/developer' : '/')
+}
+
 
 // 右下角目前展開的是哪一個：'support'（客服）、'friends'（好友）或 null（都收合）
 // 同一時間只會展開一個：點客服時好友收下去，點好友時客服收下去
@@ -26,6 +45,9 @@ onMounted(() => gamesStore.fetchGames())
 </script>
 
 <template>
+  <!-- 整個網站共用的粒子連線背景（固定在所有內容後面，換頁也不會重新產生） -->
+  <ParticleBackground />
+
   <!-- 頁首區塊 -->
   <header>
     <div class="wrapper">
@@ -55,6 +77,19 @@ onMounted(() => gamesStore.fetchGames())
         <RouterLink to="/shopping-cart">購物車</RouterLink>
       </nav>
     </div>
+    <!-- 右上角：開發商模式時顯示目前的工作室，旁邊是玩家 / 開發商模式切換（目前的模式會亮金色） -->
+    <div class="header-right">
+      <RouterLink v-if="modeStore.mode === 'developer'" to="/developer/studio" class="studio-chip"
+        :title="`${studioStore.studio.name}（工作室設定）`">
+        <img v-if="studioStore.studio.logoUrl" :src="studioStore.studio.logoUrl" alt="" />
+        <span v-else class="studio-initial">{{ studioStore.studio.name.slice(0, 1) }}</span>
+        <span class="studio-name">{{ studioStore.studio.name }}</span>
+      </RouterLink>
+      <div class="mode-switch">
+        <button :class="{ on: modeStore.mode === 'player' }" @click="switchMode('player')">🎮 玩家</button>
+        <button :class="{ on: modeStore.mode === 'developer' }" @click="switchMode('developer')">🛠 開發商</button>
+      </div>
+    </div>
   </header>
   <!-- 佔位用：補回固定 header 的高度 -->
   <div class="header-spacer"></div>
@@ -62,8 +97,8 @@ onMounted(() => gamesStore.fetchGames())
   <!-- 路由出口：目前網址對應的頁面會渲染在這裡 -->
   <RouterView />
 
-  <!-- 右下角：客服和好友合成一個欄位（客服在上、好友在下），每一頁都會顯示 -->
-  <div class="dock">
+  <!-- 右下角：客服和好友合成一個欄位（客服在上、好友在下）；開發商後台不顯示，避免擋到內容 -->
+  <div v-if="!inDeveloper" class="dock">
     <CustomerService :open="dockOpen === 'support'" @toggle="toggleDock('support')" />
     <FriendsList :open="dockOpen === 'friends'" @toggle="toggleDock('friends')" />
   </div>
@@ -89,7 +124,27 @@ header {
 .header-spacer {
   height: 4.5rem;
 }
-
+/* 右上角：工作室 + 模式切換橫排；header 是 fixed，absolute 會以 header 為基準，top 50% + translateY(-50%) 垂直置中 */
+.header-right {
+  position: absolute; top: 50%; right: 16px; transform: translateY(-50%);
+  display: flex; align-items: center; gap: 10px;
+}
+.mode-switch {
+  display: flex; border: 1px solid #2e4a9a; border-radius: 16px; overflow: hidden;
+}
+/* 目前的工作室：小 Logo + 名稱，點了到工作室設定 */
+.studio-chip { display: flex; align-items: center; gap: 6px; padding: 2px 10px 2px 2px; border-radius: 16px; font-size: 13px; color: #e4e8f8; border: 1px solid #2e4a9a; }
+.studio-chip:hover { border-color: #d4a64a; background: transparent; }
+.studio-chip img, .studio-initial { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+.studio-initial { display: flex; align-items: center; justify-content: center; background: #1c2a66; color: #d4a64a; font-weight: bold; font-size: 12px; }
+.studio-name { max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mode-switch button{
+  border: none; background: transparent;color:#98a2c8;
+  padding:4px 12px; font-size:13px;cursor: pointer;
+}
+.mode-switch button:hover { color: #e4e8f8; }
+/* 目前的模式：金色底、深色字 */
+.mode-switch button.on { background: #d4a64a; color: #1b0f0d; font-weight: bold; }
 /* 導覽列：滿版寬度、大字體、文字置中 */
 nav {
   width: 100%;

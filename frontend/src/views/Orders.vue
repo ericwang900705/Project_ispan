@@ -8,9 +8,8 @@ const store = useOrdersStore()
 const STATUS_LABELS = {
   PENDING: '待付款',
   PAID: '已付款',
-  FAILED: '付款失敗',
   CANCELLED: '已取消',
-  EXPIRED: '已逾期',
+  REFUNDED: '已退款',
 }
 
 // 篩選分頁：key 對應下面的 filters
@@ -18,13 +17,13 @@ const tabs = [
   { key: 'all', label: '全部' },
   { key: 'pending', label: '待付款' },
   { key: 'paid', label: '已付款' },
-  { key: 'closed', label: '已取消 / 失敗' },
+  { key: 'closed', label: '已取消 / 退款' },
 ]
 const filters = {
   all: () => true,
   pending: (o) => o.orderStatus === 'PENDING',
   paid: (o) => o.orderStatus === 'PAID',
-  closed: (o) => ['FAILED', 'CANCELLED', 'EXPIRED'].includes(o.orderStatus),
+  closed: (o) => ['CANCELLED', 'REFUNDED'].includes(o.orderStatus),
 }
 const tab = ref('all')
 const shown = computed(() => store.orders.filter(filters[tab.value]))
@@ -137,7 +136,6 @@ async function cancel(order) {
                 <span>NT$ {{ item.unitPrice }}</span>
               </div>
             </li>
-            <li v-if="!order.orderItems.length" class="no-items">付款失敗的訂單不保留明細</li>
           </ul>
 
           <!-- 付款資訊 -->
@@ -159,17 +157,18 @@ async function cancel(order) {
 
 <!-- 我的訂單樣式：和購物車同色系（暗棕底 + 金色） -->
 <style scoped>
+/* ===== 配色：和首頁一樣的深藍 + 金色，要換顏色改這裡就好 ===== */
 .orders {
-  --bg: #1b0f0d;
-  --surface: #2a1a14;
-  --surface-2: #3a261c;
-  --gold: #d4a64a;
-  --gold-dark: #6b4e0f;
-  --text: #e8dcc8;
-  --text-muted: #a8988a;
+  --bg: #0b0c32;          /* 整頁底色 */
+  --surface: #121a4a;     /* 卡片底色 */
+  --surface-2: #1c2a66;   /* 比較亮的區塊底色 */
+  --gold: #d4a64a;        /* 重點色（金色） */
+  --gold-dark: #2e4a9a;   /* 邊框色（藍） */
+  --text: #e4e8f8;        /* 一般文字 */
+  --text-muted: #98a2c8;  /* 次要文字 */
 
+  /* 不設底色，讓 App.vue 的粒子連線背景透出來 */
   min-height: 100vh; padding: 32px 16px; color: var(--text);
-  background: radial-gradient(ellipse at top, #3a2216 0%, var(--bg) 60%);
 }
 .wrap { max-width: 1000px; margin: 0 auto; }
 
@@ -207,7 +206,7 @@ async function cancel(order) {
 .status { padding: 2px 10px; border-radius: 10px; font-size: 12px; white-space: nowrap; border: 1px solid; }
 .status.PAID { color: #8fd07a; border-color: #4a7a3a; }
 .status.PENDING { color: #f0c060; border-color: #8a6a20; }
-.status.FAILED, .status.CANCELLED, .status.EXPIRED { color: var(--text-muted); border-color: var(--surface-2); }
+.status.CANCELLED, .status.REFUNDED { color: var(--text-muted); border-color: var(--surface-2); }
 
 /* 展開的明細 */
 .detail { padding: 4px 16px 16px; border-top: 1px solid var(--surface-2); }
@@ -232,7 +231,6 @@ async function cancel(order) {
 .price { display: flex; flex-direction: column; align-items: flex-end; white-space: nowrap; }
 .price del { color: var(--text-muted); font-size: 12px; }
 .price span { color: var(--gold); font-weight: bold; }
-.no-items { color: var(--text-muted); font-size: 13px; }
 
 .meta { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 14px 0 0; padding-top: 12px; border-top: 1px dashed var(--surface-2); font-size: 13px; }
 .meta dt { color: var(--text-muted); }

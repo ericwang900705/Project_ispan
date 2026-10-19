@@ -9,11 +9,16 @@ export const useGamesStore = defineStore('games', () => {
   // [{ gameId, gameName, price, originalPrice, description, coverUrl, status, genre }]
   const games = ref([])
 
+  // 玩家看得到的遊戲：已下架（OFF_SALE）的不顯示；開發商後台用 games（全部）
+  const onSaleGames = computed(() => games.value.filter((g) => g.status !== 'OFF_SALE'))
+
   // 所有出現過的分類（去掉重複和沒填分類的），用來產生分類按鈕 / 選單
-  const genres = computed(() => [...new Set(games.value.map((g) => g.genre).filter(Boolean))])
+  const genres = computed(() => [...new Set(onSaleGames.value.map((g) => g.genre).filter(Boolean))])
+
 
   // 有打折的遊戲（原價比售價高）
-  const discountedGames = computed(() => games.value.filter(hasDiscount))
+  const discountedGames = computed(() => onSaleGames.value.filter(hasDiscount))
+
 
   // 取得全部遊戲
   async function fetchGames() {
@@ -32,7 +37,31 @@ export const useGamesStore = defineStore('games', () => {
     stats.value = Object.fromEntries(data.map((s) => [s.gameId, s]))
   }
 
-  return { games, genres, discountedGames, stats, fetchGames, fetchStats }
+  // 開發商：改遊戲狀態（上架 / 下架），成功後把本地那一筆換成後端回傳的新資料，畫面馬上跟著變
+  async function updateStatus(gameId, status) {
+    // PATCH /api/developer/games/{gameId}/status
+    const { data } = await axios.patch(`/api/developer/games/${gameId}/status`, { status })
+    const i = games.value.findIndex((g) => g.gameId === gameId)
+    if (i !== -1) games.value[i] = data
+  }
+
+  // 開發商：儲存遊戲。有 gameId 就是修改（PUT），沒有就是新增（POST）
+  // 成功後更新本地的 games，回到列表時不用重新抓
+  async function saveGame(gameId, form) {
+    if (gameId) {
+      // PUT /api/developer/games/{gameId}
+      const { data } = await axios.put(`/api/developer/games/${gameId}`, form)
+      const i = games.value.findIndex((g) => g.gameId === data.gameId)
+      if (i !== -1) games.value[i] = data
+      return data
+    }
+    // POST /api/developer/games
+    const { data } = await axios.post('/api/developer/games', form)
+    games.value.push(data)
+    return data
+  }
+
+  return { games, onSaleGames, genres, discountedGames, stats, fetchGames, fetchStats, updateStatus, saveGame }
 })
 
 // 有原價且原價比售價高，才算有打折

@@ -9,8 +9,6 @@ import { storeToRefs } from 'pinia'
 // 加入購物車按鈕、Steam 風格價格區塊
 import AddToCartButton from '@/components/AddToCartButton.vue'
 import PriceBlock from '@/components/PriceBlock.vue'
-// 整頁背景：粒子連線（滑鼠靠近會互動）
-import ParticleBackground from '@/components/ParticleBackground.vue'
 // 共用的購物車 store、遊戲 store
 import { useCartStore } from '@/stores/cart'
 import { useGamesStore, hasDiscount, discountPercent, getRecentIds } from '@/stores/games'
@@ -18,7 +16,8 @@ import { useGamesStore, hasDiscount, discountPercent, getRecentIds } from '@/sto
 const router = useRouter()
 const cart = useCartStore()
 const gamesStore = useGamesStore()
-const { games, genres, discountedGames, stats } = storeToRefs(gamesStore)
+const { onSaleGames: games, genres, discountedGames, stats } = storeToRefs(gamesStore)
+
 
 // ===== 搜尋框 =====
 // 搜尋框輸入的文字
@@ -146,8 +145,7 @@ onUnmounted(stopAuto)
 
 <template>
   <main class="home">
-    <!-- ===== 粒子連線背景（滑鼠靠近會互動） ===== -->
-    <ParticleBackground />
+    <!-- 背景的粒子連線放在 App.vue，每一頁共用 -->
       
 
 

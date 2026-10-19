@@ -132,6 +132,13 @@ async function checkout() {
           <p class="hint">繳費完成後遊戲才會加入遊戲庫；之後也可以到「我的訂單」查看繳費資訊</p>
           <RouterLink to="/orders" class="btn-gold">查看我的訂單</RouterLink>
         </template>
+        <!-- 已收到付款，但訂單之前已經取消：不會自動給遊戲，等客服處理 -->
+        <template v-else-if="paymentResult.status === 'review'">
+          <h2>📨 已收到付款，處理中</h2>
+          <p v-if="paymentResult.order">訂單 #{{ paymentResult.order.orderId }} 在付款前已經取消（或逾期），所以遊戲沒有自動加入遊戲庫</p>
+          <p class="hint">我們會盡快幫你補發遊戲或退款，不用再付一次</p>
+          <RouterLink to="/orders" class="btn-gold">查看我的訂單</RouterLink>
+        </template>
         <!-- 付款失敗 / 取消 -->
         <template v-else>
           <h2>❌ 付款沒有完成</h2>
@@ -220,17 +227,17 @@ async function checkout() {
 <style scoped>
 /* ===== 配色：要換顏色改這裡就好 ===== */
 .shopping-cart {
-  --bg: #1b0f0d;          /* 整頁底色 */
-  --surface: #2a1a14;     /* 卡片底色 */
-  --surface-2: #3a261c;   /* 比較亮的區塊底色 */
+  --bg: #0b0c32;          /* 整頁底色（跟首頁一樣的深藍） */
+  --surface: #121a4a;     /* 卡片底色 */
+  --surface-2: #1c2a66;   /* 比較亮的區塊底色 */
   --gold: #d4a64a;        /* 重點色（金色） */
-  --gold-dark: #6b4e0f;   /* 深金色 */
+  --gold-dark: #2e4a9a;   /* 邊框色（藍） */
   --sale: #b23a2a;        /* 紅色（移除、折抵） */
-  --text: #e8dcc8;        /* 一般文字 */
-  --text-muted: #a8988a;  /* 次要文字 */
+  --text: #e4e8f8;        /* 一般文字 */
+  --text-muted: #98a2c8;  /* 次要文字 */
 
+  /* 不設底色，讓 App.vue 的粒子連線背景透出來 */
   min-height: 100vh; padding: 32px 16px; color: var(--text);
-  background: radial-gradient(ellipse at top, #3a2216 0%, var(--bg) 60%);
 }
 /* 內容最寬 1100px 置中 */
 .wrap { max-width: 1100px; margin: 0 auto; }
@@ -338,7 +345,7 @@ async function checkout() {
 }
 .btn-gold:hover:not(:disabled) { filter: brightness(1.12); background-color: transparent; }
 .btn-gold:active:not(:disabled) { transform: translateY(1px); }
-.btn-gold:disabled { background: #4a3a32; color: var(--text-muted); cursor: default; }
+.btn-gold:disabled { background: #2a3460; color: var(--text-muted); cursor: default; }
 .checkout { width: 100%; margin-top: 16px; }
 
 /* ===== 手機 / 小螢幕：摘要移到清單下方，封面縮小 ===== */

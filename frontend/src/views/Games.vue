@@ -16,7 +16,8 @@ const route = useRoute()
 const router = useRouter()
 // 遊戲清單和分類清單都放在遊戲 store
 const gamesStore = useGamesStore()
-const { games, genres } = storeToRefs(gamesStore)
+const { onSaleGames: games, genres, stats } = storeToRefs(gamesStore)
+
 // 取得購物車 store（按鈕要用它判斷遊戲是否已在購物車 / 已擁有）
 const cart = useCartStore()
 
@@ -30,16 +31,44 @@ function selectGenre(genre) {
   router.push({ query: { ...route.query, genre: genre || undefined } })
 }
 
-// 依選的分類和搜尋關鍵字過濾後要顯示的遊戲
-const filteredGames = computed(() =>
-  games.value
+// 排序方式：value 會放在網址 ?sort=...；compare 是 Array.sort 用的比較函式
+// （回傳負數 a 排前面、正數 b 排前面）
+// 評價和銷量從 stats 拿：{ gameId: { avgRating, reviewCount, soldCount } }，沒有資料就當 0
+const statOf = (g) => stats.value[g.gameId] ?? {}
+const discountOf = (g) => (hasDiscount(g) ? discountPercent(g) : 0)
+const SORTS = [
+  { value: '', label: '預設排序', compare: null },
+  { value: 'price-asc', label: '價格：低到高', compare: (a, b) => a.price - b.price },
+  { value: 'price-desc', label: '價格：高到低', compare: (a, b) => b.price - a.price },
+  { value: 'discount', label: '折扣最多', compare: (a, b) => discountOf(b) - discountOf(a) },
+  // 評價一樣高時，評論比較多的排前面
+  { value: 'rating', label: '評價最好', compare: (a, b) =>
+      (statOf(b).avgRating ?? 0) - (statOf(a).avgRating ?? 0) || (statOf(b).reviewCount ?? 0) - (statOf(a).reviewCount ?? 0) },
+  { value: 'sales', label: '最熱銷', compare: (a, b) => (statOf(b).soldCount ?? 0) - (statOf(a).soldCount ?? 0) },
+  // localeCompare 加 'zh-Hant'：中文會照筆畫排，英文照字母排
+  { value: 'name', label: '名稱', compare: (a, b) => a.gameName.localeCompare(b.gameName, 'zh-Hant') },
+]
+const sort = computed(() => route.query.sort ?? '')
+
+// 選排序：一樣改網址，畫面會跟著網址重新排
+function selectSort(value) {
+  router.push({ query: { ...route.query, sort: value || undefined } })
+}
+
+// 依選的分類和搜尋關鍵字過濾，再依選的方式排序後要顯示的遊戲
+const filteredGames = computed(() => {
+  const list = games.value
     .filter((g) => !selectedGenre.value || g.genre === selectedGenre.value)
     .filter((g) => g.gameName.toLowerCase().includes(keyword.value.toLowerCase()))
-)
+  const compare = SORTS.find((s) => s.value === sort.value)?.compare
+  // filter 已經產生新陣列，這裡直接 sort 不會動到 store 裡的原始資料
+  return compare ? list.sort(compare) : list
+})
 
-// 進入頁面時抓遊戲清單，也抓購物車和遊戲庫（按鈕才知道顯示哪種狀態）
+// 進入頁面時抓遊戲清單、統計（評價／銷量排序用），也抓購物車和遊戲庫（按鈕才知道顯示哪種狀態）
 onMounted(() => {
   gamesStore.fetchGames()
+  gamesStore.fetchStats()
   cart.fetchCart()
   cart.fetchLibrary()
 })
@@ -60,6 +89,13 @@ onMounted(() => {
       <button :class="{ active: selectedGenre === '' }" @click="selectGenre('')">全部</button>
       <button v-for="genre in genres" :key="genre" :class="{ active: selectedGenre === genre }"
         @click="selectGenre(genre)">{{ genre }}</button>
+      <!-- 排序下拉選單：靠在這一列最右邊 -->
+      <label class="sort" for="sort">
+        排序
+        <select id="sort" :value="sort" @change="selectSort($event.target.value)">
+          <option v-for="s in SORTS" :key="s.value" :value="s.value">{{ s.label }}</option>
+        </select>
+      </label>
     </div>
     <!-- 金色外框區塊，裡面放遊戲卡片 -->
     <div class="panel">
@@ -93,31 +129,51 @@ onMounted(() => {
 
 <!-- 遊戲頁面樣式（scoped：只作用於此元件） -->
 <style scoped>
-/* 整頁深色背景 */
-.store { background: #1b0f0d; min-height: 100vh; padding: 32px 16px; color: #fff; }
+/* ===== 配色：和首頁一樣的深藍 + 金色，要換顏色改這裡就好 ===== */
+/* 整頁：不設底色，讓 App.vue 的粒子連線背景透出來 */
+.store {
+  --surface: #121a4a;     /* 按鈕、價格的底色 */
+  --surface-2: #1c2a66;   /* 比較亮的底色（滑鼠移上去、選中） */
+  --panel: rgba(18, 26, 74, .6); /* 包住所有卡片的大框：半透明，背後的粒子隱約看得到 */
+  --border: #2e4a9a;      /* 邊框（藍） */
+  --gold: #d4a64a;        /* 重點色（金色） */
+  --text: #e4e8f8;        /* 一般文字 */
+  --text-muted: #98a2c8;  /* 次要文字 */
+  --text-dim: #5e6894;    /* 最淡的文字（刪除線原價） */
+
+  min-height: 100vh; padding: 32px 16px; color: var(--text);
+}
 /* 標題和外框都置中，最寬 1200px */
 .section-head, .panel { max-width: 1200px; margin: 0 auto; }
-/* 主標題：白色粗體、字距拉開 */
+/* 主標題：粗體、字距拉開 */
 .section-head h2 { margin: 0; font-size: 22px; letter-spacing: 2px; }
 /* 副標題：灰色 */
-.section-head span { color: #b8b6b4; font-size: 16px; }
+.section-head span { color: var(--text-muted); font-size: 16px; }
 /* 分類按鈕列：置中、最寬 1200px，按鈕之間留空隙，太多時自動換行 */
 .genre-bar { max-width: 1200px; margin: 12px auto 0; display: flex; flex-wrap: wrap; gap: 8px; }
-/* 分類按鈕：深色底、灰字 */
+/* 分類按鈕：深藍底、灰字 */
 .genre-bar button {
-  border: 1px solid #6b4e0f; background: #2a1a16; color: #b8b6b4;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
   padding: 4px 14px; font-size: 14px; border-radius: 2px; cursor: pointer;
 }
-/* 滑鼠移上去或選中時：金色底、白字 */
-.genre-bar button:hover, .genre-bar button.active { background: #6b4e0f; color: #fff; }
+/* 滑鼠移上去或選中時：亮一點的藍底、白字；選中的加金色邊框 */
+.genre-bar button:hover, .genre-bar button.active { background: var(--surface-2); color: var(--text); }
+.genre-bar button.active { border-color: var(--gold); }
+/* 排序：margin-left: auto 把它推到這一列最右邊（換行時就在新的一行靠右） */
+.sort { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-muted); }
+.sort select {
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  padding: 4px 10px; font-size: 14px; border-radius: 2px; cursor: pointer;
+}
+.sort select:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
 /* 分類標籤：封面右上角的小標籤 */
 .genre-tag {
   position: absolute; top: 6px; right: 6px; padding: 2px 8px; font-size: 12px;
   background: rgba(0, 0, 0, .7); color: #fff; border-radius: 2px;
 }
-/* 金色外框：卡片用格線排列，每張至少 260px 寬，依畫面寬度自動決定一列放幾張 */
+/* 大框：卡片用格線排列，每張至少 260px 寬，依畫面寬度自動決定一列放幾張 */
 .panel {
-  margin: 12px auto 0; padding: 18px; background: #6b4e0f; border-radius: 3px;
+  margin: 12px auto 0; padding: 18px; background: var(--panel); border: 1px solid var(--border); border-radius: 3px;
   display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px;
 }
 /* 單張卡片：滑鼠移上去稍微放大並加陰影 */
@@ -141,13 +197,13 @@ onMounted(() => {
   background: linear-gradient(to bottom, #e8be63, #b8892f);
 }
 /* 已擁有 / 已在購物車時按鈕變灰 */
-.bottom :deep(.cart-btn:disabled) { background: #4a3a32; color: #a8988a; cursor: default; }
+.bottom :deep(.cart-btn:disabled) { background: #2a3460; color: var(--text-muted); cursor: default; }
 /* 價格條：折扣% 和價格並排 */
 .price-bar { display: flex; font-weight: bold; }
 /* 折扣%：紅底、米白字 */
 .discount { background: #b23a2a; color: #fff1e0; padding: 4px 6px; font-size: 15px; }
-/* 價格：深棕底 */
-.prices { background: #2a1a14; padding: 4px 8px; font-size: 14px; display: flex; align-items: center; gap: 6px; }
-/* 刪除線原價：較小、灰褐色 */
-.prices s { color: #8a7a6e; font-size: 11px; font-weight: normal; }
+/* 價格：深藍底 */
+.prices { background: var(--surface); padding: 4px 8px; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+/* 刪除線原價：較小、淡灰藍色 */
+.prices s { color: var(--text-dim); font-size: 11px; font-weight: normal; }
 </style>
