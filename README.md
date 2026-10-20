@@ -1,4 +1,4 @@
-3v3OBvD6sdZ1m+K6uy3UDKPXLVCihB9DLOIk3PR35sU=
+app.jwt.secret=3v3OBvD6sdZ1m+K6uy3UDKPXLVCihB9DLOIk3PR35sU=
 
 測試帳號
 
