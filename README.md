@@ -19,52 +19,6 @@
 
 退款目前只有紀錄查詢，不代表已提供實際退款；優惠券管理與尚未串接的「優惠活動」是不同功能。
 
-## 2. 更新檔案及覆蓋順序
-
-以先前完整整合專案為基礎，依下列順序解壓並合併至專案根目錄，覆蓋同名檔案。不可直接替換整個 `src` 資料夾。
-
-| 順序 | 更新包 | 程式檔案 |
-| --- | --- | --- |
-| 1 | `Project_ispan_Frontend_CSS_Update_20261020.zip` | `MemberApp.vue`、`views/MemberLogin.vue`、`views/PublisherGames.vue`、`cart/components/FriendsList.vue`、`styles/cart-integration.css`、`styles/publisher.css` |
-| 2 | `Project_ispan_Backoffice_UI_Update_20261020.zip` | `views/AdminMembers.vue`、`views/AdminPublishers.vue`、`views/AdminGames.vue`、`views/AdminOperations.vue`、`styles/admin-management.css` |
-| 3 | `Project_ispan_Calendar_Update_20261020.zip` | `components/DatePicker.vue`、`views/AdminOperations.vue`、`views/MemberAccount.vue`、`views/PublisherSales.vue`、`components/PublisherStoreEditor.vue` |
-
-表內程式路徑均相對於 `gameplatform-frontend/src/`。日曆包也包含 `AdminOperations.vue`，所以應最後覆蓋。這三包不修改 SQL。
-
-## 3. 發行商選單清理（依前面說明手動套用）
-
-以下是後續提出的修改步驟，不代表上述更新包已包含這些刪除。
-
-### 移除獨立「審核通知」入口
-
-檔案：`gameplatform-frontend/src/publisher-functions.js`。
-
-1. 從 `publisherFunctions` 移除 `mode: 'notifications'` 的整筆設定（若已刪除可略過）。
-2. 從 `publisherGroups` 各組的 `modes` 移除 `'notifications'`。
-3. 從 `publisherIcons` 移除 `notifications: 'bell'`。
-4. 將路由輔助函式改為：
-
-```js
-export const publisherLink = mode =>
-  mode === 'sales'
-    ? { path: '/publisher/sales' }
-    : { path: '/publisher/games', query: { mode } }
-```
-
-右上角鈴鐺保留，不刪除通知資料或共用通知元件。
-
-### 移除「優惠活動（尚未串接）」入口
-
-檔案：`gameplatform-frontend/src/components/PublisherSidebar.vue`。
-
-刪除下列整行。這個入口直接寫在側欄中，只改 `publisher-functions.js` 不會讓它消失。
-
-```vue
-<RouterLink to="/publisher/offers" class="publisher-offers-link"><UiIcon name="tag" />優惠活動（尚未串接）</RouterLink>
-```
-
-儲存後，若瀏覽器仍停在 `/#/publisher/offers`，請點「發行商工作區」返回 `/#/publisher/overview`。刪除入口不會自動變更已開啟的網址；該網址目前顯示 404。
-
 ## 4. SQL 更新內容
 
 結構 SQL：`Hero_SQL_server1017_Integrated.sql`。原始上傳檔保留，測試資料另外使用 `Test_Data.sql`。
@@ -78,15 +32,6 @@ export const publisherLink = mode =>
 | 第 12 段 | 補建 `dbo.admin_operation_logs`，供後臺操作紀錄查詢及管理異動寫入 |
 
 保留目前 ADMIN／STAFF 個別授權模型，不改回舊 SUPERADMIN 模型。
-
-### 匯入順序
-
-1. 先備份資料庫。
-2. 全新測試資料庫：依結構 SQL 的說明執行，完成基礎表及第 10 段權限初始化。
-3. 已採 ADMIN 模型的既有資料庫：未套用遊戲／通知結構時執行第 11 段；缺少操作紀錄表時執行第 12 段。只選取需要的完整段落，不重跑前方建庫／建表內容。
-4. 最後整份執行獨立的 `Test_Data.sql`。
-
-若出現「無效的物件名稱 dbo.admin_operation_logs」，請確認使用的是含第 12 段的最新結構 SQL，並在程式連線的同一個資料庫執行該段。
 
 ### 尚有的資料庫差異
 
@@ -162,28 +107,3 @@ export const publisherLink = mode =>
 
 `QA26-TREND-` 歷史訂單只供整單趨勢展示，沒有明細或遊戲授權，不用來驗收遊戲銷量與對帳。
 
-## 8. 自動化測試與外部服務
-
-在 `gameplatform-backend` 執行後端測試（需 Java 25 與 Maven 相依套件）：
-
-```powershell
-.\mvnw.cmd test
-```
-
-Linux／macOS：
-
-```bash
-./mvnw test
-```
-
-先前整合檢查記錄為 86 項後端測試通過，會員／後臺建置通過；後端整合測試使用隔離 H2，瀏覽器操作部分使用模擬 API。後臺 UI 及日曆更新先前完成建置與模擬操作檢查；CSS 更新當時僅完成建置，未完成瀏覽器畫面驗證。上述均為先前檢查結果，本次整理 README 沒有重新測試。
-
-仍需實際環境驗收：
-
-- SQL Server：結構 SQL 與測試資料尚未在你的伺服器執行；匯入成功也不代表全部程式功能相容。
-- Google：設定前後端相同 Client ID 與授權來源，用真實帳號測登入、綁定及停權；測試資料不會假造 Google 綁定。
-- 郵件：設定 SMTP 與對外可連線的會員網址；其他電腦不能用寄件主機的 localhost 開啟連結。
-- 金流：先處理付款欄位差異，再設定綠界測試特店與公開 HTTPS 回呼，從前臺建立新訂單完成測試；不能直接把 SQL 改為 PAID 當作付款驗收。
-- AI：真實推薦更新需要有效 Gemini 設定；測試設定不能代替正式設定。
-
-先前報告另列生日「只能設定一次」的前後端規則差異、頭像上傳驗證及免費遊戲領取限制，尚未因本次文件整理而修正。未宣稱所有功能已完成端到端驗收。
