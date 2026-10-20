@@ -1,8 +1,28 @@
 3v3OBvD6sdZ1m+K6uy3UDKPXLVCihB9DLOIk3PR35sU=
 
-# HERO 遊戲平台：更新內容與測試說明
+測試帳號
 
-更新日期：2026-10-20。本文件整理先前交付的整合版、後續更新包及測試資料使用方式。本次只整理文件，未重新執行程式測試或連線 SQL Server。
+共同初始密碼：`HeroQA2026!`。僅供測試環境使用。
+
+### 後臺
+
+| 帳號 | 姓名 | 用途 |
+| --- | --- | --- |
+| `qa26_admin` | QA26 王管理 | 最高管理員、人員與授權管理 |
+| `qa26_staff_all` | QA26 林全能 | STAFF 業務權限，不含人員授權 |
+| `qa26_staff_limited` | QA26 陳限權 | 僅訂單與標籤權限 |
+| `qa26_reviewer` | QA26 張審核 | 審核角色 |
+| `qa26_support` | QA26 李客服 | 客服案件與聊天 |
+| `qa26_pending` | QA26 周待審 | 待審，應拒絕登入工作區 |
+| `qa26_disabled` | QA26 趙停用 | 停用，應拒絕登入 |
+
+### 前臺
+
+| 帳號 | 用途 |
+| --- | --- |
+| `qa26_member` | 一般會員，遊戲庫、購物車、訂單、評論、客服與通知 |
+| `qa26_publisher` | 已核准發行商 |
+| `qa26_publisher2` | 第二發行商，用來測資料隔離 |
 
 ## 1. 已更新的功能
 
@@ -21,19 +41,10 @@
 
 退款目前只有紀錄查詢，不代表已提供實際退款；優惠券管理與尚未串接的「優惠活動」是不同功能。
 
-## 4. SQL 更新內容
+SQL 更新內容
 
 結構 SQL：`Hero_SQL_server1017_Integrated.sql`。原始上傳檔保留，測試資料另外使用 `Test_Data.sql`。
 
-| 位置 | 變更 |
-| --- | --- |
-| `games` | 加入 `scheduled_off_shelf_at DATETIME2 NULL` |
-| 遊戲狀態限制 | 加入 `PENDING_REVIEW`、`PENDING_OFF_SHELF` |
-| `notifications` | 加入 `related_game_id INT NULL` |
-| 第 11 段 | 讓既有資料庫套用上述遊戲／通知結構 |
-| 第 12 段 | 補建 `dbo.admin_operation_logs`，供後臺操作紀錄查詢及管理異動寫入 |
-
-保留目前 ADMIN／STAFF 個別授權模型，不改回舊 SUPERADMIN 模型。
 
 ### 尚有的資料庫差異
 
@@ -56,38 +67,6 @@
 匯入前可調整 `Test_Data.sql` 的 `@FrontendBase`；本機預設為 `http://localhost:5173`。需要實際收信時，首次匯入前將 `@RealTestEmail` 設成自己持有且平台未使用的信箱，只套用於 `qa26_mail`；預設 `@hero.example` 不會收信。
 
 測試資料採條件新增，不會把已修改的密碼、權限或審核狀態重設成初始值。要重測完整流程，請還原測試備份。測試素材的 `qa-demo-build.zip` 只有說明文件，不是可執行遊戲。
-
-## 6. 測試帳號
-
-共同初始密碼：`HeroQA2026!`。僅供測試環境使用。
-
-### 後臺
-
-| 帳號 | 姓名 | 用途 |
-| --- | --- | --- |
-| `qa26_admin` | QA26 王管理 | 最高管理員、人員與授權管理 |
-| `qa26_staff_all` | QA26 林全能 | STAFF 業務權限，不含人員授權 |
-| `qa26_staff_limited` | QA26 陳限權 | 僅訂單與標籤權限 |
-| `qa26_reviewer` | QA26 張審核 | 審核角色 |
-| `qa26_support` | QA26 李客服 | 客服案件與聊天 |
-| `qa26_pending` | QA26 周待審 | 待審，應拒絕登入工作區 |
-| `qa26_disabled` | QA26 趙停用 | 停用，應拒絕登入 |
-
-### 前臺
-
-| 帳號 | 用途 |
-| --- | --- |
-| `qa26_member` | 一般會員，遊戲庫、購物車、訂單、評論、客服與通知 |
-| `qa26_alice` | 好友、贈禮、隱藏評論及客服樣本 |
-| `qa26_bob` | 收禮、已刪除評論及已離開群組情境 |
-| `qa26_locked` | 鎖定會員 |
-| `qa26_unverified` | 信箱未驗證 |
-| `qa26_empty` | 空遊戲庫，用來測購買與收禮 |
-| `qa26_publisher` | 已核准發行商 |
-| `qa26_publisher2` | 第二發行商，用來測資料隔離 |
-| `qa26_applicant` | 發行商申請待審 |
-| `qa26_rejected` | 發行商申請曾被退回 |
-| `qa26_mail` | 寄信及重設密碼 |
 
 ## 7. 建議測試流程
 
