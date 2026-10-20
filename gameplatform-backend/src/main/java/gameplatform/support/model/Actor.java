@@ -12,14 +12,34 @@ import org.springframework.security.core.userdetails.UserDetails;
  */
 public record Actor(int id, String role, String username, String password) implements UserDetails {
     public boolean isAdmin() {
+        return isHighestAdmin();
+    }
+
+    public boolean isHighestAdmin() {
         return role.equals("ADMIN");
     }
 
-    public boolean isMember() { return role.equals("MEMBER") || role.equals("PUBLISHER"); }
-    public boolean canSupport() { return isAdmin() || role.equals("SUPPORT"); }
-    public boolean canReview() { return isAdmin() || role.equals("REVIEWER"); }
-    // sender_type describes member/admin-table origin, not the user's permission role.
-    public String senderType() { return isMember() ? "MEMBER" : "ADMIN"; }
+    public boolean isStaff() {
+        return List.of("ADMIN", "STAFF", "REVIEWER", "SUPPORT").contains(role);
+    }
+
+    public boolean isMember() {
+        return role.equals("MEMBER") || role.equals("PUBLISHER");
+    }
+
+    public boolean canSupport() {
+        return isStaff();
+    }
+
+    public boolean canReview() {
+        return isStaff();
+    }
+
+    // sender_type describes member/admin-table origin, not the user's permission
+    // role.
+    public String senderType() {
+        return isMember() ? "MEMBER" : "ADMIN";
+    }
 
     @Override
     public String getUsername() {
@@ -33,9 +53,8 @@ public record Actor(int id, String role, String username, String password) imple
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // ADMIN inherits both workspaces; MEMBER is a separate identity, not inherited.
-        if (isAdmin()) return List.of(new SimpleGrantedAuthority("ROLE_ADMIN"),
-                new SimpleGrantedAuthority("ROLE_REVIEWER"), new SimpleGrantedAuthority("ROLE_SUPPORT"));
+        // Functional access is checked against fresh individual grants in
+        // SecurityConfig.
         return List.of(new SimpleGrantedAuthority("ROLE_" + role));
     }
 }

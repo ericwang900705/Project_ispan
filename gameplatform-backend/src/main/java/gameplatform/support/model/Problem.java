@@ -8,6 +8,10 @@ import org.springframework.web.bind.annotation.*;
 public class Problem extends RuntimeException {
     final int status;
 
+    public int httpStatus() {
+        return status;
+    }
+
     public Problem(int status, String message) {
         super(message);
         this.status = status;
@@ -21,8 +25,10 @@ public class Problem extends RuntimeException {
         return new Problem(404, "找不到此對話或案件");
     }
 
-    @RestControllerAdvice
-    static class Handler {
+    @RestControllerAdvice(basePackages = { "gameplatform.support.controller", "gameplatform.workspace",
+            "gameplatform.game.controller", "gameplatform.backoffice", "gameplatform.shop", "gameplatform.friend",
+            "gameplatform.recommendation.controller" })
+    public static class Handler {
         @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
         ResponseEntity<?> tooLarge(Exception e) {
             return ResponseEntity.status(413).body(Map.of("message", "每張圖片最多 5 MB，每則訊息最多 3 張。"));
