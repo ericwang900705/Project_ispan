@@ -1,5 +1,13 @@
-export const staffRoles = ['ADMIN', 'STAFF', 'REVIEWER', 'SUPPORT']
-export const isHighestAdmin = user => user?.role === 'ADMIN'
+export const staffRoles = [
+  'ADMIN',
+  'STAFF',
+  'REVIEWER',
+  'SUPPORT'
+]
+
+export const isHighestAdmin = user =>
+  user?.role === 'ADMIN'
+
 // Management capabilities can only be granted by a highest administrator.
 export const permissionCatalog = [
   {
@@ -123,49 +131,115 @@ export const permissionCatalog = [
     "reserved": false
   }
 ]
-export const permissionNames = Object.fromEntries(permissionCatalog.map(item => [item.code, item.name]))
-export const grantableCodes = permissionCatalog.filter(item => !item.reserved).map(item => item.code)
+
+export const permissionNames =
+  Object.fromEntries(permissionCatalog.map(
+    item => [
+      item.code,
+      item.name
+    ]
+  ))
+
+export const grantableCodes = permissionCatalog
+  .filter(item => !item.reserved)
+  .map(item => item.code)
+
 export const fixedPermissions = {
-  REVIEWER: ['GAME_REVIEW', 'PUBLISHER_REVIEW', 'MEMBER_SUSPEND', 'COMMENT_REVIEW'],
+  REVIEWER: [
+    'GAME_REVIEW',
+    'PUBLISHER_REVIEW',
+    'MEMBER_SUSPEND',
+    'COMMENT_REVIEW'
+  ],
   SUPPORT: ['TICKET_HANDLE']
 }
-export const permissionOptions = role => role === 'ADMIN' ? permissionCatalog.map(item => item.code)
-  : role === 'STAFF' ? grantableCodes : fixedPermissions[role] || []
+
+export const permissionOptions = role =>
+  role === 'ADMIN'
+    ? permissionCatalog.map(item => item.code)
+    : role === 'STAFF'
+      ? grantableCodes
+      : fixedPermissions[role] || []
+
 export const canManageStaff = user => isHighestAdmin(user)
+
 export const hasPermission = (user, code) => isHighestAdmin(user) ||
   (permissionOptions(user?.role).includes(code) && user?.permissions?.includes(code))
+
 // Role eligibility for shared view formatting; API and route access require grants.
 export const canSupport = role => staffRoles.includes(role)
-export const canUseTickets = role => ['MEMBER', 'PUBLISHER'].includes(role) || canSupport(role)
+
+export const canUseTickets = role =>
+  ['MEMBER', 'PUBLISHER'].includes(role) ||
+  canSupport(role)
+
 export const homeFor = role => ({
-  ADMIN: '/admin', STAFF: '/staff/home', SUPPORT: '/admin/support', REVIEWER: '/reviewer',
-  MEMBER: '/', PUBLISHER: '/publisher/overview'
+  ADMIN: '/admin',
+  STAFF: '/staff/home',
+  SUPPORT: '/admin/support',
+  REVIEWER: '/reviewer',
+  MEMBER: '/',
+  PUBLISHER: '/publisher/overview'
 }[role] || '/member/login')
-export const senderTypeFor = role => staffRoles.includes(role) ? 'ADMIN' : role
+
+export const senderTypeFor = role =>
+  staffRoles.includes(role) ? 'ADMIN' : role
+
 export const roleName = role => ({
-  ADMIN: '最高管理員', STAFF: 'Staff 人員', REVIEWER: '審核人員',
-  SUPPORT: '客服人員', PENDING: '待授權', MEMBER: '會員', PUBLISHER: '發行商'
+  ADMIN: '最高管理員',
+  STAFF: 'Staff 人員',
+  REVIEWER: '審核人員',
+  SUPPORT: '客服人員',
+  PENDING: '待授權',
+  MEMBER: '會員',
+  PUBLISHER: '發行商'
 }[role] || '')
+
 export const loginFor = role => role && !['MEMBER', 'PUBLISHER'].includes(role) ? '/staff/login' : '/member/login'
+
 export function guardPage(to, user, lastArea = 'member') {
-  const loginPage = ['/member/login', '/staff/login', '/login'].includes(to.path)
+  const loginPage = [
+    '/member/login',
+    '/staff/login',
+    '/login'
+  ].includes(to.path)
   if (!user) {
     if (loginPage) return true
-    return { path: to.meta.support || to.meta.management || to.meta.review || to.meta.dashboard || to.meta.staff || lastArea === 'staff' ? '/staff/login' : '/member/login', query: { redirect: to.fullPath } }
+    return {
+      path: to.meta.support ||
+        to.meta.management ||
+        to.meta.review ||
+        to.meta.dashboard ||
+        to.meta.staff ||
+        lastArea === 'staff' ? '/staff/login' : '/member/login',
+      query: { redirect: to.fullPath }
+    }
   }
-  if (loginPage) return homeFor(user.role)
-  if (to.meta.permission && !hasPermission(user, to.meta.permission)) return homeFor(user.role)
-  if (to.meta.staff && !staffRoles.includes(user.role)) return homeFor(user.role)
-  if (to.meta.publisher && user.role !== 'PUBLISHER') return homeFor(user.role)
-  if (to.meta.review && !hasPermission(user, 'GAME_REVIEW')) return homeFor(user.role)
-  if (to.meta.dashboard && !hasPermission(user, 'DASHBOARD_VIEW')) return homeFor(user.role)
-  if (to.meta.management && !canManageStaff(user)) return homeFor(user.role)
-  if (to.meta.member && !['MEMBER', 'PUBLISHER'].includes(user.role)) return homeFor(user.role)
-  if (to.meta.support && !hasPermission(user, 'TICKET_HANDLE')) return homeFor(user.role)
-  if (to.meta.tickets && !['MEMBER', 'PUBLISHER'].includes(user.role) && !hasPermission(user, 'TICKET_HANDLE')) return homeFor(user.role)
+
+  if (loginPage)
+    return homeFor(user.role)
+  if (to.meta.permission && !hasPermission(user, to.meta.permission))
+    return homeFor(user.role)
+  if (to.meta.staff && !staffRoles.includes(user.role))
+    return homeFor(user.role)
+  if (to.meta.publisher && user.role !== 'PUBLISHER')
+    return homeFor(user.role)
+  if (to.meta.review && !hasPermission(user, 'GAME_REVIEW'))
+    return homeFor(user.role)
+  if (to.meta.dashboard && !hasPermission(user, 'DASHBOARD_VIEW'))
+    return homeFor(user.role)
+  if (to.meta.management && !canManageStaff(user))
+    return homeFor(user.role)
+  if (to.meta.member && !['MEMBER', 'PUBLISHER'].includes(user.role))
+    return homeFor(user.role)
+  if (to.meta.support && !hasPermission(user, 'TICKET_HANDLE'))
+    return homeFor(user.role)
+  if (to.meta.tickets && !['MEMBER', 'PUBLISHER'].includes(user.role) && !hasPermission(user, 'TICKET_HANDLE'))
+    return homeFor(user.role)
   return true
 }
 
 // Role suggestions never save grants automatically. REVIEWER/SUPPORT are fixed roles.
-export const roleDefaultPermissions = role => role === 'STAFF' ? ['DASHBOARD_VIEW']
-  : [...(fixedPermissions[role] || [])]
+export const roleDefaultPermissions = role =>
+  role === 'STAFF' ? ['DASHBOARD_VIEW']
+    : [...(fixedPermissions[role] || [])]

@@ -48,7 +48,8 @@ public class GameReviewAdminController {
 
     // 拒絕遊戲上架
     @PutMapping("/{gameId}/reject")
-    public ResponseEntity<Game> reject(@PathVariable Integer gameId, @RequestBody GameAuditRequest request, Actor actor) {
+    public ResponseEntity<Game> reject(@PathVariable Integer gameId, @RequestBody GameAuditRequest request,
+            Actor actor) {
 
         Game result = gameReviewAdminService.reject(
                 gameId,

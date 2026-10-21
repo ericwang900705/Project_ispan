@@ -6,11 +6,13 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "member_oauth_accounts", schema = "dbo",
-       uniqueConstraints = @UniqueConstraint(name = "UQ_provider_user", columnNames = {"provider", "provider_user_id"}))
-@Getter @Setter
+@Table(name = "member_oauth_accounts", schema = "dbo", uniqueConstraints = @UniqueConstraint(name = "UQ_provider_user", columnNames = {
+        "provider", "provider_user_id" }))
+@Getter
+@Setter
 public class MemberOAuthAccount {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "oauth_id")
     private Integer oauthId;
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -25,4 +27,3 @@ public class MemberOAuthAccount {
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 }
-

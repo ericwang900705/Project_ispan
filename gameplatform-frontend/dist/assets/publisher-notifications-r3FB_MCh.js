@@ -1,0 +1,1 @@
+import{W as e}from"./runtime-core.esm-bundler-CkAiYrPi.js";var t=e(``),n;function r(e){clearTimeout(n),t.value=e,n=setTimeout(()=>{t.value=``},5e3)}export{t as n,r as t};

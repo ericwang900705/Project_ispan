@@ -1,5 +1,4 @@
 <script setup>
-
 import { canSupport, canUseTickets, homeFor, roleName } from '../permissions'
 
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
@@ -862,22 +861,54 @@ onUnmounted(() => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: end;
 }
-.support-ui .support-case-page .admin-filters label { margin: 0; min-width: 0; }
+
+.support-ui .support-case-page .admin-filters label {
+  margin: 0;
+  min-width: 0;
+}
+
 .support-ui .support-case-page .admin-filters input,
-.support-ui .support-case-page .admin-filters select { width: 100%; min-width: 0; margin: 0; height: 44px; }
+.support-ui .support-case-page .admin-filters select {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  height: 44px;
+}
+
 .support-ui .support-case-page .case-filter-actions {
-  grid-column: 1 / -1; display: flex; justify-content: flex-end;
-  border-top: 1px solid #dce8ee; padding-top: 14px;
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #dce8ee;
+  padding-top: 14px;
 }
+
 .support-ui .support-case-page .case-filter-actions .clear-filter {
-  position: static; display: inline-flex; align-items: center; justify-content: center;
-  gap: 8px; width: auto; min-height: 44px; height: 44px; margin: 0; padding: 0 18px;
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: auto;
+  min-height: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0 18px;
 }
+
 @media(max-width:1000px) {
-  .support-ui .support-case-page .ticket-filters.admin-filters { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .support-ui .support-case-page .ticket-filters.admin-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
+
 @media(max-width:600px) {
-  .support-ui .support-case-page .ticket-filters.admin-filters { grid-template-columns: minmax(0,1fr); }
-  .support-ui .support-case-page .case-filter-actions .clear-filter { width: 100%; }
+  .support-ui .support-case-page .ticket-filters.admin-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .support-ui .support-case-page .case-filter-actions .clear-filter {
+    width: 100%;
+  }
 }
 </style>

@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 import { loginFor } from './permissions.js'
-export const frontendArea = ['staff','member'].includes(import.meta.env.MODE) ? import.meta.env.MODE : 'combined'
+export const frontendArea = ['staff', 'member'].includes(import.meta.env.MODE) ? import.meta.env.MODE : 'combined'
 
 // --- 全域會話狀態 ---
 export const session = reactive({
@@ -20,7 +20,7 @@ let generation = 0
 // --- 清除本地驗證與狀態 ---
 function clearLocal(removeStored = true) {
   authGeneration++
-  if (removeStored) { try { sessionStorage.removeItem(SESSION_KEY) } catch {} }
+  if (removeStored) { try { sessionStorage.removeItem(SESSION_KEY) } catch { } }
   token = null
   clearTimeout(expiryTimer)
   stopEvents()
@@ -113,7 +113,7 @@ export async function restore() {
     const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null')
     if (!saved) return
     if (typeof saved.accessToken !== 'string' || !saved.accessToken ||
-        (saved.expiresAt !== null && (!Number.isFinite(saved.expiresAt) || saved.expiresAt <= Date.now()))) {
+      (saved.expiresAt !== null && (!Number.isFinite(saved.expiresAt) || saved.expiresAt <= Date.now()))) {
       clearLocal()
       return
     }
@@ -122,7 +122,7 @@ export async function restore() {
     scheduleExpiry(expiresAt)
     const user = await api('/auth/me')
     if (run !== authGeneration) return
-    if (!(frontendArea === 'member' ? ['MEMBER','PUBLISHER'] : frontendArea === 'staff' ? ['ADMIN','STAFF','SUPPORT','REVIEWER'] : ['MEMBER','PUBLISHER','ADMIN','STAFF','SUPPORT','REVIEWER']).includes(user.role)) {
+    if (!(frontendArea === 'member' ? ['MEMBER', 'PUBLISHER'] : frontendArea === 'staff' ? ['ADMIN', 'STAFF', 'SUPPORT', 'REVIEWER'] : ['MEMBER', 'PUBLISHER', 'ADMIN', 'STAFF', 'SUPPORT', 'REVIEWER']).includes(user.role)) {
       clearLocal()
       return
     }
@@ -158,10 +158,12 @@ export async function login(username, password, area = frontendArea) {
   clearLocal()
   const run = authGeneration
   try {
-    const data = await request(area === 'member' ? '/auth/login' : '/admin/auth/login', {
-      method: 'POST',
-      body: area === 'member' ? { username, password } : { adminAccount: username, password }
-    }, area === 'member' ? 'text' : 'json')
+    const data = await request(area === 'member' ? '/auth/login' : '/admin/auth/login',
+      {
+        method: 'POST',
+        body: area === 'member' ? { username, password } : { adminAccount: username, password }
+      },
+      area === 'member' ? 'text' : 'json')
     if (run !== authGeneration) throw Error('登入操作已取消')
     token = area === 'member' ? data : data.token
     await finishLogin(area, run)
@@ -171,23 +173,36 @@ export async function login(username, password, area = frontendArea) {
   }
 }
 
-export async function loginWithGoogle(idToken,nonce){
- if(frontendArea==='staff')throw Error('請使用前臺會員登入入口')
- clearLocal();const run=authGeneration
- try{const value=await request('/auth/google-login',{method:'POST',body:{idToken,nonce}},'text');if(run!==authGeneration)throw Error('登入操作已取消');token=value;await finishLogin('member',run)}
- catch(e){if(run===authGeneration)clearLocal();throw e}
+export async function loginWithGoogle(idToken, nonce) {
+  if (frontendArea === 'staff') throw Error('請使用前臺會員登入入口')
+  clearLocal();
+  const run = authGeneration
+  try {
+    const value = await request('/auth/google-login', { method: 'POST', body: { idToken, nonce } }, 'text');
+    if (run !== authGeneration) throw Error('登入操作已取消');
+    token = value;
+    await finishLogin('member', run)
+  } catch (e) {
+    if (run === authGeneration) clearLocal();
+    throw e
+  }
 }
-async function finishLogin(area,run){
-    const expiresAt = expiresAtOf(token)
-    const user = await api('/auth/me')
-    if (run !== authGeneration) throw Error('登入操作已取消')
-    const correctArea = area === 'member' ? ['MEMBER','PUBLISHER'].includes(user.role) : ['ADMIN','STAFF','SUPPORT','REVIEWER'].includes(user.role)
-    if (!correctArea) throw Error('此帳號不適用這個登入入口')
-    session.user = user
-    session.loginArea = area
-    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ accessToken: token, expiresAt })) } catch {}
-    scheduleExpiry(expiresAt)
-    connectEvents()
+async function finishLogin(area, run) {
+  const expiresAt = expiresAtOf(token)
+  const user = await api('/auth/me')
+
+  if (run !== authGeneration) throw Error('登入操作已取消')
+  const correctArea = area === 'member' ? ['MEMBER', 'PUBLISHER'].includes(user.role) : ['ADMIN', 'STAFF', 'SUPPORT', 'REVIEWER'].includes(user.role)
+  if (!correctArea) throw Error('此帳號不適用這個登入入口')
+  session.user = user
+  session.loginArea = area
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+      accessToken: token, expiresAt
+    }))
+  } catch { }
+  scheduleExpiry(expiresAt)
+  connectEvents()
 }
 
 // 與組員的無狀態 JWT 行為一致：清除本機憑證與 SSE，不另外維護客服撤銷清單。
@@ -292,29 +307,45 @@ export const timeText = t => t ? new Intl.DateTimeFormat('zh-TW', {
 export const accessToken = () => token
 
 // WebSocket JWT is sent in the first frame, never in a URL or browser storage.
-export function connectFriendEvents(onEvent, onStatus = () => {}) {
+export function connectFriendEvents(onEvent, onStatus = () => { }) {
   const ownerToken = token
   let socket, retry, heartbeat, stopped = false
   const current = () => !stopped && !!ownerToken && token === ownerToken
   function open() {
     if (!current()) return
     socket = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws/friends`)
-    socket.onopen = () => { if (current()) socket.send(JSON.stringify({type:'auth',token:ownerToken})); else socket.close() }
+    socket.onopen = () => {
+      if (current()) socket.send(JSON.stringify({
+        type: 'auth', token: ownerToken
+      }));
+      else socket.close()
+    }
     socket.onmessage = event => {
       if (!current()) return
       try {
         const data = JSON.parse(event.data)
         if (data.type === 'ready') { onStatus(true); onEvent(data) }
-        else if (['friends','rooms','message'].includes(data.type)) onEvent(data)
-      } catch {}
+        else if (['friends', 'rooms', 'message'].includes(data.type)) onEvent(data)
+      } catch { }
     }
-    socket.onclose = () => { clearInterval(heartbeat); onStatus(false); if (current()) retry = setTimeout(open, 5000) }
+    socket.onclose = () => {
+      clearInterval(heartbeat);
+      onStatus(false);
+      if (current()) retry = setTimeout(open, 5000)
+    }
     socket.onerror = () => socket.close()
     heartbeat = setInterval(() => {
       if (!current()) { socket.close(); return }
-      if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({type:'ping'}))
+      if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({
+        type: 'ping'
+      }))
     }, 25000)
   }
   open()
-  return () => { stopped = true; clearTimeout(retry); clearInterval(heartbeat); socket?.close() }
+  return () => {
+    stopped = true;
+    clearTimeout(retry);
+    clearInterval(heartbeat);
+    socket?.close()
+  }
 }

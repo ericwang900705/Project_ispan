@@ -7,9 +7,11 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "member_login_logs", schema = "dbo")
-@Getter @Setter
+@Getter
+@Setter
 public class MemberLoginLog {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "login_log_id")
     private Long loginLogId;
     @ManyToOne(fetch = FetchType.LAZY)
@@ -22,4 +24,3 @@ public class MemberLoginLog {
     @Column(name = "login_at", nullable = false)
     private LocalDateTime loginAt;
 }
-

@@ -7,7 +7,10 @@ import java.util.Locale;
 import javax.imageio.ImageIO;
 import javax.imageio.stream.MemoryCacheImageInputStream;
 
-/** Decode and re-encode supported raster images before saving; never trust file extensions or MIME headers. */
+/**
+ * Decode and re-encode supported raster images before saving; never trust file
+ * extensions or MIME headers.
+ */
 public final class SupportImageValidator {
     public static final int MAX_BYTES = 5 * 1024 * 1024;
     public static final int MAX_FILES = 3;
@@ -51,13 +54,17 @@ public final class SupportImageValidator {
                 if (clean.length > MAX_BYTES) {
                     throw new IllegalArgumentException("圖片處理後超過 5 MB，請縮小後再上傳。");
                 }
-                // Do not retain uploaded paths or control characters; extension follows decoded format.
+                // Do not retain uploaded paths or control characters; extension follows decoded
+                // format.
                 String name = originalName == null ? "image" : originalName.replace('\\', '/');
                 name = name.substring(name.lastIndexOf('/') + 1).replaceAll("[\\p{Cntrl}]", "").strip();
                 int dot = name.lastIndexOf('.');
-                if (dot > 0) name = name.substring(0, dot);
-                if (name.isBlank() || name.equals(".") || name.equals("..")) name = "image";
-                if (name.length() > 100) name = name.substring(0, 100);
+                if (dot > 0)
+                    name = name.substring(0, dot);
+                if (name.isBlank() || name.equals(".") || name.equals(".."))
+                    name = "image";
+                if (name.length() > 100)
+                    name = name.substring(0, 100);
                 return new Image(name + "." + extension, extension.equals("png") ? "image/png" : "image/jpeg",
                         width, height, clean);
             } finally {

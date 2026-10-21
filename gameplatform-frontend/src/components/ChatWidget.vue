@@ -160,11 +160,9 @@ onUnmounted(() => {
     <!-- 聊天視窗展開按鈕 -->
     <button v-if="!expanded" class="chat-launcher" aria-expanded="false" aria-controls="member-support-panel"
       @click="openWidget">
-      <span>
-        <UiIcon name="headset" />
-      </span>
-      <strong>線上客服</strong>
-      <span class="support-bar-arrow" aria-hidden="true">▴</span>
+      <span class="dock-icon"><UiIcon name="headset" /></span>
+      <span class="dock-copy"><strong>線上客服</strong><small>有問題？隨時留下訊息</small></span>
+      <span class="dock-chevron support-bar-arrow" aria-hidden="true"><UiIcon name="chevron-down" /></span>
     </button>
 
     <!-- 聊天主面板 -->

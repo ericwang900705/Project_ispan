@@ -15,15 +15,31 @@ public record Actor(int id, String role, String username, String password) imple
         return isHighestAdmin();
     }
 
-    public boolean isHighestAdmin() { return role.equals("ADMIN"); }
+    public boolean isHighestAdmin() {
+        return role.equals("ADMIN");
+    }
 
-    public boolean isStaff() { return List.of("ADMIN", "STAFF", "REVIEWER", "SUPPORT").contains(role); }
+    public boolean isStaff() {
+        return List.of("ADMIN", "STAFF", "REVIEWER", "SUPPORT").contains(role);
+    }
 
-    public boolean isMember() { return role.equals("MEMBER") || role.equals("PUBLISHER"); }
-    public boolean canSupport() { return isStaff(); }
-    public boolean canReview() { return isStaff(); }
-    // sender_type describes member/admin-table origin, not the user's permission role.
-    public String senderType() { return isMember() ? "MEMBER" : "ADMIN"; }
+    public boolean isMember() {
+        return role.equals("MEMBER") || role.equals("PUBLISHER");
+    }
+
+    public boolean canSupport() {
+        return isStaff();
+    }
+
+    public boolean canReview() {
+        return isStaff();
+    }
+
+    // sender_type describes member/admin-table origin, not the user's permission
+    // role.
+    public String senderType() {
+        return isMember() ? "MEMBER" : "ADMIN";
+    }
 
     @Override
     public String getUsername() {
@@ -37,7 +53,8 @@ public record Actor(int id, String role, String username, String password) imple
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Functional access is checked against fresh individual grants in SecurityConfig.
+        // Functional access is checked against fresh individual grants in
+        // SecurityConfig.
         return List.of(new SimpleGrantedAuthority("ROLE_" + role));
     }
 }

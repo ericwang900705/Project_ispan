@@ -21,23 +21,24 @@ public class AdminPublisherController {
 
     // 取得待審核清單
     @GetMapping("/pending")
-    public ResponseEntity<List<java.util.Map<String,Object>>> getPendingApplications() {
+    public ResponseEntity<List<java.util.Map<String, Object>>> getPendingApplications() {
         return ResponseEntity.ok(adminPublisherService.getPendingApplications());
     }
 
     @GetMapping("/history")
-    public java.util.List<java.util.Map<String,Object>> history() {
+    public java.util.List<java.util.Map<String, Object>> history() {
         return adminPublisherService.history();
     }
 
-    public record ReviewInput(Integer applicationId, String comment) {}
+    public record ReviewInput(Integer applicationId, String comment) {
+    }
 
     // 審核發行商 (核准或拒絕)
     @PostMapping("/{memberId}/review")
-    public ResponseEntity<java.util.Map<String,String>> reviewApplication(
+    public ResponseEntity<java.util.Map<String, String>> reviewApplication(
             @PathVariable Integer memberId,
             @RequestParam boolean isApproved,
-            Actor actor, @RequestBody(required=false) ReviewInput input) {
+            Actor actor, @RequestBody(required = false) ReviewInput input) {
 
         String result = adminPublisherService.reviewApplication(memberId, isApproved, actor,
                 input == null ? null : input.applicationId(), input == null ? null : input.comment());

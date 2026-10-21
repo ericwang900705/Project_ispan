@@ -42,7 +42,8 @@ public class SecurityConfig {
         }
 
         @Bean
-        SecurityFilterChain security(HttpSecurity http, JwtService tokens, StaffPermissionService permissions, SupportActorResolver actors) throws Exception {
+        SecurityFilterChain security(HttpSecurity http, JwtService tokens, StaffPermissionService permissions,
+                        SupportActorResolver actors) throws Exception {
                 return http.sessionManagement(
                                 s -> s.sessionCreationPolicy(
                                                 org.springframework.security.config.http.SessionCreationPolicy.STATELESS))
@@ -136,7 +137,7 @@ public class SecurityConfig {
                                                 .hasRole("PUBLISHER")
                                                 .requestMatchers("/api/friends/**", "/api/chat/**")
                                                 .hasAnyRole("MEMBER", "PUBLISHER")
-                                                
+
                                                 // 舊版發行商遊戲操作會繞過審核／使用用戶傳入的 memberId，全部封閉。
                                                 // 正式操作只走 /api/workspace/publisher/**。
                                                 .requestMatchers("/api/publisher/games", "/api/publisher/games/**")
@@ -197,7 +198,8 @@ public class SecurityConfig {
                                                 .access(permissions.highestAdmin())
 
                                                 // 審核人員可查遊戲及處理遊戲審核，不可管理人員或變更系統設定
-                                                .requestMatchers("/api/admin/games", "/api/admin/games/**", "/api/admin/game-reviews", "/api/admin/game-reviews/**")
+                                                .requestMatchers("/api/admin/games", "/api/admin/games/**",
+                                                                "/api/admin/game-reviews", "/api/admin/game-reviews/**")
                                                 .access(permissions.require("GAME_REVIEW"))
 
                                                 // 未指定功能權限的管理 API 僅開放最高管理員
@@ -211,18 +213,32 @@ public class SecurityConfig {
                                                                 "/api/events")
                                                 .authenticated()
 
-                                                .requestMatchers("/api/backoffice/orders", "/api/backoffice/orders/**").access(permissions.require("ORDER_VIEW"))
-                                                .requestMatchers("/api/backoffice/refunds", "/api/backoffice/refunds/**").access(permissions.require("REFUND_MANAGE"))
-                                                .requestMatchers("/api/backoffice/reviews", "/api/backoffice/reviews/**", "/api/backoffice/review-reports", "/api/backoffice/review-reports/**").access(permissions.require("COMMENT_REVIEW"))
-                                                .requestMatchers("/api/backoffice/tags", "/api/backoffice/tags/**").access(permissions.require("TAG_MANAGE"))
-                                                .requestMatchers("/api/backoffice/coupons", "/api/backoffice/coupons/**").access(permissions.require("COUPON_MANAGE"))
-                                                .requestMatchers("/api/backoffice/login-logs").access(permissions.require("LOGIN_LOG_VIEW"))
-                                                .requestMatchers("/api/backoffice/operations").access(permissions.require("OPERATION_LOG_VIEW"))
-                                                .requestMatchers("/api/backoffice/**").access(permissions.highestAdmin())
+                                                .requestMatchers("/api/backoffice/orders", "/api/backoffice/orders/**")
+                                                .access(permissions.require("ORDER_VIEW"))
+                                                .requestMatchers("/api/backoffice/refunds",
+                                                                "/api/backoffice/refunds/**")
+                                                .access(permissions.require("REFUND_MANAGE"))
+                                                .requestMatchers("/api/backoffice/reviews",
+                                                                "/api/backoffice/reviews/**",
+                                                                "/api/backoffice/review-reports",
+                                                                "/api/backoffice/review-reports/**")
+                                                .access(permissions.require("COMMENT_REVIEW"))
+                                                .requestMatchers("/api/backoffice/tags", "/api/backoffice/tags/**")
+                                                .access(permissions.require("TAG_MANAGE"))
+                                                .requestMatchers("/api/backoffice/coupons",
+                                                                "/api/backoffice/coupons/**", "/api/backoffice/coupon-options")
+                                                .access(permissions.require("COUPON_MANAGE"))
+                                                .requestMatchers("/api/backoffice/login-logs")
+                                                .access(permissions.require("LOGIN_LOG_VIEW"))
+                                                .requestMatchers("/api/backoffice/operations")
+                                                .access(permissions.require("OPERATION_LOG_VIEW"))
+                                                .requestMatchers("/api/backoffice/**")
+                                                .access(permissions.highestAdmin())
 
                                                 // 12. 其他 API
                                                 .requestMatchers("/api/**")
-                                                .hasAnyRole("MEMBER", "PUBLISHER", "ADMIN", "STAFF", "REVIEWER", "SUPPORT")
+                                                .hasAnyRole("MEMBER", "PUBLISHER", "ADMIN", "STAFF", "REVIEWER",
+                                                                "SUPPORT")
 
                                                 // 13. 最後才是預設規則
                                                 .anyRequest().permitAll())
@@ -230,8 +246,13 @@ public class SecurityConfig {
                                                 o -> o.jwt(jwt -> jwt.decoder(tokens.decoder())
                                                                 .jwtAuthenticationConverter(token -> {
                                                                         Actor actor;
-                                                                        try { actor = actors.verifyActor(tokens.actor(token)); }
-                                                                        catch (gameplatform.support.model.Problem e) { throw new org.springframework.security.authentication.BadCredentialsException("登入已失效，請重新登入", e); }
+                                                                        try {
+                                                                                actor = actors.verifyActor(
+                                                                                                tokens.actor(token));
+                                                                        } catch (gameplatform.support.model.Problem e) {
+                                                                                throw new org.springframework.security.authentication.BadCredentialsException(
+                                                                                                "登入已失效，請重新登入", e);
+                                                                        }
                                                                         var auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
                                                                                         actor, null,
                                                                                         actor.getAuthorities());

@@ -131,7 +131,13 @@ onUnmounted(() => {
 /* 固定撐滿整個視窗、放在所有內容後面
    pointer-events: none → 滑鼠點擊會穿過畫布，不會擋到上面的按鈕 */
 .particles {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  z-index: -1; pointer-events: none; background: #0b0c32;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+  background: #0b0c32;
 }
 </style>

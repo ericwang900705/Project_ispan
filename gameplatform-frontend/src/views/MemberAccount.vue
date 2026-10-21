@@ -236,7 +236,19 @@ async function changePassword() {
             <label>上傳頭像 <input type="file" accept="image/jpeg,image/png" :disabled="loading" @change="uploadAvatar" /><small>JPG 或 PNG，最多 5 MB；選取後立即上傳。</small></label>
             <button class="primary" :disabled="loading">儲存個人資料</button>
           </form>
-          <section class="google-account-link"><h2>Google 帳號</h2><p v-if="googleLink?.linked">已綁定 {{googleLink.email}}，下次可使用 Google 登入。</p><template v-else-if="googleLink"><p>綁定後可用 Google 登入同一會員帳號，保留遊戲、訂單與發行商資料。</p><GoogleSignInButton link :busy="linking" @credential="linkGoogle" /></template><p v-if="googleError" class="error" role="alert">{{googleError}}</p></section>
+          <section class="google-account-link"><h2>Google 帳號</h2><div v-if="googleLink?.linked" class="google-linked-status" role="status" aria-live="polite">
+            <div class="google-linked-heading">
+              <svg class="google-linked-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z" />
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6C44.4 38.03 46.98 31.86 46.98 24.55Z" />
+                <path fill="#FBBC05" d="M10.53 28.59A14.4 14.4 0 0 1 9.75 24c0-1.59.28-3.13.78-4.59l-7.98-6.19A23.9 23.9 0 0 0 0 24c0 3.87.93 7.52 2.56 10.78l7.97-6.19Z" />
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.91-5.8l-7.73-6c-2.15 1.45-4.92 2.3-8.18 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48Z" />
+              </svg>
+              <strong>Google</strong><span class="google-linked-badge">已連接</span>
+            </div>
+            <p v-if="googleLink.email" class="google-linked-email">{{ googleLink.email }}</p>
+            <p class="google-linked-help">下次可使用 Google 登入同一個會員帳號。</p>
+          </div><template v-else-if="googleLink"><p>綁定後可用 Google 登入同一會員帳號，保留遊戲、訂單與發行商資料。</p><GoogleSignInButton link :busy="linking" @credential="linkGoogle" /></template><p v-if="googleError" class="error" role="alert">{{googleError}}</p></section>
         </template>
         <div v-else-if="profile?.hasPassword===false"><p>你目前使用 Google 登入，尚未設定本機密碼。可透過信箱驗證設定密碼。</p><RouterLink class="primary" :to="{path:'/member/forgot-password',query:{email:profile.email}}">寄送密碼設定信</RouterLink></div>
         <form v-else-if="profile" @submit.prevent="changePassword">
@@ -255,6 +267,12 @@ async function changePassword() {
 </template>
 <style scoped>
 .google-account-link{margin-top:28px;padding-top:24px;border-top:1px solid #cfe1ec;line-height:1.8}
+.google-linked-status{margin-top:12px;padding:16px;border:1px solid #c9dfd6;border-radius:14px;background:#f5fbf8}
+.google-linked-heading{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:#17364e}
+.google-linked-icon{width:24px;height:24px;flex-shrink:0}
+.google-linked-badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;background:#e1f2e8;color:#166534;font-size:13px;font-weight:700}
+.google-linked-status .google-linked-email{margin:10px 0 0;color:#17364e;overflow-wrap:anywhere}
+.google-linked-status .google-linked-help{margin:4px 0 0;color:#536c79;font-size:13px}
 
 .member-account-wrap{position:relative;isolation:isolate;z-index:0;width:min(100% - 32px,620px);margin:clamp(36px,5vw,76px) auto 70px;color:#17364e}
 .member-account-card{padding:clamp(24px,4vw,44px);background:rgba(247,252,255,.94);border:1px solid rgba(125,170,202,.55);border-radius:22px;box-shadow:0 16px 48px rgba(18,59,95,.15)}

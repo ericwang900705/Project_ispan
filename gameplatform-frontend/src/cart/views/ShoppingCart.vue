@@ -1,4 +1,5 @@
 <script setup>
+import { discountLabel } from '../stores/coupons'
 // computed：依其他變數自動算出結果；onMounted：元件顯示到畫面上之後要執行的動作
 import { ref, computed, onMounted } from 'vue'
 // useRoute：讀網址上綠界導回來的付款結果；useRouter：清掉網址上的參數
@@ -54,9 +55,7 @@ const couponId = computed({
 })
 
 // 折扣乘數換成「幾折」文字，例如 0.80 → 8 折、0.75 → 7.5 折
-function discountLabel(c) {
-  return `${Number((c.discountValue * 10).toFixed(1))} 折`
-}
+
 
 // 套用優惠券前的小計（每項遊戲售價加總）
 const subtotal = computed(() => cart.items.reduce((sum, item) => sum + item.game.price, 0))
@@ -97,6 +96,7 @@ async function checkout() {
       <!-- 標題 + 項目數量 -->
       <div class="head">
         <h1>我的購物車</h1>
+        <RouterLink class="coupon-center-link" to="/coupons">查看／領取優惠券 →</RouterLink>
         <span v-if="cart.items.length">{{ cart.items.length }} 個項目</span>
         <button v-if="cart.items.length" class="clear-all" :disabled="cart.loading" @click="clearAll">清空購物車</button>
       </div>
@@ -186,7 +186,7 @@ async function checkout() {
             <select v-model="couponId" :disabled="cart.loading">
               <option value="">不使用優惠券</option>
               <option v-for="c in cart.coupons" :key="c.couponId" :value="c.couponId">
-                {{ c.couponName }}（{{ discountLabel(c) }}）
+                {{ c.couponName }}（{{ discountLabel(c) }}・{{ c.scopeLabel || '全平台遊戲' }}）
               </option>
             </select>
           </label>
@@ -218,19 +218,20 @@ async function checkout() {
 
 <!-- 購物車頁面樣式（scoped：只作用於此元件；暗棕底 + 金色，和遊戲頁同色系） -->
 <style scoped>
+.coupon-center-link { display:inline-block; color:#f0c060; margin:0 0 16px; font-size:13px; }
 /* ===== 配色：要換顏色改這裡就好 ===== */
 .shopping-cart {
-  --bg: #1b0f0d;          /* 整頁底色 */
-  --surface: #2a1a14;     /* 卡片底色 */
-  --surface-2: #3a261c;   /* 比較亮的區塊底色 */
+  --bg: #0b0c32;          /* 整頁底色（跟首頁一樣的深藍） */
+  --surface: #121a4a;     /* 卡片底色 */
+  --surface-2: #1c2a66;   /* 比較亮的區塊底色 */
   --gold: #d4a64a;        /* 重點色（金色） */
-  --gold-dark: #6b4e0f;   /* 深金色 */
+  --gold-dark: #2e4a9a;   /* 邊框色（藍） */
   --sale: #b23a2a;        /* 紅色（移除、折抵） */
-  --text: #e8dcc8;        /* 一般文字 */
-  --text-muted: #a8988a;  /* 次要文字 */
+  --text: #e4e8f8;        /* 一般文字 */
+  --text-muted: #98a2c8;  /* 次要文字 */
 
+  /* 不設底色，讓 App.vue 的粒子連線背景透出來 */
   min-height: 100vh; padding: 32px 16px; color: var(--text);
-  background: radial-gradient(ellipse at top, #3a2216 0%, var(--bg) 60%);
 }
 /* 內容最寬 1100px 置中 */
 .wrap { max-width: 1100px; margin: 0 auto; }
@@ -338,7 +339,7 @@ async function checkout() {
 }
 .btn-gold:hover:not(:disabled) { filter: brightness(1.12); background-color: transparent; }
 .btn-gold:active:not(:disabled) { transform: translateY(1px); }
-.btn-gold:disabled { background: #4a3a32; color: var(--text-muted); cursor: default; }
+.btn-gold:disabled { background: #2a3460; color: var(--text-muted); cursor: default; }
 .checkout { width: 100%; margin-top: 16px; }
 
 /* ===== 手機 / 小螢幕：摘要移到清單下方，封面縮小 ===== */

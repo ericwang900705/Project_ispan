@@ -24,7 +24,7 @@ public class AdminPublisherService {
     private final JdbcTemplate db;
 
     // 只回傳審核畫面需要的欄位，避免公開完整 Member 物件及敏感資料。
-    public List<java.util.Map<String,Object>> getPendingApplications() {
+    public List<java.util.Map<String, Object>> getPendingApplications() {
         return db.queryForList("""
                 SELECT p.application_id AS applicationId,p.member_id AS memberId,
                        m.username,m.email,m.website_url AS websiteUrl,
@@ -39,7 +39,7 @@ public class AdminPublisherService {
     }
 
     // 只公開申請歷程需要的欄位，不回傳會員密碼、身分證或銀行資訊。
-    public List<java.util.Map<String,Object>> history() {
+    public List<java.util.Map<String, Object>> history() {
         return db.queryForList("""
                 SELECT p.application_id AS applicationId,p.member_id AS memberId,
                        m.username,p.company_name AS companyName,p.tax_id AS taxId,
@@ -62,34 +62,43 @@ public class AdminPublisherService {
 
     @Transactional
     public String reviewApplication(Integer memberId, boolean isApproved, Actor actor,
-                                    Integer expectedApplicationId, String comment) {
-        if(actor==null || !actor.canReview())throw new Problem(403,"沒有發行商審核權限");
+            Integer expectedApplicationId, String comment) {
+        if (actor == null || !actor.canReview())
+            throw new Problem(403, "沒有發行商審核權限");
         // Match application submission's lock order: member first, then applications.
-        var memberIds = db.queryForList("SELECT member_id FROM dbo.members WITH (UPDLOCK,HOLDLOCK) WHERE member_id=?", Integer.class, memberId);
-        if (memberIds.isEmpty()) throw new Problem(404, "找不到該會員");
-        var pending=db.queryForList("SELECT application_id FROM dbo.publisher_applications WITH (UPDLOCK,HOLDLOCK) WHERE member_id=? AND approval_status='PENDING' ORDER BY applied_at DESC,application_id DESC",Integer.class,memberId);
-        if(pending.isEmpty())throw new Problem(409,"目前沒有待審核的發行商申請");
-        Integer applicationId=pending.getFirst();
+        var memberIds = db.queryForList("SELECT member_id FROM dbo.members WITH (UPDLOCK,HOLDLOCK) WHERE member_id=?",
+                Integer.class, memberId);
+        if (memberIds.isEmpty())
+            throw new Problem(404, "找不到該會員");
+        var pending = db.queryForList(
+                "SELECT application_id FROM dbo.publisher_applications WITH (UPDLOCK,HOLDLOCK) WHERE member_id=? AND approval_status='PENDING' ORDER BY applied_at DESC,application_id DESC",
+                Integer.class, memberId);
+        if (pending.isEmpty())
+            throw new Problem(409, "目前沒有待審核的發行商申請");
+        Integer applicationId = pending.getFirst();
         if (expectedApplicationId != null && !expectedApplicationId.equals(applicationId))
             throw new Problem(409, "申請已更新，請重新載入後再審核");
         String reviewComment = comment == null ? "" : comment.trim();
-        if (reviewComment.length() > 500) throw new Problem(400, "審核說明最多 500 字");
-        if (!isApproved && reviewComment.isEmpty()) throw new Problem(400, "退回申請請填寫原因");
-        if (reviewComment.isEmpty()) reviewComment = "已核准";
+        if (reviewComment.length() > 500)
+            throw new Problem(400, "審核說明最多 500 字");
+        if (!isApproved && reviewComment.isEmpty())
+            throw new Problem(400, "退回申請請填寫原因");
+        if (reviewComment.isEmpty())
+            reviewComment = "已核准";
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new Problem(404,"找不到該會員"));
+                .orElseThrow(() -> new Problem(404, "找不到該會員"));
 
         if (member.getIsPublisher()) {
-            throw new Problem(409,"該會員已經是發行商了");
+            throw new Problem(409, "該會員已經是發行商了");
         }
-
-
 
         if (isApproved) {
             // 核准申請：將 isPublisher 設為 true
             member.setIsPublisher(true);
             memberRepository.save(member);
-            db.update("UPDATE dbo.publisher_applications SET approval_status='APPROVED',admin_id=?,reviewed_at=SYSDATETIME(),review_comment=? WHERE application_id=? AND approval_status='PENDING'",actor.id(),reviewComment,applicationId);
+            db.update(
+                    "UPDATE dbo.publisher_applications SET approval_status='APPROVED',admin_id=?,reviewed_at=SYSDATETIME(),review_comment=? WHERE application_id=? AND approval_status='PENDING'",
+                    actor.id(), reviewComment, applicationId);
             // 使用現有的 sendHtmlMail 發送核准信
             String subject = "【GamePlatform】發行商申請核准通知";
             String content = "<h3>親愛的 " + html(member.getUsername()) + " 您好：</h3>"
@@ -108,7 +117,9 @@ public class AdminPublisherService {
             member.setBankName(null);
             member.setBankAccount(null);
             memberRepository.save(member);
-            db.update("UPDATE dbo.publisher_applications SET approval_status='REJECTED',admin_id=?,reviewed_at=SYSDATETIME(),review_comment=? WHERE application_id=? AND approval_status='PENDING'",actor.id(),reviewComment,applicationId);
+            db.update(
+                    "UPDATE dbo.publisher_applications SET approval_status='REJECTED',admin_id=?,reviewed_at=SYSDATETIME(),review_comment=? WHERE application_id=? AND approval_status='PENDING'",
+                    actor.id(), reviewComment, applicationId);
             // 使用現有的 sendHtmlMail 發送退回信
             String subject = "【GamePlatform】發行商申請未通過通知";
             String content = "<h3>親愛的 " + html(member.getUsername()) + " 您好：</h3>"
@@ -120,9 +131,11 @@ public class AdminPublisherService {
             return "已退回該申請，並清空其公司資料。";
         }
     }
+
     private static String html(String value) {
-        return value == null ? "" : value.replace("&", "&amp;").replace("<", "&lt;")
-                .replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;");
+        return value == null ? ""
+                : value.replace("&", "&amp;").replace("<", "&lt;")
+                        .replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;");
     }
 
     private void sendAfterCommit(String to, String subject, String html) {

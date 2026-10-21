@@ -70,8 +70,9 @@ async function leave() {
         <span>HERO 赫洛</span>
       </RouterLink>
       <span class="header-workspace-title">
-        {{ session.user?.role === 'ADMIN' ? '最高管理員工作後台' : session.user?.role === 'STAFF' ? 'Staff 工作後台' : session.user?.role === 'REVIEWER' ? '遊戲審核工作區' : staff ? '客服工作後台'
-          : '客服中心' }}
+        {{ session.user?.role === 'ADMIN' ? '最高管理員工作後台' : session.user?.role === 'STAFF' ? 'Staff 工作後台' :
+          session.user?.role === 'REVIEWER' ? '遊戲審核工作區' : staff ? '客服工作後台'
+            : '客服中心' }}
       </span>
       <nav v-if="member" class="support-nav">
         <RouterLink to="/member/support">我的案件</RouterLink>

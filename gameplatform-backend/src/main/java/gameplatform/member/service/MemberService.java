@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
-
 import gameplatform.mail.service.MailService;
 import gameplatform.member.dto.ChangePasswordRequest;
 import gameplatform.member.dto.ForgotPasswordRequest;
@@ -33,7 +32,6 @@ import gameplatform.member.repository.PasswordResetRepository;
 import gameplatform.support.service.JwtService;
 import lombok.RequiredArgsConstructor;
 import gameplatform.support.model.Actor;
-import java.util.Map;
 import gameplatform.member.util.NationalIdValidator;
 import gameplatform.member.exception.LoginFailedException;
 
@@ -52,8 +50,8 @@ public class MemberService {
     private final JdbcTemplate db;
     private final GoogleAccountService googleAccounts;
     private final MemberLoginAudit loginAudit;
-    @Value("${app.member.public-url:http://localhost:5173}") private String publicUrl;
-
+    @Value("${app.member.public-url:http://localhost:5173}")
+    private String publicUrl;
 
     // ---1.註冊
     @Transactional
@@ -117,14 +115,22 @@ public class MemberService {
     public String login(LoginRequest request) {
         // 1. 尋找帳號
         Member member = memberRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> {loginAudit.record(null,"FAILED");return new LoginFailedException("帳號或密碼錯誤");});
+                .orElseThrow(() -> {
+                    loginAudit.record(null, "FAILED");
+                    return new LoginFailedException("帳號或密碼錯誤");
+                });
         // 2. 檢查帳號是否被鎖定
         if (member.getLockedUntil() != null && member.getLockedUntil().isAfter(LocalDateTime.now())) {
-            loginAudit.record(member,"LOCKED");throw new LoginFailedException("帳號已被鎖定，請稍後再試");
+            loginAudit.record(member, "LOCKED");
+            throw new LoginFailedException("帳號已被鎖定，請稍後再試");
         }
         // 3. 取得最新密碼紀錄
-        PasswordHistory latestPassword = passwordHistoryRepository.findFirstByMemberOrderByCreatedAtDescPasswordHistoryIdDesc(member)
-                .orElseThrow(() -> {loginAudit.record(member,"FAILED");return new LoginFailedException("請使用 Google 登入，或透過忘記密碼設定密碼");});
+        PasswordHistory latestPassword = passwordHistoryRepository
+                .findFirstByMemberOrderByCreatedAtDescPasswordHistoryIdDesc(member)
+                .orElseThrow(() -> {
+                    loginAudit.record(member, "FAILED");
+                    return new LoginFailedException("請使用 Google 登入，或透過忘記密碼設定密碼");
+                });
         // 4. 驗證密碼
         if (!passwordEncoder.matches(request.getPassword(), latestPassword.getPasswordHash())) {
             // 密碼錯誤：增加失敗次數
@@ -134,7 +140,8 @@ public class MemberService {
                 member.setLockedUntil(LocalDateTime.now().plusMinutes(1));
             }
             memberRepository.save(member);
-            loginAudit.record(member,"FAILED");throw new LoginFailedException("帳號或密碼錯誤");
+            loginAudit.record(member, "FAILED");
+            throw new LoginFailedException("帳號或密碼錯誤");
         }
         // Existing imported accounts without verification records stay compatible.
         var verifications = memberVerificationRepository.findByEmail(member.getEmail());
@@ -147,7 +154,8 @@ public class MemberService {
         member.setLockedUntil(null);
         memberRepository.save(member);
         // 6. 簽發 JWT Token
-        loginAudit.record(member,"SUCCESS");return generateMemberToken(member);
+        loginAudit.record(member, "SUCCESS");
+        return generateMemberToken(member);
     }
 
     // ---3.取得個人資料
@@ -293,7 +301,8 @@ public class MemberService {
                 .orElseThrow(() -> new RuntimeException("找不到該會員"));
 
         // 2. 取得他最新的密碼紀錄
-        PasswordHistory latestPassword = passwordHistoryRepository.findFirstByMemberOrderByCreatedAtDescPasswordHistoryIdDesc(member)
+        PasswordHistory latestPassword = passwordHistoryRepository
+                .findFirstByMemberOrderByCreatedAtDescPasswordHistoryIdDesc(member)
                 .orElseThrow(() -> new RuntimeException("無法取得密碼紀錄"));
 
         // 3. 驗證舊密碼是否正確
@@ -437,7 +446,8 @@ public class MemberService {
         var ids = db.queryForList(
                 "SELECT member_id FROM dbo.members WITH (UPDLOCK,HOLDLOCK) WHERE username=?",
                 Integer.class, username);
-        if (ids.isEmpty()) throw new RuntimeException("找不到該會員");
+        if (ids.isEmpty())
+            throw new RuntimeException("找不到該會員");
         // 1. 取得當前登入的會員
         Member member = memberRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("找不到該會員"));
@@ -447,7 +457,9 @@ public class MemberService {
             throw new RuntimeException("您已經是發行商了，無需重複申請");
         }
 
-        if (db.queryForObject("SELECT COUNT(*) FROM dbo.publisher_applications WHERE member_id=? AND approval_status='PENDING'", Integer.class, member.getMemberId()) > 0
+        if (db.queryForObject(
+                "SELECT COUNT(*) FROM dbo.publisher_applications WHERE member_id=? AND approval_status='PENDING'",
+                Integer.class, member.getMemberId()) > 0
                 || member.getCompanyName() != null) {
             throw new RuntimeException("您的發行商申請正在審核中，請耐心等候");
         }
@@ -459,14 +471,18 @@ public class MemberService {
         member.setBankName(request.getBankName());
 
         memberRepository.save(member);
-        // Current form has no document upload; an empty path also supports SQL 1017 NOT NULL.
-        db.update("INSERT INTO dbo.publisher_applications(member_id,company_name,tax_id,document_path,approval_status) VALUES(?,?,?,'','PENDING')",
+        // Current form has no document upload; an empty path also supports SQL 1017 NOT
+        // NULL.
+        db.update(
+                "INSERT INTO dbo.publisher_applications(member_id,company_name,tax_id,document_path,approval_status) VALUES(?,?,?,'','PENDING')",
                 member.getMemberId(), request.getCompanyName(), request.getTaxId());
 
         return "發行商申請已送出，請等候管理員審核！";
     }
 
-    public String googleLogin(GoogleLoginRequest request){return googleAccounts.login(request);}
+    public String googleLogin(GoogleLoginRequest request) {
+        return googleAccounts.login(request);
+    }
 
     // ---13. 產生會員 JWT Token(新增共用方法1015)
     private String generateMemberToken(Member member) {

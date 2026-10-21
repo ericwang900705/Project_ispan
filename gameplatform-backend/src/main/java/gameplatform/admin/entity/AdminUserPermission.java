@@ -26,11 +26,31 @@ public class AdminUserPermission {
     @Column(name = "granted_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime grantedAt;
 
-    public Integer getAdminId() { return adminId; }
-    public void setAdminId(Integer adminId) { this.adminId = adminId; }
-    public Integer getPermissionId() { return permissionId; }
-    public void setPermissionId(Integer permissionId) { this.permissionId = permissionId; }
-    public Integer getGrantedByAdminId() { return grantedByAdminId; }
-    public void setGrantedByAdminId(Integer grantedByAdminId) { this.grantedByAdminId = grantedByAdminId; }
-    public LocalDateTime getGrantedAt() { return grantedAt; }
+    public Integer getAdminId() {
+        return adminId;
+    }
+
+    public void setAdminId(Integer adminId) {
+        this.adminId = adminId;
+    }
+
+    public Integer getPermissionId() {
+        return permissionId;
+    }
+
+    public void setPermissionId(Integer permissionId) {
+        this.permissionId = permissionId;
+    }
+
+    public Integer getGrantedByAdminId() {
+        return grantedByAdminId;
+    }
+
+    public void setGrantedByAdminId(Integer grantedByAdminId) {
+        this.grantedByAdminId = grantedByAdminId;
+    }
+
+    public LocalDateTime getGrantedAt() {
+        return grantedAt;
+    }
 }

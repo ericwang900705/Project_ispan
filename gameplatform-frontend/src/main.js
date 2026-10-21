@@ -3,7 +3,7 @@ import { createPinia } from 'pinia'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { session, restore, frontendArea, refreshUser, logout } from './api'
 import { homeFor, guardPage } from './permissions'
-import {backofficeModules} from './backoffice-modules'
+import { backofficeModules } from './backoffice-modules'
 import { cartRoutes } from './cart/router/index'
 
 import App from './App.vue'
@@ -18,16 +18,25 @@ if (frontendArea !== 'staff') {
     await import('./cart/assets/main.css')
     await import('./styles/publisher.css')
     await import('./styles/cart-integration.css')
+    await import('./styles/cart-theme.css')
 }
 const storeRoutes = cartRoutes.map(route => ({
     ...route,
     meta: {
-        public: !['ShoppingCart', 'Orders', 'MemberGames'].includes(route.name),
-        member: ['ShoppingCart', 'Orders', 'MemberGames'].includes(route.name)
+        public: !['ShoppingCart', 'Orders', 'MemberGames', 'Coupons'].includes(route.name),
+        member: ['ShoppingCart', 'Orders', 'MemberGames', 'Coupons'].includes(route.name)
     }
 }))
 const routes = [
-    ...Object.entries(backofficeModules).map(([area,config])=>({path:'/admin/'+area,component:()=>import('./views/AdminOperations.vue'),meta:{staff:true,permission:config.permission,workspaceModule:area}})),
+    ...Object.entries(backofficeModules).map(([area, config]) => ({
+        path: '/admin/' + area, component: () =>
+            import('./views/AdminOperations.vue'),
+        meta: {
+            staff: true,
+            permission: config.permission,
+            workspaceModule: area
+        }
+    })),
     ...storeRoutes.filter(route => route.name !== 'NotFound'),
 
     //Member
@@ -125,10 +134,14 @@ const routes = [
         meta: { review: true }
     },
 
-    { path: '/admin/members', component: () => import('./views/AdminMembers.vue'),
-      meta: { staff: true, permission: 'MEMBER_SUSPEND' } },
-    { path: '/admin/publishers', component: () => import('./views/AdminPublishers.vue'),
-      meta: { staff: true, permission: 'PUBLISHER_REVIEW' } },
+    {
+        path: '/admin/members', component: () => import('./views/AdminMembers.vue'),
+        meta: { staff: true, permission: 'MEMBER_SUSPEND' }
+    },
+    {
+        path: '/admin/publishers', component: () => import('./views/AdminPublishers.vue'),
+        meta: { staff: true, permission: 'PUBLISHER_REVIEW' }
+    },
 
     // 管理員專用：後台人員管理
     {

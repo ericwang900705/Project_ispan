@@ -26,6 +26,7 @@ export const cartRoutes = [
         name: 'Orders',
         component: () => import('../views/Orders.vue')
     },
+    { path: '/coupons', name: 'Coupons', component: () => import('../views/Coupons.vue') },
     {
         path: '/point-store',//點數商店
         name: 'PointStore',

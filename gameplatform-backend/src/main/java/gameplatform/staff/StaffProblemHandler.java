@@ -11,11 +11,13 @@ import org.springframework.web.server.ResponseStatusException;
 @RestControllerAdvice(assignableTypes = StaffController.class)
 public class StaffProblemHandler {
     @ExceptionHandler(Problem.class)
-    ResponseEntity<Map<String,String>> handle(Problem ex) {
-        return ResponseEntity.status(ex.httpStatus()).body(Map.of("message",ex.getMessage()));
+    ResponseEntity<Map<String, String>> handle(Problem ex) {
+        return ResponseEntity.status(ex.httpStatus()).body(Map.of("message", ex.getMessage()));
     }
+
     @ExceptionHandler(ResponseStatusException.class)
-    ResponseEntity<Map<String,String>> status(ResponseStatusException ex) {
-        return ResponseEntity.status(ex.getStatusCode()).body(Map.of("message", ex.getReason()==null ? "操作失敗" : ex.getReason()));
+    ResponseEntity<Map<String, String>> status(ResponseStatusException ex) {
+        return ResponseEntity.status(ex.getStatusCode())
+                .body(Map.of("message", ex.getReason() == null ? "操作失敗" : ex.getReason()));
     }
 }

@@ -7,17 +7,45 @@ const data = ref(null), error = ref(''), loading = ref(false)
 const maximum = computed(() => Math.max(1, ...(data.value?.revenueTrend || []).map(row => Number(row.amount))))
 const number = v => v == null ? '—' : new Intl.NumberFormat('zh-TW').format(v)
 const metrics = computed(() => [
-  { key: 'members', label: '會員總數', icon: 'users', value: number(data.value?.memberCount), note: '既有會員資料表' },
-  { key: 'games', label: '已送審遊戲總數', icon: 'game', value: number(data.value?.gameCount), note: '包含待審、已上架及下架遊戲；不含草稿' },
-  { key: 'orders', label: '本月訂單', icon: 'cart', value: number(data.value?.monthlyOrderCount), note: '本月建立的訂單' },
-  { key: 'revenue', label: '本月已付款金額', icon: 'wallet', value: data.value?.monthlyRevenue == null ? '—' : 'NT$ ' + number(data.value.monthlyRevenue), note: '依付款日，排除退款與取消訂單' }
+  {
+    key: 'members',
+    label: '會員總數',
+    icon: 'users',
+    value: number(data.value?.memberCount),
+    note: '既有會員資料表'
+  },
+  {
+    key: 'games',
+    label: '已送審遊戲總數',
+    icon: 'game',
+    value: number(data.value?.gameCount),
+    note: '包含待審、已上架及下架遊戲；不含草稿'
+  },
+  {
+    key: 'orders',
+    label: '本月訂單',
+    icon: 'cart',
+    value: number(data.value?.monthlyOrderCount),
+    note: '本月建立的訂單'
+  },
+  {
+    key: 'revenue',
+    label: '本月已付款金額',
+    icon: 'wallet',
+    value: data.value?.monthlyRevenue == null ? '—' : 'NT$ ' + number(data.value.monthlyRevenue),
+    note: '依付款日，排除退款與取消訂單'
+  }
 ])
 async function load() {
-  if (!hasPermission(session.user, 'DASHBOARD_VIEW')) return
+  if (loading.value || !hasPermission(session.user, 'DASHBOARD_VIEW')) return
   loading.value = true; error.value = ''
-  try { data.value = await api('/management/dashboard') }
-  catch (e) { error.value = e.message; data.value = null }
-  finally { loading.value = false }
+  try {
+    data.value = await api('/management/dashboard')
+  } catch (e) {
+    error.value = e.message; data.value = null
+  } finally {
+    loading.value = false
+  }
 }
 onMounted(load)
 </script>
@@ -46,7 +74,8 @@ onMounted(load)
       </header>
       <div v-if="data" class="revenue-trend">
         <div v-for="row in data.revenueTrend" :key="row.month" class="revenue-row"><time>{{ row.month }}</time>
-          <div class="revenue-track"><span :style="{ width: Number(row.amount) / maximum * 100 + '%' }"></span></div><strong>NT$
+          <div class="revenue-track"><span :style="{ width: Number(row.amount) / maximum * 100 + '%' }"></span></div>
+          <strong>NT$
             {{ number(row.amount) }}</strong>
         </div>
       </div>
@@ -54,7 +83,7 @@ onMounted(load)
       <footer>僅統計目前為已付款狀態的訂單金額，非平台結算收益。</footer>
     </article>
     <div class="platform-footer"><small v-if="data?.updatedAt">更新時間：{{ new
-      Date(data.updatedAt).toLocaleString('zh-TW', { hour12:false})}}</small></div>
+      Date(data.updatedAt).toLocaleString('zh-TW', { hour12: false }) }}</small></div>
   </section>
 </template>
 

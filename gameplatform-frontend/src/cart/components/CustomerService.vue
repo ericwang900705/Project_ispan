@@ -101,62 +101,185 @@ async function send() {
 <style scoped>
 /* 放在 App.vue 右下角欄位的上半部（外框由 App.vue 的 .dock 畫），寬度跟著容器 */
 .support {
-  width: 100%; display: flex; flex-direction: column;
-  background: #2a1a14; border-radius: 7px 7px 0 0; color: #e8dcc8; overflow: hidden;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #2a1a14;
+  border-radius: 7px 7px 0 0;
+  color: #e8dcc8;
+  overflow: hidden;
 }
+
 /* 打開時往上長高，當成聊天視窗 */
-.support.open { height: 360px; }
+.support.open {
+  height: 360px;
+}
 
 /* 標題列 */
 .bar {
-  width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 12px;
-  border: none; background: linear-gradient(180deg, #3a261c, #2a1a14); color: inherit; cursor: pointer;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: none;
+  background: linear-gradient(180deg, #3a261c, #2a1a14);
+  color: inherit;
+  cursor: pointer;
   text-align: left;
 }
-.bar:hover { background: #3a261c; }
-.support.open .bar { border-bottom: 1px solid #6b4e0f; }
-.bar-text { display: flex; flex-direction: column; min-width: 0; }
-.bar-title { font-size: 14px; font-weight: bold; color: #d4a64a; }
-.bar-sub { font-size: 12px; color: #a8988a; }
-.arrow { margin-left: auto; color: #d4a64a; }
+
+.bar:hover {
+  background: #3a261c;
+}
+
+.support.open .bar {
+  border-bottom: 1px solid #6b4e0f;
+}
+
+.bar-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bar-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #d4a64a;
+}
+
+.bar-sub {
+  font-size: 12px;
+  color: #a8988a;
+}
+
+.arrow {
+  margin-left: auto;
+  color: #d4a64a;
+}
 
 /* 頭像：圓形，右下角一個線上小圓點 */
 .avatar {
-  position: relative; width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;
-  background: linear-gradient(135deg, #6b4e0f, #d4a64a); color: #1b0f0d;
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+  background: linear-gradient(135deg, #6b4e0f, #d4a64a);
+  color: #1b0f0d;
 }
+
 .dot {
-  position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%;
-  background: #5fc4d8; border: 2px solid #2a1a14;
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #5fc4d8;
+  border: 2px solid #2a1a14;
 }
 
 /* 訊息區：可捲動 */
-.messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; background: #1b0f0d; }
-.msg { display: flex; flex-direction: column; align-items: flex-start; max-width: 80%; }
-.msg.me { align-self: flex-end; align-items: flex-end; }
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #1b0f0d;
+}
+
+.msg {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 80%;
+}
+
+.msg.me {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
 /* 客服的訊息：深色泡泡 */
-.bubble { padding: 7px 12px; border-radius: 12px 12px 12px 2px; background: #3a261c; color: #e8dcc8; font-size: 14px; word-break: break-word; }
+.bubble {
+  padding: 7px 12px;
+  border-radius: 12px 12px 12px 2px;
+  background: #3a261c;
+  color: #e8dcc8;
+  font-size: 14px;
+  word-break: break-word;
+}
+
 /* 自己的訊息：金色泡泡 */
-.msg.me .bubble { border-radius: 12px 12px 2px 12px; background: #d4a64a; color: #1b0f0d; }
-.time { font-size: 10px; color: #6e6058; margin-top: 2px; }
+.msg.me .bubble {
+  border-radius: 12px 12px 2px 12px;
+  background: #d4a64a;
+  color: #1b0f0d;
+}
+
+.time {
+  font-size: 10px;
+  color: #6e6058;
+  margin-top: 2px;
+}
 
 /* 輸入框 */
-.chat-input { display: flex; gap: 6px; padding: 10px; border-top: 1px solid #3a261c; }
+.chat-input {
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  border-top: 1px solid #3a261c;
+}
+
 .chat-input input {
-  flex: 1; min-width: 0; padding: 7px 12px; border-radius: 16px; border: 1px solid #6b4e0f;
-  background: #1b0f0d; color: #e8dcc8; font-size: 13px; outline: none;
+  flex: 1;
+  min-width: 0;
+  padding: 7px 12px;
+  border-radius: 16px;
+  border: 1px solid #6b4e0f;
+  background: #1b0f0d;
+  color: #e8dcc8;
+  font-size: 13px;
+  outline: none;
 }
-.chat-input input:focus { border-color: #d4a64a; }
+
+.chat-input input:focus {
+  border-color: #d4a64a;
+}
+
 .chat-input button {
-  border: none; border-radius: 16px; padding: 0 14px; font-weight: bold; cursor: pointer;
-  background: #d4a64a; color: #1b0f0d;
+  border: none;
+  border-radius: 16px;
+  padding: 0 14px;
+  font-weight: bold;
+  cursor: pointer;
+  background: #d4a64a;
+  color: #1b0f0d;
 }
-.chat-input button:disabled { background: #4a3a32; color: #a8988a; cursor: default; }
+
+.chat-input button:disabled {
+  background: #4a3a32;
+  color: #a8988a;
+  cursor: default;
+}
 
 /* 手機：只留頭像和標題，打開時矮一點 */
 @media (max-width: 700px) {
-  .bar-sub { display: none; }
-  .support.open { height: 300px; }
+  .bar-sub {
+    display: none;
+  }
+
+  .support.open {
+    height: 300px;
+  }
 }
 </style>

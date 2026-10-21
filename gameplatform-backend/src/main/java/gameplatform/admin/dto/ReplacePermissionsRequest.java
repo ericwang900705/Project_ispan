@@ -21,8 +21,8 @@ import java.util.Set;
  */
 public record ReplacePermissionsRequest(
 
-        // 要分配給 STAFF 的功能權限代碼
-        Set<String> permissionCodes
+                // 要分配給 STAFF 的功能權限代碼
+                Set<String> permissionCodes
 
 ) {
 }

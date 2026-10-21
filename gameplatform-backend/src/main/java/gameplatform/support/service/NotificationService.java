@@ -29,14 +29,19 @@ public class NotificationService {
     private static final String REVIEWER_EVENTS = " AND event_type IN ('GAME_SUBMITTED')";
 
     private String visibleEvents(Actor actor) {
-        if (actor.role().equals("PUBLISHER")) return PUBLISHER_EVENTS;
-        if (actor.isMember()) return SUPPORT_EVENTS;
+        if (actor.role().equals("PUBLISHER"))
+            return PUBLISHER_EVENTS;
+        if (actor.isMember())
+            return SUPPORT_EVENTS;
         var granted = permissions.forActor(actor);
         boolean support = granted.contains("TICKET_HANDLE");
         boolean review = granted.contains("GAME_REVIEW");
-        if (support && review) return ADMIN_EVENTS;
-        if (support) return SUPPORT_EVENTS;
-        if (review) return REVIEWER_EVENTS;
+        if (support && review)
+            return ADMIN_EVENTS;
+        if (support)
+            return SUPPORT_EVENTS;
+        if (review)
+            return REVIEWER_EVENTS;
         return " AND 1=0";
     }
 
@@ -44,7 +49,8 @@ public class NotificationService {
     private final EventHub events;
     private final gameplatform.support.config.StaffPermissionService permissions;
 
-    public NotificationService(JdbcTemplate db, EventHub events, gameplatform.support.config.StaffPermissionService permissions) {
+    public NotificationService(JdbcTemplate db, EventHub events,
+            gameplatform.support.config.StaffPermissionService permissions) {
         this.db = db;
         this.events = events;
         this.permissions = permissions;
@@ -96,9 +102,10 @@ public class NotificationService {
     public void supportQueue(String type, String title, String body, String path) {
         for (Integer id : db.queryForList(
                 "SELECT a.admin_id FROM dbo.admin a JOIN dbo.admin_roles r ON r.admin_role_id=a.admin_role_id "
-                + "WHERE a.status='ACTIVE' AND (r.role_code IN ('ADMIN','SUPPORT') OR (r.role_code='STAFF' "
-                + "AND EXISTS (SELECT 1 FROM dbo.admin_user_permissions u JOIN dbo.admin_permissions p ON p.permission_id=u.permission_id "
-                + "WHERE u.admin_id=a.admin_id AND p.permission_code='TICKET_HANDLE')))", Integer.class))
+                        + "WHERE a.status='ACTIVE' AND (r.role_code IN ('ADMIN','SUPPORT') OR (r.role_code='STAFF' "
+                        + "AND EXISTS (SELECT 1 FROM dbo.admin_user_permissions u JOIN dbo.admin_permissions p ON p.permission_id=u.permission_id "
+                        + "WHERE u.admin_id=a.admin_id AND p.permission_code='TICKET_HANDLE')))",
+                Integer.class))
             staff(id, type, title, body, path);
     }
 
@@ -106,10 +113,10 @@ public class NotificationService {
     public void reviewers(String type, String title, String body, String path) {
         for (Integer id : db.queryForList(
                 "SELECT a.admin_id FROM dbo.admin a JOIN dbo.admin_roles r ON r.admin_role_id=a.admin_role_id "
-                + "WHERE a.status='ACTIVE' AND (r.role_code IN ('ADMIN','REVIEWER') OR "
-                + "(r.role_code='STAFF' AND EXISTS (SELECT 1 FROM dbo.admin_user_permissions u "
-                + "JOIN dbo.admin_permissions p ON p.permission_id=u.permission_id "
-                + "WHERE u.admin_id=a.admin_id AND p.permission_code='GAME_REVIEW')))",
+                        + "WHERE a.status='ACTIVE' AND (r.role_code IN ('ADMIN','REVIEWER') OR "
+                        + "(r.role_code='STAFF' AND EXISTS (SELECT 1 FROM dbo.admin_user_permissions u "
+                        + "JOIN dbo.admin_permissions p ON p.permission_id=u.permission_id "
+                        + "WHERE u.admin_id=a.admin_id AND p.permission_code='GAME_REVIEW')))",
                 Integer.class))
             staff(id, type, title, body, path);
     }

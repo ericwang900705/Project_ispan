@@ -14,18 +14,20 @@ import gameplatform.support.service.PublisherImageStorage;
 public class PublisherImageController {
     private final PublisherImageStorage storage;
 
-    public PublisherImageController(PublisherImageStorage storage) { this.storage = storage; }
+    public PublisherImageController(PublisherImageStorage storage) {
+        this.storage = storage;
+    }
 
-    @PostMapping(value="/api/publisher/images", consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/api/publisher/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Object upload(Actor actor, @RequestParam("file") MultipartFile file) {
-        return storage.upload(actor,file);
+        return storage.upload(actor, file);
     }
 
     @GetMapping("/uploads/publisher/{name}")
     public ResponseEntity<FileSystemResource> image(@PathVariable String name) {
         var file = storage.resolve(name);
         return ResponseEntity.ok().cacheControl(CacheControl.noCache())
-                .header("X-Content-Type-Options","nosniff")
+                .header("X-Content-Type-Options", "nosniff")
                 .contentType(name.endsWith(".png") ? MediaType.IMAGE_PNG : MediaType.IMAGE_JPEG)
                 .body(new FileSystemResource(file));
     }

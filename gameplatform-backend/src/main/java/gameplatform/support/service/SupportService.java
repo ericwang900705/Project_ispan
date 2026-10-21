@@ -21,7 +21,7 @@ import gameplatform.support.model.Problem;
 public class SupportService {
     private final JdbcTemplate db;
     private final EventHub events;
-    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
     private NotificationService notifications;
     private final boolean sqlServer;
 
@@ -85,7 +85,8 @@ public class SupportService {
     }
 
     private void participant(Actor a) {
-        if (!a.isMember() && !a.canSupport()) throw Problem.denied();
+        if (!a.isMember() && !a.canSupport())
+            throw Problem.denied();
     }
 
     private void member(Actor a) {
@@ -115,17 +116,19 @@ public class SupportService {
             throw new Problem(409, "對話已結束，請查看案件或開始新對話");
     }
 
-    // One batch query per page; retain legacy single-game tickets and demo seed data.
+    // One batch query per page; retain legacy single-game tickets and demo seed
+    // data.
     private List<Ticket> withTicketGames(List<Ticket> tickets) {
-        if (tickets.isEmpty()) return tickets;
+        if (tickets.isEmpty())
+            return tickets;
         Map<Integer, List<Game>> games = new HashMap<>();
         String marks = String.join(",", Collections.nCopies(tickets.size(), "?"));
         db.query("SELECT tg.ticket_id,g.game_id,g.game_name FROM customer_service_ticket_games tg "
                 + "JOIN games g ON g.game_id=tg.game_id WHERE tg.ticket_id IN (" + marks
                 + ") ORDER BY tg.ticket_id,tg.sort_order,tg.game_id",
                 (org.springframework.jdbc.core.RowCallbackHandler) rs -> games
-                    .computeIfAbsent(rs.getInt("ticket_id"), ignored -> new ArrayList<>())
-                    .add(new Game(rs.getInt("game_id"), rs.getString("game_name"))),
+                        .computeIfAbsent(rs.getInt("ticket_id"), ignored -> new ArrayList<>())
+                        .add(new Game(rs.getInt("game_id"), rs.getString("game_name"))),
                 tickets.stream().map(Ticket::id).toArray());
         return tickets.stream().map(t -> t.withGames(games.getOrDefault(t.id(),
                 t.gameId() == null ? List.of() : List.of(new Game(t.gameId(), t.gameName()))))).toList();
@@ -170,7 +173,8 @@ public class SupportService {
                 "INSERT INTO chat_rooms(member_id,status,created_at) VALUES (?,'OPEN',CURRENT_TIMESTAMP)",
                 a.id());
         events.changed(a.id());
-        if(notifications!=null) notifications.supportQueue("NEW_CHAT","新的即時聊天室","聊天室 #"+id+" 等待接手","/admin");
+        if (notifications != null)
+            notifications.supportQueue("NEW_CHAT", "新的即時聊天室", "聊天室 #" + id + " 等待接手", "/admin");
         return room(id);
     }
 
@@ -237,7 +241,8 @@ public class SupportService {
             args.add(status);
         }
         if (categoryId != null) {
-            if (categoryId <= 0) throw new Problem(400, "無效的分類");
+            if (categoryId <= 0)
+                throw new Problem(400, "無效的分類");
             filter += " AND t.category_id=?";
             args.add(categoryId);
         }
@@ -253,7 +258,8 @@ public class SupportService {
             filter += " AND t.status<>'CLOSED' AND " +
                     (waitingFor.equals("MEMBER") ? "" : "NOT ") +
                     "EXISTS (SELECT 1 FROM customer_service_messages lastMsg WHERE lastMsg.ticket_id=t.ticket_id " +
-                    "AND lastMsg.message_id=(SELECT MAX(mx.message_id) FROM customer_service_messages mx WHERE mx.ticket_id=t.ticket_id) " +
+                    "AND lastMsg.message_id=(SELECT MAX(mx.message_id) FROM customer_service_messages mx WHERE mx.ticket_id=t.ticket_id) "
+                    +
                     "AND lastMsg.sender_type='ADMIN')";
         }
         String term = searchTerm(q);
@@ -270,8 +276,9 @@ public class SupportService {
             filter += ")";
         }
         args.add(offset);
-        return withTicketGames(db.query(TICKET_SELECT + filter + " ORDER BY t.ticket_id DESC OFFSET ? ROWS FETCH NEXT 30 ROWS ONLY",
-                TICKET, args.toArray()));
+        return withTicketGames(
+                db.query(TICKET_SELECT + filter + " ORDER BY t.ticket_id DESC OFFSET ? ROWS FETCH NEXT 30 ROWS ONLY",
+                        TICKET, args.toArray()));
     }
 
     private String searchTerm(String q) {
@@ -312,8 +319,10 @@ public class SupportService {
         Ticket t = ticket(id);
         open(t.status());
         // 已分配案件僅負責客服能調整；未分配案件由任一客服設定。
-        if (t.adminId() != null) assigned(a, t.adminId());
-        db.update("UPDATE customer_service_tickets SET priority=?, updated_at=CURRENT_TIMESTAMP WHERE ticket_id=?", priority, id);
+        if (t.adminId() != null)
+            assigned(a, t.adminId());
+        db.update("UPDATE customer_service_tickets SET priority=?, updated_at=CURRENT_TIMESTAMP WHERE ticket_id=?",
+                priority, id);
         events.changed(t.memberId());
         return ticket(id);
     }
@@ -381,9 +390,11 @@ public class SupportService {
             String marks = String.join(",", Collections.nCopies(gameIds.size(), "?"));
             int found = db.queryForObject("SELECT COUNT(*) FROM games WHERE game_id IN (" + marks + ")",
                     Integer.class, gameIds.toArray());
-            if (found != gameIds.size()) throw new Problem(400, "選擇的遊戲不存在，請重新搜尋");
+            if (found != gameIds.size())
+                throw new Problem(400, "選擇的遊戲不存在，請重新搜尋");
         }
-        String requestedPriority = input.priority() == null ? "NORMAL" : input.priority().strip().toUpperCase(Locale.ROOT);
+        String requestedPriority = input.priority() == null ? "NORMAL"
+                : input.priority().strip().toUpperCase(Locale.ROOT);
         if (!Set.of("URGENT", "HIGH", "NORMAL", "LOW").contains(requestedPriority))
             throw new Problem(400, "無效的案件優先程度");
         Integer firstGameId = gameIds.isEmpty() ? null : gameIds.get(0);
@@ -402,7 +413,8 @@ public class SupportService {
                 "UPDATE chat_rooms SET ticket_id=?,status='CLOSED',closed_at=CURRENT_TIMESTAMP WHERE support_room_id=?",
                 ticketId, id);
         events.changed(r.memberId());
-        if(notifications!=null) notifications.member(r.memberId(),"TICKET_CREATED","客服已建立正式案件",ticketNo,"/tickets/"+ticketId);
+        if (notifications != null)
+            notifications.member(r.memberId(), "TICKET_CREATED", "客服已建立正式案件", ticketNo, "/tickets/" + ticketId);
         return ticket(ticketId);
     }
 
@@ -430,13 +442,19 @@ public class SupportService {
         int messageId = insert(chat ? "support_message_id" : "message_id",
                 "INSERT INTO " + table + "(" + parent + "," + sender + ",admin_id,sender_type," + body
                         + ",sent_at) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)",
-                id, a.canSupport() ? null : a.id(), a.canSupport() ? a.id() : null, a.senderType(), input.content().strip());
+                id, a.canSupport() ? null : a.id(), a.canSupport() ? a.id() : null, a.senderType(),
+                input.content().strip());
         if (!chat)
             db.update("UPDATE customer_service_tickets SET updated_at=CURRENT_TIMESTAMP WHERE ticket_id=?", id);
         events.changed(owner);
-        if(notifications!=null) {
-            if(a.canSupport()) notifications.member(owner,chat?"CHAT_REPLY":"TICKET_REPLY",chat?"客服已回覆聊天室":"客服已回覆案件",chat?"聊天室 #"+id+" 有新訊息":"案件 #"+id+" 有新訊息",chat?"/member/support":"/tickets/"+id);
-            else if(assignedId!=null) notifications.staff(assignedId,chat?"CHAT_MESSAGE":"TICKET_MESSAGE",chat?"聊天室有新訊息":"負責案件有新訊息",chat?"聊天室 #"+id+" 有會員回覆":"案件 #"+id+" 有會員回覆",chat?"/admin":"/tickets/"+id);
+        if (notifications != null) {
+            if (a.canSupport())
+                notifications.member(owner, chat ? "CHAT_REPLY" : "TICKET_REPLY", chat ? "客服已回覆聊天室" : "客服已回覆案件",
+                        chat ? "聊天室 #" + id + " 有新訊息" : "案件 #" + id + " 有新訊息",
+                        chat ? "/member/support" : "/tickets/" + id);
+            else if (assignedId != null)
+                notifications.staff(assignedId, chat ? "CHAT_MESSAGE" : "TICKET_MESSAGE", chat ? "聊天室有新訊息" : "負責案件有新訊息",
+                        chat ? "聊天室 #" + id + " 有會員回覆" : "案件 #" + id + " 有會員回覆", chat ? "/admin" : "/tickets/" + id);
         }
         return messageQuery(chat, "WHERE x." + (chat ? "support_message_id" : "message_id") + "=?", List.of(messageId),
                 false).get(0);
@@ -455,7 +473,8 @@ public class SupportService {
                 (rs, n) -> new Message(rs.getInt("id"), rs.getString("sender_type"), rs.getString("sender_name"),
                         rs.getString("body"), time(rs, "sent_at")),
                 args.toArray());
-        if (chat || messages.isEmpty()) return messages;
+        if (chat || messages.isEmpty())
+            return messages;
         Map<Integer, List<Attachment>> attachments = new HashMap<>();
         String placeholders = String.join(",", Collections.nCopies(messages.size(), "?"));
         db.query("SELECT attachment_id,message_id,file_name,content_type,size_bytes,width,height "
@@ -463,19 +482,25 @@ public class SupportService {
                 (org.springframework.jdbc.core.RowCallbackHandler) rs -> attachments
                         .computeIfAbsent(rs.getInt("message_id"), ignored -> new ArrayList<>())
                         .add(new Attachment(rs.getInt("attachment_id"), rs.getString("file_name"),
-                                rs.getString("content_type"), rs.getInt("size_bytes"), rs.getInt("width"), rs.getInt("height"))),
+                                rs.getString("content_type"), rs.getInt("size_bytes"), rs.getInt("width"),
+                                rs.getInt("height"))),
                 messages.stream().map(Message::id).toArray());
         return messages.stream().map(m -> new Message(m.id(), m.senderType(), m.senderName(), m.content(), m.sentAt(),
                 List.copyOf(attachments.getOrDefault(m.id(), List.of())))).toList();
     }
 
-    /** Text and images commit together. Reuses the same ownership, assigned-agent and closed-ticket checks as text. */
+    /**
+     * Text and images commit together. Reuses the same ownership, assigned-agent
+     * and closed-ticket checks as text.
+     */
     public Message sendTicketImages(Actor actor, int ticketId, String content, List<MultipartFile> files) {
         Ticket ticket = getTicket(actor, ticketId);
         open(ticket.status());
-        if (actor.canSupport()) assigned(actor, ticket.adminId());
+        if (actor.canSupport())
+            assigned(actor, ticket.adminId());
         String text = content == null ? "" : content.strip();
-        if (text.length() > 4000) throw new Problem(400, "訊息最多 4000 字。");
+        if (text.length() > 4000)
+            throw new Problem(400, "訊息最多 4000 字。");
         if (files == null || files.isEmpty() || files.size() > SupportImageValidator.MAX_FILES) {
             throw new Problem(400, "每則訊息請選擇 1 至 3 張圖片。");
         }
@@ -490,7 +515,8 @@ public class SupportService {
                 throw new Problem(400, e instanceof IllegalArgumentException ? e.getMessage() : "無法讀取上傳圖片。");
             }
         }
-        // send() locks and rechecks the ticket, so a concurrent close/claim cannot bypass permissions.
+        // send() locks and rechecks the ticket, so a concurrent close/claim cannot
+        // bypass permissions.
         Message message = send(actor, false, ticketId, new MessageInput(text));
         for (var image : images) {
             db.update("""
@@ -500,15 +526,20 @@ public class SupportService {
                     """, message.id(), image.fileName(), image.contentType(), image.bytes().length,
                     image.width(), image.height(), image.bytes());
         }
-        if(notifications!=null) {
-            if(actor.canSupport()) notifications.member(ticket.memberId(),"TICKET_REPLY","客服已回覆案件","案件 #"+ticketId+" 有新訊息","/tickets/"+ticketId);
-            else if(ticket.adminId()!=null) notifications.staff(ticket.adminId(),"TICKET_MESSAGE","負責案件有新訊息","案件 #"+ticketId+" 有會員回覆","/tickets/"+ticketId);
+        if (notifications != null) {
+            if (actor.canSupport())
+                notifications.member(ticket.memberId(), "TICKET_REPLY", "客服已回覆案件", "案件 #" + ticketId + " 有新訊息",
+                        "/tickets/" + ticketId);
+            else if (ticket.adminId() != null)
+                notifications.staff(ticket.adminId(), "TICKET_MESSAGE", "負責案件有新訊息", "案件 #" + ticketId + " 有會員回覆",
+                        "/tickets/" + ticketId);
         }
         return messageQuery(false, "WHERE x.message_id=?", List.of(message.id()), false).get(0);
     }
 
     public AttachmentData ticketImage(Actor actor, int ticketId, int attachmentId) {
-        getTicket(actor, ticketId); // Membership checked before returning any bytes; closed tickets remain readable.
+        getTicket(actor, ticketId); // Membership checked before returning any bytes; closed tickets remain
+                                    // readable.
         return db.query("""
                 SELECT a.content_type,a.image_data FROM customer_service_attachments a
                 JOIN customer_service_messages m ON m.message_id=a.message_id

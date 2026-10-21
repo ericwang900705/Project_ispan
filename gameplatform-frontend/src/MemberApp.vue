@@ -10,6 +10,7 @@ import { useOrdersStore } from './cart/stores/orders'
 import { useReviewStore } from './cart/stores/reviews'
 import { session, logout } from './api'
 import PublisherSidebar from './components/PublisherSidebar.vue'
+import ParticleBackground from './cart/components/ParticleBackground.vue'
 import PublisherToast from './components/PublisherToast.vue'
 import FriendsList from './cart/components/FriendsList.vue'
 import ChatWidget from './components/ChatWidget.vue'
@@ -24,10 +25,24 @@ import { useGamesStore, genreIcon } from '@/cart/stores/games'
 
 const gamesStore = useGamesStore()
 const route = useRoute()
-const cart = useCartStore(), orders = useOrdersStore(), reviews = useReviewStore()
+const cart = useCartStore()
+const orders = useOrdersStore()
+const reviews = useReviewStore()
+
 watch(() => session.user?.id, () => {
-  cart.items = []; cart.library = []; cart.coupon = null; cart.coupons = []; cart.totalPrice = 0; orders.orders = []; reviews.reviews = []; reviews.gameId = null
-  if (session.user) Promise.all([cart.fetchCart(), cart.fetchLibrary()]).catch(e => { catalogError.value = e.message })
+  cart.items = [];
+  cart.library = [];
+  cart.coupon = null;
+  cart.coupons = [];
+  cart.totalPrice = 0;
+  orders.orders = [];
+  reviews.reviews = [];
+  reviews.gameId = null
+  if (session.user) Promise.all(
+    [cart.fetchCart(), cart.fetchLibrary()]
+  ).catch(e => {
+    catalogError.value = e.message
+  })
 })
 const publisher = computed(() => route.path.startsWith('/publisher'))
 const account = computed(() =>
@@ -244,6 +259,8 @@ watch(() => route.fullPath, () => {
               我的訂單
             </RouterLink>
 
+            <RouterLink to="/coupons">優惠券</RouterLink>
+
             <RouterLink to="/member/change-password">
               修改密碼
             </RouterLink>
@@ -264,13 +281,16 @@ watch(() => route.fullPath, () => {
   <!-- 佔位用：補回固定 header 的高度 -->
   <div class="header-spacer"></div>
 
+  <!-- cart 樣式僅套用頂欄以外的前台內容。 -->
+  <div class="cart-page-content">
+    <ParticleBackground />
   <!-- 路由出口：目前網址對應的頁面會渲染在這裡 -->
   <p v-if="catalogError && !publisher" class="catalog-error" role="alert">{{ catalogError }}</p>
   <PublisherSidebar v-if="publisher" />
   <main v-if="publisher" class="publisher-workspace publisher-content">
     <RouterView />
   </main>
-  <main v-else-if="support || account" class="support-ui member-ui support-page">
+  <main v-else-if="support || account" class="support-ui member-ui support-page" :class="{ 'support-scope': support }">
     <RouterView />
   </main>
   <RouterView v-else />
@@ -284,6 +304,7 @@ watch(() => route.fullPath, () => {
       <FriendsList ref="friendsChatRef" :key="session.user.role + '-' + session.user.id"
         @expanded-change="onFriendsExpanded" />
     </div>
+  </div>
   </div>
 </template>
 

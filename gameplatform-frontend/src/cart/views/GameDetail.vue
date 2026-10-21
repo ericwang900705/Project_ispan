@@ -352,6 +352,10 @@ function day(dateTime) {
 .stars i { font-style: normal; color: #3a4680; }
 .date { color: var(--text-dim); font-size: 12px; }
 .content { margin: 8px 0 0; font-size: 14px; white-space: pre-wrap; word-break: break-word; }
+/* 開發商回覆：左邊金色線，跟玩家的評論區分開 */
+.dev-reply { margin-top: 8px; padding: 6px 12px; border-left: 3px solid var(--gold); background: var(--surface-2); border-radius: 0 6px 6px 0; }
+.dev-reply-label { font-size: 12px; color: var(--gold); }
+.dev-reply p { margin: 4px 0 0; font-size: 14px; white-space: pre-wrap; word-break: break-word; }
 .own-actions { display: flex; gap: 8px; margin-top: 8px; }
 .own-actions button {
   padding: 3px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;

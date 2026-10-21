@@ -17,108 +17,108 @@ import gameplatform.game.entity.Game;
 // 利用 JpaSpecificationExecutor 建立動態查詢
 public interface GameRepository extends JpaRepository<Game, Integer>, JpaSpecificationExecutor<Game> {
 
-        Optional<Game> findByGameIdAndStatusIn(
-                        Integer gameId,
-                        List<String> statuses);
+    Optional<Game> findByGameIdAndStatusIn(
+            Integer gameId,
+            List<String> statuses);
 
-        List<Game> findByGameNameContainingAndStatusIn(
-                        String gameName,
-                        List<String> statuses);
+    List<Game> findByGameNameContainingAndStatusIn(
+            String gameName,
+            List<String> statuses);
 
-        List<Game> findByStatus(String status);
+    List<Game> findByStatus(String status);
 
-        Page<Game> findByStatusIn(
-                        List<String> statuses,
-                        Pageable pageable);
+    Page<Game> findByStatusIn(
+            List<String> statuses,
+            Pageable pageable);
 
-        // 時間到(reaseDate <= CURRENT_TIMESTAMP)自動將遊戲狀態改為PUBLISHED
-        @Modifying
-        @Query("""
-                            UPDATE Game g
-                            SET g.status = 'PUBLISHED'
-                            WHERE g.status = 'COMING_SOON'
-                            AND g.releaseDate <= CURRENT_TIMESTAMP
-                        """)
-        int autoPublishGames();
+    // 時間到(reaseDate <= CURRENT_TIMESTAMP)自動將遊戲狀態改為PUBLISHED
+    @Modifying
+    @Query("""
+                UPDATE Game g
+                SET g.status = 'PUBLISHED'
+                WHERE g.status = 'COMING_SOON'
+                AND g.releaseDate <= CURRENT_TIMESTAMP
+            """)
+    int autoPublishGames();
 
-        // 預定時間到達後，自動下架遊戲
-        @Modifying
-        @Query("""
-                        UPDATE Game g
-                        SET g.status = 'OFF_SHELF',
-                            g.scheduledOffShelfAt = null
-                        WHERE g.status = 'PENDING_OFF_SHELF'
-                        AND g.scheduledOffShelfAt IS NOT NULL
-                        AND g.scheduledOffShelfAt <= CURRENT_TIMESTAMP
-                        """)
-        int autoOffShelfGames();
+    // 預定時間到達後，自動下架遊戲
+    @Modifying
+    @Query("""
+            UPDATE Game g
+            SET g.status = 'OFF_SHELF',
+                g.scheduledOffShelfAt = null
+            WHERE g.status = 'PENDING_OFF_SHELF'
+            AND g.scheduledOffShelfAt IS NOT NULL
+            AND g.scheduledOffShelfAt <= CURRENT_TIMESTAMP
+            """)
+    int autoOffShelfGames();
 
-        // 管理員查詢遊戲（模糊搜尋包含分頁、關鍵字、狀態）
-        @Query("""
-                        SELECT g
-                        FROM Game g
-                        WHERE g.status <> 'DRAFT'
-                        AND (
-                            :keyword IS NULL
-                            OR g.gameName LIKE CONCAT('%', :keyword, '%')
-                        )
-                        AND (
-                            :status IS NULL
-                            OR g.status = :status
-                        )
-                        """)
-        Page<Game> searchAdminGames(
-                        @Param("keyword") String keyword,
-                        @Param("status") String status,
-                        Pageable pageable);
+    // 管理員查詢遊戲（模糊搜尋包含分頁、關鍵字、狀態）
+    @Query("""
+            SELECT g
+            FROM Game g
+            WHERE g.status <> 'DRAFT'
+            AND (
+                :keyword IS NULL
+                OR g.gameName LIKE CONCAT('%', :keyword, '%')
+            )
+            AND (
+                :status IS NULL
+                OR g.status = :status
+            )
+            """)
+    Page<Game> searchAdminGames(
+            @Param("keyword") String keyword,
+            @Param("status") String status,
+            Pageable pageable);
 
-        // 發行商查詢自己發行的遊戲（包含分頁）
-        Page<Game> findByMemberId(Integer memberId, Pageable pageable);
+    // 發行商查詢自己發行的遊戲（包含分頁）
+    Page<Game> findByMemberId(Integer memberId, Pageable pageable);
 
-        // 用標籤查詢遊戲
-        @Query("""
-                        SELECT g
-                        FROM Game g
-                        WHERE g.gameId IN (
-                            SELECT gt.gameId
-                            FROM GameTag gt
-                            WHERE gt.tagId = :tagId
-                        )
-                        AND g.status IN (
-                            'COMING_SOON',
-                            'PUBLISHED',
-                            'PENDING_OFF_SHELF'
-                        )
-                        """)
-        Page<Game> findPublicGamesByTagId(
-                        @Param("tagId") Integer tagId,
-                        Pageable pageable);
+    // 用標籤查詢遊戲
+    @Query("""
+            SELECT g
+            FROM Game g
+            WHERE g.gameId IN (
+                SELECT gt.gameId
+                FROM GameTag gt
+                WHERE gt.tagId = :tagId
+            )
+            AND g.status IN (
+                'COMING_SOON',
+                'PUBLISHED',
+                'PENDING_OFF_SHELF'
+            )
+            """)
+    Page<Game> findPublicGamesByTagId(
+            @Param("tagId") Integer tagId,
+            Pageable pageable);
 
-        // 用多個標籤查詢遊戲
-        @Query("""
-                        SELECT g
-                        FROM Game g
-                        WHERE g.gameId IN (
-                            SELECT gt.gameId
-                            FROM GameTag gt
-                            WHERE gt.tagId IN :tagIds
-                            GROUP BY gt.gameId
-                            HAVING COUNT(DISTINCT gt.tagId) = :tagCount
-                        )
-                        AND g.status IN (
-                            'COMING_SOON',
-                            'PUBLISHED',
-                            'PENDING_OFF_SHELF'
-                        )
-                        """)
-        Page<Game> findPublicGamesByTagIds(
-                        @Param("tagIds") List<Integer> tagIds,
-                        @Param("tagCount") Long tagCount,
-                        Pageable pageable);
+    // 用多個標籤查詢遊戲
+    @Query("""
+            SELECT g
+            FROM Game g
+            WHERE g.gameId IN (
+                SELECT gt.gameId
+                FROM GameTag gt
+                WHERE gt.tagId IN :tagIds
+                GROUP BY gt.gameId
+                HAVING COUNT(DISTINCT gt.tagId) = :tagCount
+            )
+            AND g.status IN (
+                'COMING_SOON',
+                'PUBLISHED',
+                'PENDING_OFF_SHELF'
+            )
+            """)
+    Page<Game> findPublicGamesByTagIds(
+            @Param("tagIds") List<Integer> tagIds,
+            @Param("tagCount") Long tagCount,
+            Pageable pageable);
 
-        Page<Game> findByStatusInAndGameIdNotIn(
-                        List<String> statuses,
-                        Collection<Integer> excludedGameIds,
-                        Pageable pageable);
+    Page<Game> findByStatusInAndGameIdNotIn(
+            List<String> statuses,
+            Collection<Integer> excludedGameIds,
+            Pageable pageable);
 
 }

@@ -58,7 +58,8 @@ async function submit() {
       <div class="label">你推薦這款遊戲嗎？</div>
       <div class="recommend">
         <button type="button" :class="{ on: recommended === true }" @click="recommended = true">👍 推薦</button>
-        <button type="button" :class="{ on: recommended === false, no: true }" @click="recommended = false">👎 不推薦</button>
+        <button type="button" :class="{ on: recommended === false, no: true }" @click="recommended = false">👎
+          不推薦</button>
       </div>
 
       <!-- 評分：1～5 顆星，滑鼠移上去預覽 -->

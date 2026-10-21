@@ -1,21 +1,22 @@
 <script setup>
 import LoginForm from '../components/LoginForm.vue'
 import GoogleSignInButton from '../components/GoogleSignInButton.vue'
-import {ref,nextTick,onBeforeUnmount} from 'vue'
-import {useRoute,useRouter} from 'vue-router'
-import {loginWithGoogle,session} from '../api'
-import {homeFor} from '../permissions'
-const route=useRoute(),router=useRouter(),busy=ref(false),googleError=ref('')
-let alive=true
-onBeforeUnmount(()=>{alive=false})
-async function googleLogin({idToken,nonce}){
- if(busy.value)return;busy.value=true;googleError.value=''
- const openSupport=route.query.support==='1',value=route.query.redirect
- try{await loginWithGoogle(idToken,nonce);if(!alive)return
-  const destination=typeof value==='string'&&value.startsWith('/')&&!value.startsWith('//')&&!value.includes('/login')?value:homeFor(session.user?.role)
-  await router.replace(destination)
-  if(openSupport&&session.user?.role==='MEMBER'){await nextTick();window.dispatchEvent(new Event('open-chat'))}
- }catch(e){if(alive)googleError.value=e.message}finally{if(alive)busy.value=false}
+import { ref, nextTick, onBeforeUnmount } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { loginWithGoogle, session } from '../api'
+import { homeFor } from '../permissions'
+const route = useRoute(), router = useRouter(), busy = ref(false), googleError = ref('')
+let alive = true
+onBeforeUnmount(() => { alive = false })
+async function googleLogin({ idToken, nonce }) {
+  if (busy.value) return; busy.value = true; googleError.value = ''
+  const openSupport = route.query.support === '1', value = route.query.redirect
+  try {
+    await loginWithGoogle(idToken, nonce); if (!alive) return
+    const destination = typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') && !value.includes('/login') ? value : homeFor(session.user?.role)
+    await router.replace(destination)
+    if (openSupport && session.user?.role === 'MEMBER') { await nextTick(); window.dispatchEvent(new Event('open-chat')) }
+  } catch (e) { if (alive) googleError.value = e.message } finally { if (alive) busy.value = false }
 }
 
 </script>
@@ -58,8 +59,10 @@ async function googleLogin({idToken,nonce}){
       </p>
 
       <!-- 保留原本登入功能 -->
-      <fieldset :disabled="busy" class="google-password-form"><LoginForm area="member" /></fieldset>
-      <p class="google-divider">或使用 Google 帳號</p>
+      <fieldset :disabled="busy" class="google-password-form">
+        <LoginForm area="member" />
+      </fieldset>
+      <p class="google-divider"><span>或使用 Google 帳號</span></p>
       <GoogleSignInButton :busy="busy" @credential="googleLogin" />
       <p v-if="googleError" class="google-error" role="alert">{{ googleError }}</p>
 
@@ -72,7 +75,6 @@ async function googleLogin({idToken,nonce}){
         <RouterLink to="/member/forgot-password">
           忘記密碼
         </RouterLink>
-        <RouterLink to="/member/verification-sent">重寄驗證信</RouterLink>
       </nav>
     </section>
 
@@ -99,6 +101,7 @@ async function googleLogin({idToken,nonce}){
 /* 左側介紹 */
 .member-login .login-story {
   position: relative;
+  min-width: 0;
   overflow: hidden;
   min-height: 570px;
   padding: 55px 48px;
@@ -196,6 +199,7 @@ async function googleLogin({idToken,nonce}){
 /* 右側登入卡片 */
 .member-login .login-card {
   box-sizing: border-box;
+  min-width: 0;
   width: 100%;
   padding: 46px 42px;
 
@@ -373,7 +377,54 @@ async function googleLogin({idToken,nonce}){
     gap: 10px 15px;
   }
 }
-.google-password-form { border: 0; padding: 0; margin: 0; min-width: 0; }
-.google-divider { text-align: center; color: #aebcde; margin: 22px 0 14px; font-size: 13px; }
-.google-error { padding: 12px; color: #ffcccc; background: #4b2535; border-radius: 8px; overflow-wrap: anywhere; }
+
+.google-password-form {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.google-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: #aebcde;
+  margin: 26px 0 16px;
+  font-size: 12px;
+  line-height: 1.6;
+  letter-spacing: .04em;
+}
+
+.google-divider::before,
+.google-divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, transparent, #62749a80);
+}
+
+.google-divider::after {
+  transform: rotate(180deg);
+}
+
+.google-divider span {
+  flex-shrink: 0;
+}
+
+.member-login :deep(.google-signin) {
+  --google-frame-bg: linear-gradient(135deg, #202b50, #141d3d);
+  --google-frame-border: #cba34b52;
+  --google-frame-shadow: 0 8px 22px #05091d30;
+  --google-status-color: #bccbea;
+  --google-focus-color: #d4a64a;
+}
+
+.google-error {
+  padding: 12px;
+  color: #ffcccc;
+  background: #4b2535;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
 </style>

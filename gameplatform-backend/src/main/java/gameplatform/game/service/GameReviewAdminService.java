@@ -33,7 +33,7 @@ public class GameReviewAdminService {
             Integer adminId,
             String comment) {
 
-        db.queryForList("SELECT game_id FROM games WITH (UPDLOCK,ROWLOCK) WHERE game_id=?",gameId);
+        db.queryForList("SELECT game_id FROM games WITH (UPDLOCK,ROWLOCK) WHERE game_id=?", gameId);
         Optional<Game> result = gameRepository.findById(gameId);
 
         // 找不到遊戲
@@ -84,8 +84,9 @@ public class GameReviewAdminService {
 
         gameAuditLogRepository.save(log);
 
-        notifications.gameResult(game.getMemberId(),gameId,"GAME_APPROVED","遊戲上架審核通過",
-                game.getGameName()+"："+(comment==null?"未提供補充說明":comment),"/publisher/games?mode=history&game="+gameId);
+        notifications.gameResult(game.getMemberId(), gameId, "GAME_APPROVED", "遊戲上架審核通過",
+                game.getGameName() + "：" + (comment == null ? "未提供補充說明" : comment),
+                "/publisher/games?mode=history&game=" + gameId);
         return savedGame;
     }
 
@@ -96,7 +97,7 @@ public class GameReviewAdminService {
             Integer adminId,
             String comment) {
 
-        db.queryForList("SELECT game_id FROM games WITH (UPDLOCK,ROWLOCK) WHERE game_id=?",gameId);
+        db.queryForList("SELECT game_id FROM games WITH (UPDLOCK,ROWLOCK) WHERE game_id=?", gameId);
         Optional<Game> result = gameRepository.findById(gameId);
 
         // 找不到遊戲
@@ -128,8 +129,9 @@ public class GameReviewAdminService {
 
         gameAuditLogRepository.save(log);
 
-        notifications.gameResult(game.getMemberId(),gameId,"GAME_REJECTED","遊戲上架申請退回",
-                game.getGameName()+"："+(comment==null?"未提供補充說明":comment),"/publisher/games?mode=history&game="+gameId);
+        notifications.gameResult(game.getMemberId(), gameId, "GAME_REJECTED", "遊戲上架申請退回",
+                game.getGameName() + "：" + (comment == null ? "未提供補充說明" : comment),
+                "/publisher/games?mode=history&game=" + gameId);
         return savedGame;
     }
 
@@ -140,7 +142,7 @@ public class GameReviewAdminService {
             Integer adminId,
             String comment) {
 
-        db.queryForList("SELECT game_id FROM games WITH (UPDLOCK,ROWLOCK) WHERE game_id=?",gameId);
+        db.queryForList("SELECT game_id FROM games WITH (UPDLOCK,ROWLOCK) WHERE game_id=?", gameId);
         Optional<Game> result = gameRepository.findById(gameId);
 
         if (result.isEmpty()) {
@@ -183,8 +185,9 @@ public class GameReviewAdminService {
 
         gameAuditLogRepository.save(log);
 
-        notifications.gameResult(game.getMemberId(),gameId,"GAME_FORCE_OFF_SHELF","管理員強制下架",
-                game.getGameName()+"："+(comment==null?"未提供補充說明":comment),"/publisher/games?mode=history&game="+gameId);
+        notifications.gameResult(game.getMemberId(), gameId, "GAME_FORCE_OFF_SHELF", "管理員強制下架",
+                game.getGameName() + "：" + (comment == null ? "未提供補充說明" : comment),
+                "/publisher/games?mode=history&game=" + gameId);
         return savedGame;
     }
 
