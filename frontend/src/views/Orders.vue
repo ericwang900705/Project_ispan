@@ -49,6 +49,20 @@ function paymentLabel(type) {
   return type
 }
 
+// 這張訂單用的優惠券：整張訂單同一張券，記在每個項目上，拿第一個有券的就好；沒用券是 null
+function couponOf(order) {
+  return order.orderItems.find((i) => i.coupon)?.coupon ?? null
+}
+// 折扣乘數換成「幾折」，例如 0.20 → 2 折、0.75 → 7.5 折
+function discountLabel(coupon) {
+  return `${Number((coupon.discountValue * 10).toFixed(1))} 折`
+}
+// 優惠券省了多少：原價加總 - 實付金額（原價用遊戲現在的售價，之後改過價格的話會有誤差）
+function savedOf(order) {
+  const original = order.orderItems.reduce((sum, i) => sum + i.game.price, 0)
+  return Math.max(0, original - Number(order.totalAmount))
+}
+
 // 後端時間 2026-10-13T15:03:21.123 → 2026-10-13 15:03
 function formatTime(value) {
   return value ? value.replace('T', ' ').slice(0, 16) : '—'
@@ -98,6 +112,8 @@ async function cancel(order) {
           <span class="games">
             {{ order.orderItems.map((i) => i.game.gameName).join('、') || '—' }}
           </span>
+          <!-- 有用優惠券：金額旁邊直接顯示券名，不用點開就看得到 -->
+          <span v-if="couponOf(order)" class="coupon-chip">🏷️ {{ couponOf(order).couponName }}</span>
           <span class="amount">NT$ {{ order.totalAmount }}</span>
           <span class="arrow">{{ openId === order.orderId ? '▴' : '▾' }}</span>
         </button>
@@ -140,6 +156,13 @@ async function cancel(order) {
 
           <!-- 付款資訊 -->
           <dl class="meta">
+            <template v-if="couponOf(order)">
+              <dt>優惠券</dt>
+              <dd>
+                {{ couponOf(order).couponName }}（{{ discountLabel(couponOf(order)) }}）
+                <span v-if="savedOf(order) > 0" class="saved">折抵 NT$ {{ savedOf(order) }}</span>
+              </dd>
+            </template>
             <dt>付款方式</dt><dd>{{ paymentLabel(order.paymentType) }}</dd>
             <dt>付款時間</dt><dd>{{ formatTime(order.paidAt) }}</dd>
             <template v-if="order.ecpayTradeNo">
@@ -200,6 +223,10 @@ async function cancel(order) {
 .time { color: var(--text-muted); white-space: nowrap; }
 .games { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .amount { font-weight: bold; white-space: nowrap; }
+/* 訂單列上的優惠券標籤 */
+.coupon-chip { padding: 1px 8px; font-size: 12px; border-radius: 10px; white-space: nowrap; color: #f0c060; border: 1px solid #8a6a20; }
+/* 明細裡的折抵金額 */
+.saved { margin-left: 6px; color: #ff8a6a; }
 .arrow { color: var(--text-muted); }
 
 /* 狀態標籤 */

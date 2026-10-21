@@ -29,6 +29,11 @@ const routes = [
         component: () => import('../views/Orders.vue')
     },
     {
+        path: '/coupons',//優惠券：領券中心 + 我的優惠券
+        name: 'Coupons',
+        component: () => import('../views/Coupons.vue')
+    },
+    {
         path: '/point-store',//點數商店
         name: 'PointStore',
         component: () => import('../views/PointStore.vue')

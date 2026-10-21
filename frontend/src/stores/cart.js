@@ -60,8 +60,8 @@ export const useCartStore = defineStore('cart', () => {
 
   // 取得現在可以用的優惠券
   async function fetchCoupons() {
-    // GET /api/coupons/usable
-    const { data } = await axios.get('/api/coupons/usable')
+    // GET /api/coupons/usable?memberId=1：只有自己領了、還沒用、現在能用的券
+    const { data } = await axios.get('/api/coupons/usable', { params: { memberId: MEMBER_ID } })
     coupons.value = data
   }
 

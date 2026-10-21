@@ -5,6 +5,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 // 共用的購物車 store
 import { useCartStore } from '@/stores/cart'
+// 券的說明文字（「滿 NT$500 折 NT$100」、「8 折」），和優惠券頁共用
+import { discountLabel } from '@/stores/coupons'
 
 // 取得購物車 store（與其他頁面共用同一份資料）
 const cart = useCartStore()
@@ -53,13 +55,12 @@ const couponId = computed({
   },
 })
 
-// 折扣乘數換成「幾折」文字，例如 0.80 → 8 折、0.75 → 7.5 折
-function discountLabel(c) {
-  return `${Number((c.discountValue * 10).toFixed(1))} 折`
-}
-
 // 套用優惠券前的小計（每項遊戲售價加總）
 const subtotal = computed(() => cart.items.reduce((sum, item) => sum + item.game.price, 0))
+// 還差多少才達到這張券的低消；夠了就是 0（下拉選單裡不夠的券會反灰）
+function shortOf(c) {
+  return Math.max(0, Number(c.minSpend) - subtotal.value)
+}
 // 優惠券省下的金額 = 小計 - 後端算好的總金額
 const saved = computed(() => subtotal.value - cart.totalPrice)
 
@@ -192,11 +193,14 @@ async function checkout() {
             <span>🏷️ 優惠券</span>
             <select v-model="couponId" :disabled="cart.loading">
               <option value="">不使用優惠券</option>
-              <option v-for="c in cart.coupons" :key="c.couponId" :value="c.couponId">
-                {{ c.couponName }}（{{ discountLabel(c) }}）
+              <option v-for="c in cart.coupons" :key="c.couponId" :value="c.couponId"
+                :disabled="shortOf(c) > 0 && cart.coupon?.couponId !== c.couponId">
+                {{ c.couponName }}（{{ discountLabel(c) }}）{{ shortOf(c) > 0 ? `還差 NT$${shortOf(c)}` : '' }}
               </option>
             </select>
           </label>
+          <!-- 手上沒有券：提示去領券中心 -->
+          <RouterLink v-if="!cart.coupons.length" to="/coupons" class="get-coupon">還沒有優惠券？去領券中心 →</RouterLink>
           <!-- 有用優惠券省到錢才顯示 -->
           <div v-if="saved > 0" class="line saved">
             <span>{{ cart.coupon.couponName }}</span>
@@ -303,6 +307,8 @@ async function checkout() {
   border: 1px solid var(--gold-dark); background: var(--bg); color: var(--text);
 }
 .coupon select:focus { border-color: var(--gold); }
+.get-coupon { display: block; margin: -2px 0 8px; font-size: 13px; color: var(--gold); }
+.get-coupon:hover { background: transparent; text-decoration: underline; }
 /* 總金額：上方分隔線、大字金色 */
 .line.total { margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--gold-dark); font-size: 16px; color: var(--text); }
 .line.total span:last-child { font-size: 24px; font-weight: bold; color: var(--gold); }
