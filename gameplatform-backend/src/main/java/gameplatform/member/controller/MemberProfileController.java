@@ -44,7 +44,7 @@ public class MemberProfileController {
 
     // 登入狀態下修改密碼
     @PostMapping("/change-password")
-    public ResponseEntity<java.util.Map<String,String>> changePassword(@RequestBody ChangePasswordRequest request,
+    public ResponseEntity<java.util.Map<String, String>> changePassword(@RequestBody ChangePasswordRequest request,
             Authentication authentication) {
 
         String currentUsername = authentication.getName();// 直接從 Token 中取得目前登入的帳號，安全又精簡
@@ -52,7 +52,7 @@ public class MemberProfileController {
         // 呼叫 Service 執行修改
         String result = memberService.changePassword(currentUsername, request);
 
-        return ResponseEntity.ok(java.util.Map.of("message",result));
+        return ResponseEntity.ok(java.util.Map.of("message", result));
     }
 
     // 修改/完善個人資料 (使用 PATCH 進行部分更新)

@@ -16,6 +16,7 @@ import org.springframework.web.method.support.ModelAndViewContainer;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 @Component
 public class SupportActorResolver implements HandlerMethodArgumentResolver {
@@ -50,17 +51,7 @@ public class SupportActorResolver implements HandlerMethodArgumentResolver {
     }
 
     /**
-     * 重新查詢資料庫，確認登入者的身分仍然有效。
-     *
-     * 管理員：
-     * ADMIN、REVIEWER、SUPPORT、STAFF
-     *
-     * 前台會員：
-     * MEMBER、PUBLISHER
-     *
-     * 注意：
-     * STAFF 的功能權限由 SecurityConfig 載入，
-     * 這裡只負責驗證帳號身分，不授予功能權限。
+     * 重新查詢資料庫，確認目前登入者仍有使用權限。
      */
     public Actor verifyActor(Actor actor) {
 
@@ -71,23 +62,17 @@ public class SupportActorResolver implements HandlerMethodArgumentResolver {
         }
 
         return switch (actor.role()) {
-
-            // 新增 STAFF，沿用原本管理員驗證方式。
-            case "ADMIN", "REVIEWER", "SUPPORT", "STAFF" -> verifyAdmin(actor);
-
+            case "ADMIN", "STAFF", "REVIEWER", "SUPPORT" -> verifyAdmin(actor);
             case "MEMBER", "PUBLISHER" -> verifyMember(actor);
-
             default -> throw unauthorized();
         };
     }
 
     /**
-     * 驗證管理員身分。
-     *
-     * 1. 帳號存在。
-     * 2. 帳號狀態為 ACTIVE。
-     * 3. 帳號名稱一致。
-     * 4. 資料庫角色與登入時的角色一致。
+     * 管理員與客服人員：
+     * 1. 確認帳號存在
+     * 2. 確認帳號啟用
+     * 3. 確認資料庫角色與 JWT 角色一致
      */
     private Actor verifyAdmin(Actor actor) {
 
@@ -125,11 +110,10 @@ public class SupportActorResolver implements HandlerMethodArgumentResolver {
     }
 
     /**
-     * 驗證會員與發行商身分。
-     *
-     * 1. 會員存在。
-     * 2. 會員沒有被停權。
-     * 3. 發行商身分與 JWT 一致。
+     * 會員與發行商：
+     * 1. 確認會員存在
+     * 2. 確認會員沒有被鎖定
+     * 3. 確認發行商身分與 JWT 一致
      */
     private Actor verifyMember(Actor actor) {
 

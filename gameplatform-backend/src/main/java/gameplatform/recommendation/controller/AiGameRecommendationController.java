@@ -1,6 +1,8 @@
 package gameplatform.recommendation.controller;
 
 import java.util.List;
+import gameplatform.support.model.Actor;
+import gameplatform.support.model.Problem;
 import java.util.Map;
 
 import org.springframework.data.domain.Page;
@@ -31,10 +33,16 @@ public class AiGameRecommendationController {
     private final AiGameRecommendationService recommendationService;
     private final AiRecommendationRefreshService refreshService;
 
+    private static void requireOwner(Actor actor, Integer memberId) {
+        if (actor == null || !actor.isMember() || !Integer.valueOf(actor.id()).equals(memberId))
+            throw new Problem(403, "只能查詢自己的推薦與偏好資料");
+    }
+
     // 查詢指定會員的 AI 推薦遊戲
     @GetMapping("/members/{memberId}")
     public List<AiGameRecommendation> findByMemberId(
-            @PathVariable Integer memberId) {
+            Actor actor, @PathVariable Integer memberId) {
+        requireOwner(actor, memberId);
 
         return recommendationService.findByMemberId(memberId);
     }
@@ -42,7 +50,8 @@ public class AiGameRecommendationController {
     // 查詢會員已購買的遊戲
     @GetMapping("/members/{memberId}/purchased-games")
     public List<PurchasedGameDto> findPurchasedGames(
-            @PathVariable Integer memberId) {
+            Actor actor, @PathVariable Integer memberId) {
+        requireOwner(actor, memberId);
 
         return recommendationService.findPurchasedGames(memberId);
     }
@@ -50,7 +59,8 @@ public class AiGameRecommendationController {
     // 查詢會員偏好的遊戲類型
     @GetMapping("/members/{memberId}/tag-preferences")
     public List<MemberTagPreferenceDto> findMemberTagPreferences(
-            @PathVariable Integer memberId) {
+            Actor actor, @PathVariable Integer memberId) {
+        requireOwner(actor, memberId);
 
         return recommendationService.findMemberTagPreferences(memberId);
     }
@@ -58,7 +68,8 @@ public class AiGameRecommendationController {
     // 查詢會員的遊玩偏好
     @GetMapping("/members/{memberId}/play-preferences")
     public List<MemberPlayPreferenceDto> findMemberPlayPreferences(
-            @PathVariable Integer memberId) {
+            Actor actor, @PathVariable Integer memberId) {
+        requireOwner(actor, memberId);
 
         return recommendationService.findMemberPlayPreferences(memberId);
     }
@@ -66,7 +77,8 @@ public class AiGameRecommendationController {
     // 查詢會員的遊戲評價偏好
     @GetMapping("/members/{memberId}/review-preferences")
     public List<MemberReviewPreferenceDto> findMemberReviewPreferences(
-            @PathVariable Integer memberId) {
+            Actor actor, @PathVariable Integer memberId) {
+        requireOwner(actor, memberId);
 
         return recommendationService.findMemberReviewPreferences(memberId);
     }
@@ -74,7 +86,8 @@ public class AiGameRecommendationController {
     // 查詢會員完整遊戲偏好資料
     @GetMapping("/members/{memberId}/profile")
     public MemberPreferenceProfileDto getMemberPreferenceProfile(
-            @PathVariable Integer memberId) {
+            Actor actor, @PathVariable Integer memberId) {
+        requireOwner(actor, memberId);
 
         return recommendationService.getMemberPreferenceProfile(memberId);
     }
@@ -82,8 +95,9 @@ public class AiGameRecommendationController {
     // 查詢 AI 推薦候選遊戲
     @GetMapping("/members/{memberId}/candidates")
     public Page<RecommendationCandidateDto> findCandidates(
-            @PathVariable Integer memberId,
+            Actor actor, @PathVariable Integer memberId,
             @PageableDefault(size = 10, sort = "releaseDate", direction = Sort.Direction.DESC) Pageable pageable) {
+        requireOwner(actor, memberId);
 
         return recommendationService.findCandidates(
                 memberId,
@@ -93,7 +107,8 @@ public class AiGameRecommendationController {
     // 查詢會員的前 5 名推薦遊戲
     @GetMapping("/members/{memberId}/top5")
     public List<TopRecommendedGameDto> findTop5RecommendedGames(
-            @PathVariable Integer memberId) {
+            Actor actor, @PathVariable Integer memberId) {
+        requireOwner(actor, memberId);
 
         return recommendationService
                 .findTop5RecommendedGames(memberId);
@@ -102,7 +117,8 @@ public class AiGameRecommendationController {
     // 查詢會員的 AI 推薦更新狀態
     @GetMapping("/members/{memberId}/refresh-status")
     public Map<String, Object> getRefreshStatus(
-            @PathVariable Integer memberId) {
+            Actor actor, @PathVariable Integer memberId) {
+        requireOwner(actor, memberId);
 
         boolean needsRefresh = refreshService.needsRefresh(memberId);
 

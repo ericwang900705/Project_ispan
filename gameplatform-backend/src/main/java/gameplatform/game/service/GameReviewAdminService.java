@@ -21,6 +21,8 @@ import lombok.RequiredArgsConstructor;
 public class GameReviewAdminService {
 
     private final GameRepository gameRepository;
+    private final org.springframework.jdbc.core.JdbcTemplate db;
+    private final gameplatform.support.service.NotificationService notifications;
     private final GameAuditLogRepository gameAuditLogRepository;
     private final GameBuildRepository gameBuildRepository;
 
@@ -31,6 +33,7 @@ public class GameReviewAdminService {
             Integer adminId,
             String comment) {
 
+        db.queryForList("SELECT game_id FROM games WITH (UPDLOCK,ROWLOCK) WHERE game_id=?", gameId);
         Optional<Game> result = gameRepository.findById(gameId);
 
         // 找不到遊戲
@@ -81,6 +84,9 @@ public class GameReviewAdminService {
 
         gameAuditLogRepository.save(log);
 
+        notifications.gameResult(game.getMemberId(), gameId, "GAME_APPROVED", "遊戲上架審核通過",
+                game.getGameName() + "：" + (comment == null ? "未提供補充說明" : comment),
+                "/publisher/games?mode=history&game=" + gameId);
         return savedGame;
     }
 
@@ -91,6 +97,7 @@ public class GameReviewAdminService {
             Integer adminId,
             String comment) {
 
+        db.queryForList("SELECT game_id FROM games WITH (UPDLOCK,ROWLOCK) WHERE game_id=?", gameId);
         Optional<Game> result = gameRepository.findById(gameId);
 
         // 找不到遊戲
@@ -122,48 +129,11 @@ public class GameReviewAdminService {
 
         gameAuditLogRepository.save(log);
 
+        notifications.gameResult(game.getMemberId(), gameId, "GAME_REJECTED", "遊戲上架申請退回",
+                game.getGameName() + "：" + (comment == null ? "未提供補充說明" : comment),
+                "/publisher/games?mode=history&game=" + gameId);
         return savedGame;
     }
-
-    // // 管理員核准遊戲下架(舊流程不需要)
-    // @Transactional
-    // public Game approveOffShelf(
-    // Integer gameId,
-    // Integer adminId,
-    // String comment) {
-
-    // Optional<Game> result = gameRepository.findById(gameId);
-
-    // if (result.isEmpty()) {
-    // return null;
-    // }
-
-    // Game game = result.get();
-
-    // // 只有等待下架審核的遊戲才能核准
-    // if (!"PENDING_OFF_SHELF".equals(game.getStatus())) {
-    // throw new IllegalStateException(
-    // "此遊戲目前不是等待下架審核狀態");
-    // }
-
-    // // 正式下架
-    // game.setStatus("OFF_SHELF");
-
-    // Game savedGame = gameRepository.save(game);
-
-    // // 寫入審核紀錄
-    // GameAuditLog log = new GameAuditLog();
-
-    // log.setGameId(gameId);
-    // log.setAdminId(adminId);
-    // log.setReviewType("OFF_SHELF");
-    // log.setDecision("APPROVED");
-    // log.setComment(comment);
-
-    // gameAuditLogRepository.save(log);
-
-    // return savedGame;
-    // }
 
     // 管理員強制下架遊戲
     @Transactional
@@ -172,6 +142,7 @@ public class GameReviewAdminService {
             Integer adminId,
             String comment) {
 
+        db.queryForList("SELECT game_id FROM games WITH (UPDLOCK,ROWLOCK) WHERE game_id=?", gameId);
         Optional<Game> result = gameRepository.findById(gameId);
 
         if (result.isEmpty()) {
@@ -214,6 +185,9 @@ public class GameReviewAdminService {
 
         gameAuditLogRepository.save(log);
 
+        notifications.gameResult(game.getMemberId(), gameId, "GAME_FORCE_OFF_SHELF", "管理員強制下架",
+                game.getGameName() + "：" + (comment == null ? "未提供補充說明" : comment),
+                "/publisher/games?mode=history&game=" + gameId);
         return savedGame;
     }
 

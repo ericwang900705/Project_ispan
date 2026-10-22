@@ -18,7 +18,7 @@ public class AdminGameService {
     // 管理員查詢所有遊戲（包含分頁）
     public Page<Game> findAll(Pageable pageable) {
 
-        return gameRepository.findAll(pageable);
+        return gameRepository.searchAdminGames(null, null, pageable);
     }
 
     // 管理員搜尋遊戲（名稱、狀態、分頁）

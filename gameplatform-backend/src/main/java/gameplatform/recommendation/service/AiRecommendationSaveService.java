@@ -28,142 +28,142 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AiRecommendationSaveService {
 
-    private final AiGameRecommendationRepository recommendationRepository;
-    private final JdbcTemplate jdbcTemplate;
+        private final AiGameRecommendationRepository recommendationRepository;
+        private final JdbcTemplate jdbcTemplate;
 
-    @Transactional
-    public int saveRecommendations(
-            Integer memberId,
-            GeminiRecommendationResponseDto response,
-            List<RecommendationCandidateDto> candidates,
-            String modelVersion) {
+        @Transactional
+        public int saveRecommendations(
+                        Integer memberId,
+                        GeminiRecommendationResponseDto response,
+                        List<RecommendationCandidateDto> candidates,
+                        String modelVersion) {
 
-        if (response == null || response.recommendations() == null) {
-            throw new IllegalArgumentException(
-                    "AI 推薦結果不可為空");
+                if (response == null || response.recommendations() == null) {
+                        throw new IllegalArgumentException(
+                                        "AI 推薦結果不可為空");
+                }
+
+                List<GeminiRecommendationDto> recommendations = response.recommendations();
+
+                if (recommendations.size() > 5) {
+                        throw new IllegalArgumentException(
+                                        "AI 推薦數量不可超過 5 款");
+                }
+
+                // 取得合法候選遊戲 ID
+                Set<Integer> candidateIds = new HashSet<>();
+
+                for (RecommendationCandidateDto candidate : candidates) {
+                        candidateIds.add(candidate.gameId());
+                }
+
+                // 防止 Gemini 重複推薦同一款遊戲
+                Set<Integer> recommendedIds = new HashSet<>();
+
+                // 先驗證所有資料，通過後才修改資料庫
+                for (GeminiRecommendationDto recommendation : recommendations) {
+
+                        if (recommendation == null
+                                        || recommendation.gameId() == null
+                                        || !candidateIds.contains(recommendation.gameId())) {
+                                throw new IllegalArgumentException(
+                                                "AI 推薦了不在候選清單中的遊戲");
+                        }
+
+                        if (!recommendedIds.add(recommendation.gameId())) {
+                                throw new IllegalArgumentException(
+                                                "AI 推薦結果包含重複遊戲");
+                        }
+
+                        BigDecimal score = recommendation.score();
+
+                        if (score == null
+                                        || score.compareTo(BigDecimal.ZERO) < 0
+                                        || score.compareTo(BigDecimal.ONE) > 0) {
+                                throw new IllegalArgumentException(
+                                                "AI 推薦分數必須介於 0 到 1");
+                        }
+
+                        if (recommendation.reason() == null
+                                        || recommendation.reason().isBlank()
+                                        || recommendation.reason().length() > 500) {
+                                throw new IllegalArgumentException(
+                                                "AI 推薦原因不可為空，且不得超過 500 字");
+                        }
+                }
+
+                // 驗證通過，清除舊推薦
+                recommendationRepository.deleteAllByMemberIdBatch(memberId);
+
+                // 將新推薦寫入資料庫
+                for (GeminiRecommendationDto recommendation : recommendations) {
+
+                        AiGameRecommendation entity = new AiGameRecommendation();
+
+                        entity.setMemberId(memberId);
+                        entity.setGameId(recommendation.gameId());
+                        entity.setRecommendationScore(
+                                        recommendation.score());
+                        entity.setReason(recommendation.reason());
+                        entity.setModelVersion(modelVersion);
+
+                        recommendationRepository.save(entity);
+                }
+
+                recommendationRepository.flush();
+
+                return recommendations.size();
         }
 
-        List<GeminiRecommendationDto> recommendations = response.recommendations();
-
-        if (recommendations.size() > 5) {
-            throw new IllegalArgumentException(
-                    "AI 推薦數量不可超過 5 款");
-        }
-
-        // 取得合法候選遊戲 ID
-        Set<Integer> candidateIds = new HashSet<>();
-
-        for (RecommendationCandidateDto candidate : candidates) {
-            candidateIds.add(candidate.gameId());
-        }
-
-        // 防止 Gemini 重複推薦同一款遊戲
-        Set<Integer> recommendedIds = new HashSet<>();
-
-        // 先驗證所有資料，通過後才修改資料庫
-        for (GeminiRecommendationDto recommendation : recommendations) {
-
-            if (recommendation == null
-                    || recommendation.gameId() == null
-                    || !candidateIds.contains(recommendation.gameId())) {
-                throw new IllegalArgumentException(
-                        "AI 推薦了不在候選清單中的遊戲");
-            }
-
-            if (!recommendedIds.add(recommendation.gameId())) {
-                throw new IllegalArgumentException(
-                        "AI 推薦結果包含重複遊戲");
-            }
-
-            BigDecimal score = recommendation.score();
-
-            if (score == null
-                    || score.compareTo(BigDecimal.ZERO) < 0
-                    || score.compareTo(BigDecimal.ONE) > 0) {
-                throw new IllegalArgumentException(
-                        "AI 推薦分數必須介於 0 到 1");
-            }
-
-            if (recommendation.reason() == null
-                    || recommendation.reason().isBlank()
-                    || recommendation.reason().length() > 500) {
-                throw new IllegalArgumentException(
-                        "AI 推薦原因不可為空，且不得超過 500 字");
-            }
-        }
-
-        // 驗證通過，清除舊推薦
-        recommendationRepository.deleteAllByMemberIdBatch(memberId);
-
-        // 將新推薦寫入資料庫
-        for (GeminiRecommendationDto recommendation : recommendations) {
-
-            AiGameRecommendation entity = new AiGameRecommendation();
-
-            entity.setMemberId(memberId);
-            entity.setGameId(recommendation.gameId());
-            entity.setRecommendationScore(
-                    recommendation.score());
-            entity.setReason(recommendation.reason());
-            entity.setModelVersion(modelVersion);
-
-            recommendationRepository.save(entity);
-        }
-
-        recommendationRepository.flush();
-
-        return recommendations.size();
-    }
-
-    /**
-     * 只有持有有效任務識別碼的更新任務，
-     * 才能儲存新的 AI 推薦結果。
-     */
-    @Transactional
-    public int saveRecommendationsWithToken(
-            Integer memberId,
-            UUID token,
-            GeminiRecommendationResponseDto response,
-            List<RecommendationCandidateDto> candidates,
-            String modelVersion) {
-
-        if (memberId == null || memberId <= 0 || token == null) {
-            throw new IllegalArgumentException(
-                    "會員 ID 或任務識別碼不正確");
-        }
-
-        /*
-         * 使用 SQL Server 鎖定更新狀態。
-         *
-         * 在目前交易結束前，其他更新任務
-         * 無法同時修改這筆狀態資料。
+        /**
+         * 只有持有有效任務識別碼的更新任務，
+         * 才能儲存新的 AI 推薦結果。
          */
-        String sql = """
-                SELECT COUNT(*)
-                FROM dbo.ai_recommendation_refresh_status
-                     WITH (UPDLOCK, HOLDLOCK)
-                WHERE member_id = ?
-                  AND refresh_token = ?
-                  AND refresh_status = 'PROCESSING'
-                """;
+        @Transactional
+        public int saveRecommendationsWithToken(
+                        Integer memberId,
+                        UUID token,
+                        GeminiRecommendationResponseDto response,
+                        List<RecommendationCandidateDto> candidates,
+                        String modelVersion) {
 
-        Integer count = jdbcTemplate.queryForObject(
-                sql,
-                Integer.class,
-                memberId,
-                token.toString());
+                if (memberId == null || memberId <= 0 || token == null) {
+                        throw new IllegalArgumentException(
+                                        "會員 ID 或任務識別碼不正確");
+                }
 
-        if (!Integer.valueOf(1).equals(count)) {
-            throw new IllegalStateException(
-                    "AI 更新任務已失效，禁止覆蓋推薦結果");
+                /*
+                 * 使用 SQL Server 鎖定更新狀態。
+                 *
+                 * 在目前交易結束前，其他更新任務
+                 * 無法同時修改這筆狀態資料。
+                 */
+                String sql = """
+                                SELECT COUNT(*)
+                                FROM dbo.ai_recommendation_refresh_status
+                                     WITH (UPDLOCK, HOLDLOCK)
+                                WHERE member_id = ?
+                                  AND refresh_token = ?
+                                  AND refresh_status = 'PROCESSING'
+                                """;
+
+                Integer count = jdbcTemplate.queryForObject(
+                                sql,
+                                Integer.class,
+                                memberId,
+                                token.toString());
+
+                if (!Integer.valueOf(1).equals(count)) {
+                        throw new IllegalStateException(
+                                        "AI 更新任務已失效，禁止覆蓋推薦結果");
+                }
+
+                // 驗證通過後，使用原本的儲存邏輯
+                return saveRecommendations(
+                                memberId,
+                                response,
+                                candidates,
+                                modelVersion);
         }
-
-        // 驗證通過後，使用原本的儲存邏輯
-        return saveRecommendations(
-                memberId,
-                response,
-                candidates,
-                modelVersion);
-    }
 
 }

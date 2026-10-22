@@ -41,14 +41,15 @@ public interface GameRepository extends JpaRepository<Game, Integer>, JpaSpecifi
             """)
     int autoPublishGames();
 
-    // 自動下架遊戲
+    // 預定時間到達後，自動下架遊戲
     @Modifying
     @Query("""
-                UPDATE Game g
-                SET g.status = 'OFF_SHELF',
-                    g.scheduledOffShelfAt = null
-                WHERE g.status = 'PENDING_OFF_SHELF'
-                AND g.scheduledOffShelfAt <= CURRENT_TIMESTAMP
+            UPDATE Game g
+            SET g.status = 'OFF_SHELF',
+                g.scheduledOffShelfAt = null
+            WHERE g.status = 'PENDING_OFF_SHELF'
+            AND g.scheduledOffShelfAt IS NOT NULL
+            AND g.scheduledOffShelfAt <= CURRENT_TIMESTAMP
             """)
     int autoOffShelfGames();
 
@@ -56,7 +57,8 @@ public interface GameRepository extends JpaRepository<Game, Integer>, JpaSpecifi
     @Query("""
             SELECT g
             FROM Game g
-            WHERE (
+            WHERE g.status <> 'DRAFT'
+            AND (
                 :keyword IS NULL
                 OR g.gameName LIKE CONCAT('%', :keyword, '%')
             )

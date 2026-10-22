@@ -12,7 +12,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
-/** Short-lived, signed read-only ticket for tracking email verification.
+/**
+ * Short-lived, signed read-only ticket for tracking email verification.
  * Never returns the actual email verification token or password hash.
  */
 @Service
@@ -25,7 +26,8 @@ public class VerificationWatchService {
     public VerificationWatchService(JdbcTemplate db, @Value("${app.jwt.secret}") String secret) {
         this.db = db;
         this.signingKey = Base64.getDecoder().decode(secret);
-        if (signingKey.length < 32) throw new IllegalStateException("JWT secret must contain >=32 bytes");
+        if (signingKey.length < 32)
+            throw new IllegalStateException("JWT secret must contain >=32 bytes");
     }
 
     private String sign(String payload) {
@@ -40,7 +42,8 @@ public class VerificationWatchService {
     }
 
     public String issue(String email) {
-        if (email == null || email.isBlank()) throw new Problem(400, "信箱不可為空");
+        if (email == null || email.isBlank())
+            throw new Problem(400, "信箱不可為空");
         byte[] nonce = new byte[24];
         random.nextBytes(nonce);
         String body = email.trim().toLowerCase(java.util.Locale.ROOT) + "\n" +
@@ -58,13 +61,15 @@ public class VerificationWatchService {
                 sign(parts[0]).getBytes(StandardCharsets.US_ASCII)))
             throw new Problem(400, "驗證追蹤票據無效");
         try {
-            String[] fields = new String(Base64.getUrlDecoder().decode(parts[0]), StandardCharsets.UTF_8).split("\n", -1);
+            String[] fields = new String(Base64.getUrlDecoder().decode(parts[0]), StandardCharsets.UTF_8).split("\n",
+                    -1);
             if (fields.length != 3 || fields[0].isBlank() || fields[0].length() > 254 || fields[2].isBlank())
                 throw new IllegalArgumentException();
             long expires = Long.parseLong(fields[1]);
             if (expires <= Instant.now().getEpochSecond() || expires > Instant.now().getEpochSecond() + TTL_SECONDS)
                 throw new Problem(410, "追蹤期限已過，請重新寄送驗證信");
-            Integer count = db.queryForObject("SELECT COUNT(*) FROM dbo.member_verifications WHERE email=? AND is_verified=1",
+            Integer count = db.queryForObject(
+                    "SELECT COUNT(*) FROM dbo.member_verifications WHERE email=? AND is_verified=1",
                     Integer.class, fields[0]);
             return count != null && count > 0;
         } catch (Problem ex) {

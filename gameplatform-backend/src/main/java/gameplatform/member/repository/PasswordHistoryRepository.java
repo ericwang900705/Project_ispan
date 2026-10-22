@@ -12,5 +12,6 @@ public interface PasswordHistoryRepository extends JpaRepository<PasswordHistory
 
     // 找出該會員最新的一筆密碼紀錄
     Optional<PasswordHistory> findFirstByMemberOrderByCreatedAtDescPasswordHistoryIdDesc(Member member);
+
     boolean existsByMember_MemberId(Integer id);
 }

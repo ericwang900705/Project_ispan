@@ -45,6 +45,9 @@ public class BackofficeController {
         return ok();
     }
 
+    @GetMapping("/coupon-options")
+    public Object couponOptions(Actor a) { return service.couponOptions(a); }
+
     @PostMapping("/coupons")
     public Object coupon(Actor a, @RequestBody BackofficeService.CouponInput input) {
         service.saveCoupon(a, null, input);

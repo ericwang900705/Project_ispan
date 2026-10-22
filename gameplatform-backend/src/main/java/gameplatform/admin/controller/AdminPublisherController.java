@@ -2,70 +2,47 @@
 package gameplatform.admin.controller;
 
 import gameplatform.admin.service.AdminPublisherService;
-import gameplatform.member.entity.Member;
-
+import gameplatform.support.model.Actor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * 發行商申請審核 Controller。
- *
- * 權限：
- * 1. ADMIN：超級管理員，可以操作。
- * 2. REVIEWER：原本的審核員，可以操作。
- * 3. STAFF：必須由 ADMIN 授予 PUBLISHER_REVIEW 權限。
- * 4. SUPPORT、MEMBER、PUBLISHER：不可操作。
- *
- * 此 Controller 的 memberId 是被審核的會員 ID，
- * 並不是目前登入的管理員 ID，因此保留 PathVariable。
- */
 @RestController
 @RequestMapping("/api/admin/publishers")
-@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_REVIEWER', 'PUBLISHER_REVIEW')")
+@PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'REVIEWER', 'SUPPORT')") // 限制登入權限
 public class AdminPublisherController {
 
     private final AdminPublisherService adminPublisherService;
 
-    public AdminPublisherController(
-            AdminPublisherService adminPublisherService) {
-
+    public AdminPublisherController(AdminPublisherService adminPublisherService) {
         this.adminPublisherService = adminPublisherService;
     }
 
-    /**
-     * 查詢待審核的發行商申請。
-     *
-     * GET /api/admin/publishers/pending
-     */
+    // 取得待審核清單
     @GetMapping("/pending")
-    public ResponseEntity<List<Member>> getPendingApplications() {
-
-        return ResponseEntity.ok(
-                adminPublisherService.getPendingApplications());
+    public ResponseEntity<List<java.util.Map<String, Object>>> getPendingApplications() {
+        return ResponseEntity.ok(adminPublisherService.getPendingApplications());
     }
 
-    /**
-     * 核准或拒絕發行商申請。
-     *
-     * POST /api/admin/publishers/{memberId}/review
-     *
-     * memberId：被審核的會員 ID。
-     * isApproved：true 為核准，false 為拒絕。
-     *
-     * 操作者的權限由 Spring Security 驗證。
-     */
+    @GetMapping("/history")
+    public java.util.List<java.util.Map<String, Object>> history() {
+        return adminPublisherService.history();
+    }
+
+    public record ReviewInput(Integer applicationId, String comment) {
+    }
+
+    // 審核發行商 (核准或拒絕)
     @PostMapping("/{memberId}/review")
-    public ResponseEntity<String> reviewApplication(
+    public ResponseEntity<java.util.Map<String, String>> reviewApplication(
             @PathVariable Integer memberId,
-            @RequestParam boolean isApproved) {
+            @RequestParam boolean isApproved,
+            Actor actor, @RequestBody(required = false) ReviewInput input) {
 
-        String result = adminPublisherService.reviewApplication(
-                memberId,
-                isApproved);
-
-        return ResponseEntity.ok(result);
+        String result = adminPublisherService.reviewApplication(memberId, isApproved, actor,
+                input == null ? null : input.applicationId(), input == null ? null : input.comment());
+        return ResponseEntity.ok(java.util.Map.of("message", result));
     }
 }

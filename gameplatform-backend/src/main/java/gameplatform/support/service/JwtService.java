@@ -171,33 +171,15 @@ public class JwtService {
                 // 從 JWT Claims 取得使用者 ID
                 int id = Integer.parseInt(jwt.getClaimAsString("uid"));
 
-                /**
-                 * 驗證 JWT 中的登入身分。
-                 *
-                 * 允許的角色：
-                 * MEMBER ：一般會員
-                 * PUBLISHER ：遊戲發行商
-                 * ADMIN ：超級管理員
-                 * REVIEWER ：原本的審核管理員
-                 * SUPPORT ：原本的客服管理員
-                 * STAFF ：由 Super Admin 分配功能權限的普通管理員
-                 *
-                 * 注意：
-                 * 這裡只驗證 JWT 宣告的角色是否合法，
-                 * 不代表該角色已取得所有 API 的操作權限。
-                 *
-                 * STAFF 的實際功能權限由 SecurityConfig
-                 * 在驗證請求時從資料庫重新載入。
-                 */
+                // 驗證使用者 ID、角色及帳號是否合法
                 if (id <= 0
                                 || !Set.of(
                                                 "MEMBER",
                                                 "PUBLISHER",
                                                 "ADMIN",
+                                                "STAFF",
                                                 "REVIEWER",
-                                                "SUPPORT",
-                                                "STAFF" // 新增：普通管理員
-                                ).contains(role)
+                                                "SUPPORT").contains(role)
                                 || name == null
                                 || name.isBlank()) {
 

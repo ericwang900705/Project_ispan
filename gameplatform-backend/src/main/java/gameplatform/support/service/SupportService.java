@@ -4,14 +4,10 @@ import static gameplatform.support.model.Models.*;
 
 import java.sql.*;
 import java.util.*;
-
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,22 +19,16 @@ import gameplatform.support.model.Problem;
 @Service
 @Transactional
 public class SupportService {
-
     private final JdbcTemplate db;
     private final EventHub events;
-    private final NotificationService notifications;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private NotificationService notifications;
     private final boolean sqlServer;
 
-    public SupportService(
-            JdbcTemplate db,
-            EventHub events,
-            ObjectProvider<NotificationService> notificationProvider,
-            @Value("${app.dialect}") String dialect) {
-
+    public SupportService(JdbcTemplate db, EventHub events, @Value("${app.dialect}") String dialect) {
         this.db = db;
         this.events = events;
-        this.notifications = notificationProvider.getIfAvailable();
-        this.sqlServer = "sqlserver".equalsIgnoreCase(dialect);
+        this.sqlServer = dialect.equals("sqlserver");
     }
 
     private static Integer nullableInt(ResultSet rs, String key) throws SQLException {
@@ -94,30 +84,8 @@ public class SupportService {
             throw Problem.missing();
     }
 
-    /**
-     * 客服處理權限：保留 ADMIN / SUPPORT，STAFF 則必須取得 TICKET_HANDLE。
-     * 動態權限已由 SecurityConfig 載入 Authentication，不再額外查詢資料庫。
-     */
-    private boolean canHandleTicket(Actor actor) {
-        if (actor.canSupport())
-            return true;
-        if (!"STAFF".equals(actor.role()))
-            return false;
-
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated())
-            return false;
-        if (!(authentication.getPrincipal() instanceof Actor currentActor)
-                || currentActor.id() != actor.id()
-                || !currentActor.role().equals(actor.role()))
-            return false;
-
-        return authentication.getAuthorities().stream()
-                .anyMatch(authority -> "TICKET_HANDLE".equals(authority.getAuthority()));
-    }
-
     private void participant(Actor a) {
-        if (!a.isMember() && !canHandleTicket(a))
+        if (!a.isMember() && !a.canSupport())
             throw Problem.denied();
     }
 
@@ -127,13 +95,13 @@ public class SupportService {
     }
 
     private void admin(Actor a) {
-        if (!canHandleTicket(a))
+        if (!a.canSupport())
             throw Problem.denied();
     }
 
     private void visible(Actor a, int memberId) {
         participant(a);
-        if (!canHandleTicket(a) && a.id() != memberId)
+        if (!a.canSupport() && a.id() != memberId)
             throw Problem.denied();
     }
 
@@ -219,7 +187,7 @@ public class SupportService {
         int offset = pageOffset(page);
         String filter = "WHERE 1=1";
         List<Object> args = new ArrayList<>();
-        if (!canHandleTicket(a)) {
+        if (!a.canSupport()) {
             filter += " AND r.member_id=?";
             args.add(a.id());
         } else if (mine) {
@@ -237,7 +205,7 @@ public class SupportService {
             filter += " AND (CAST(r.support_room_id AS VARCHAR(20))=? OR EXISTS(SELECT 1 FROM chat_messages cm WHERE cm.support_room_id=r.support_room_id AND cm.content LIKE ? ESCAPE '!')";
             args.add(term.startsWith("#") ? term.substring(1) : term);
             args.add(likeTerm(term));
-            if (canHandleTicket(a)) {
+            if (a.canSupport()) {
                 filter += " OR m.username LIKE ? ESCAPE '!'";
                 args.add(likeTerm(term));
             }
@@ -262,7 +230,7 @@ public class SupportService {
         int offset = pageOffset(page);
         String filter = "WHERE 1=1";
         List<Object> args = new ArrayList<>();
-        if (!canHandleTicket(a)) {
+        if (!a.canSupport()) {
             filter += " AND t.member_id=?";
             args.add(a.id());
         }
@@ -301,7 +269,7 @@ public class SupportService {
             args.add(likeTerm(term));
             args.add(likeTerm(term));
             args.add(likeTerm(term));
-            if (canHandleTicket(a)) {
+            if (a.canSupport()) {
                 filter += " OR m.username LIKE ? ESCAPE '!'";
                 args.add(likeTerm(term));
             }
@@ -376,7 +344,7 @@ public class SupportService {
     public Room closeRoom(Actor a, int id) {
         lock("chat_rooms", "support_room_id", id);
         Room r = getRoom(a, id);
-        if (canHandleTicket(a))
+        if (a.canSupport())
             assigned(a, r.adminId());
         if (r.status().equals("CLOSED"))
             return r;
@@ -466,7 +434,7 @@ public class SupportService {
             owner = t.memberId();
             assignedId = t.adminId();
         }
-        if (canHandleTicket(a))
+        if (a.canSupport())
             assigned(a, assignedId);
         String table = chat ? "chat_messages" : "customer_service_messages",
                 parent = chat ? "support_room_id" : "ticket_id",
@@ -474,13 +442,13 @@ public class SupportService {
         int messageId = insert(chat ? "support_message_id" : "message_id",
                 "INSERT INTO " + table + "(" + parent + "," + sender + ",admin_id,sender_type," + body
                         + ",sent_at) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)",
-                id, canHandleTicket(a) ? null : a.id(), canHandleTicket(a) ? a.id() : null, a.senderType(),
+                id, a.canSupport() ? null : a.id(), a.canSupport() ? a.id() : null, a.senderType(),
                 input.content().strip());
         if (!chat)
             db.update("UPDATE customer_service_tickets SET updated_at=CURRENT_TIMESTAMP WHERE ticket_id=?", id);
         events.changed(owner);
         if (notifications != null) {
-            if (canHandleTicket(a))
+            if (a.canSupport())
                 notifications.member(owner, chat ? "CHAT_REPLY" : "TICKET_REPLY", chat ? "客服已回覆聊天室" : "客服已回覆案件",
                         chat ? "聊天室 #" + id + " 有新訊息" : "案件 #" + id + " 有新訊息",
                         chat ? "/member/support" : "/tickets/" + id);
@@ -528,7 +496,7 @@ public class SupportService {
     public Message sendTicketImages(Actor actor, int ticketId, String content, List<MultipartFile> files) {
         Ticket ticket = getTicket(actor, ticketId);
         open(ticket.status());
-        if (canHandleTicket(actor))
+        if (actor.canSupport())
             assigned(actor, ticket.adminId());
         String text = content == null ? "" : content.strip();
         if (text.length() > 4000)
@@ -559,7 +527,7 @@ public class SupportService {
                     image.width(), image.height(), image.bytes());
         }
         if (notifications != null) {
-            if (canHandleTicket(actor))
+            if (actor.canSupport())
                 notifications.member(ticket.memberId(), "TICKET_REPLY", "客服已回覆案件", "案件 #" + ticketId + " 有新訊息",
                         "/tickets/" + ticketId);
             else if (ticket.adminId() != null)
@@ -690,7 +658,7 @@ public class SupportService {
 
     public List<Map<String, Object>> games(String q) {
         return db.queryForList(
-                "SELECT game_id AS id,game_name AS name FROM games WHERE game_name LIKE ? ORDER BY game_id OFFSET 0 ROWS FETCH NEXT 30 ROWS ONLY",
+                "SELECT game_id AS id,game_name AS name FROM games WHERE status IN ('PUBLISHED','COMING_SOON','PENDING_OFF_SHELF') AND game_name LIKE ? ORDER BY game_id OFFSET 0 ROWS FETCH NEXT 30 ROWS ONLY",
                 "%" + q.strip() + "%");
     }
 }

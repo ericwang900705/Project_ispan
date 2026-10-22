@@ -1,221 +1,151 @@
+
 package gameplatform.admin.service;
 
-import gameplatform.admin.entity.Admin;
-import gameplatform.admin.entity.AdminPermission;
-import gameplatform.admin.entity.AdminUserPermission;
-import gameplatform.admin.repository.AdminPermissionRepository;
-import gameplatform.admin.repository.AdminRepository;
-import gameplatform.admin.repository.AdminUserPermissionRepository;
+import gameplatform.admin.entity.*;
+import gameplatform.admin.repository.*;
 import gameplatform.support.model.Actor;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import gameplatform.support.model.Problem;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
+import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
+/**
+ * Adapted from game/admin 60788f4: JPA permissions, ADMIN highest, STAFF
+ * individual grants.
+ */
 @Service
-@RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class AdminPermissionService {
-
-    // STAFF 可被分配的 13 項業務權限。
-    public static final Set<String> BUSINESS_CODES = Set.of(
-            "COMMENT_REVIEW", "COUPON_MANAGE", "DASHBOARD_VIEW", "GAME_REVIEW",
-            "LOGIN_LOG_VIEW", "MEMBER_SUSPEND", "OPERATION_LOG_VIEW", "ORDER_VIEW",
-            "PROMOTION_MANAGE", "PUBLISHER_REVIEW", "REFUND_MANAGE", "TAG_MANAGE",
-            "TICKET_HANDLE"
-    );
-
-    // 只能由 ADMIN 操作，禁止分配給 STAFF。
-    public static final Set<String> RESERVED_CODES = Set.of(
-            "PERMISSION_MANAGE", "STAFF_MANAGE"
-    );
-
-    // 舊版 REVIEWER / SUPPORT 固定角色權限，對齊 SecurityConfig 現有規則。
-    public static final Set<String> REVIEWER_CODES = Set.of(
-            "MEMBER_SUSPEND", "PUBLISHER_REVIEW", "GAME_REVIEW", "COMMENT_REVIEW"
-    );
-
-    public static final Set<String> SUPPORT_CODES = Set.of(
-            "TICKET_HANDLE"
-    );
-
-    public static final Set<String> ALL_CODES = Stream.concat(
-            BUSINESS_CODES.stream(), RESERVED_CODES.stream()
-    ).collect(Collectors.toUnmodifiableSet());
-
+    public static final Set<String> BUSINESS_CODES = Set.of("DASHBOARD_VIEW", "MEMBER_SUSPEND",
+            "PUBLISHER_REVIEW", "ORDER_VIEW", "REFUND_MANAGE", "GAME_REVIEW", "TAG_MANAGE",
+            "TICKET_HANDLE", "COMMENT_REVIEW", "PROMOTION_MANAGE", "COUPON_MANAGE",
+            "OPERATION_LOG_VIEW", "LOGIN_LOG_VIEW");
+    public static final Set<String> RESERVED_CODES = Set.of("STAFF_MANAGE", "PERMISSION_MANAGE");
+    public static final Set<String> ALL_CODES = java.util.stream.Stream.concat(
+            BUSINESS_CODES.stream(), RESERVED_CODES.stream()).collect(Collectors.toUnmodifiableSet());
+    private final AdminRepository admins;
+    private final AdminPermissionRepository permissions;
+    private final AdminUserPermissionRepository grants;
     private final JdbcTemplate db;
-    private final AdminRepository adminRepository;
-    private final AdminPermissionRepository permissionRepository;
-    private final AdminUserPermissionRepository userPermissionRepository;
 
-    /** 只列出 STAFF 可以被分配的權限，不顯示 ADMIN 專用項目。 */
-    @Transactional(readOnly = true)
-    public List<AdminPermission> listAvailablePermissions() {
-        return permissionRepository.findAll().stream()
-                .filter(permission -> BUSINESS_CODES.contains(permission.getPermissionCode()))
-                .sorted(Comparator.comparing(AdminPermission::getPermissionCode))
-                .toList();
+    public AdminPermissionService(AdminRepository admins, AdminPermissionRepository permissions,
+            AdminUserPermissionRepository grants, JdbcTemplate db) {
+        this.admins = admins;
+        this.permissions = permissions;
+        this.grants = grants;
+        this.db = db;
     }
 
-    /** 查詢啟用中 STAFF 的有效業務權限。 */
-    @Transactional(readOnly = true)
-    public Set<String> getStaffPermissionCodes(Integer staffAdminId) {
-        requireStaff(staffAdminId);
-        Map<Integer, String> codeById = permissionRepository.findAll().stream()
-                .collect(Collectors.toMap(
-                        AdminPermission::getPermissionId,
-                        AdminPermission::getPermissionCode));
+    public static Set<String> fixedPermissions(String role) {
+        return switch (role) {
+            case "ADMIN" -> ALL_CODES;
+            case "STAFF" -> Set.of(); // STAFF 權限由管理員個別授予
+            case "REVIEWER" -> Set.of("GAME_REVIEW", "PUBLISHER_REVIEW", "MEMBER_SUSPEND", "COMMENT_REVIEW");
+            case "SUPPORT" -> Set.of("TICKET_HANDLE");
+            default -> Set.of();
+        };
+    }
 
-        return userPermissionRepository.findByAdminId(staffAdminId).stream()
-                .map(row -> codeById.get(row.getPermissionId()))
-                .filter(BUSINESS_CODES::contains)
-                .collect(Collectors.toSet());
+    private Optional<Admin> current(Actor actor) {
+        if (actor == null || !actor.isStaff())
+            return Optional.empty();
+        return admins.findById(actor.id()).filter(a -> "ACTIVE".equals(a.getStatus())
+                && Objects.equals(actor.username(), a.getAdminAccount())
+                && a.getAdminRole() != null && Objects.equals(actor.role(), a.getAdminRole().getRoleCode()));
+    }
+
+    public boolean isHighestAdmin(Actor actor) {
+        return actor != null && actor.isHighestAdmin() && current(actor).isPresent();
+    }
+
+    public void requireHighestAdmin(Actor actor) {
+        if (!isHighestAdmin(actor))
+            throw new Problem(403, "只有啟用中的 ADMIN 可以管理人員與權限");
+    }
+
+    public List<String> forActor(Actor actor) {
+        if (current(actor).isEmpty())
+            return List.of();
+        return effectivePermissions(actor.id(), actor.role()).stream().sorted().toList();
+    }
+
+    private Set<String> effectivePermissions(int id, String role) {
+        if (!"STAFF".equals(role))
+            return fixedPermissions(role);
+        Map<Integer, String> codes = permissions.findAll().stream().collect(Collectors.toMap(
+                AdminPermission::getPermissionId, AdminPermission::getPermissionCode));
+        return grants.findByAdminId(id).stream().map(g -> codes.get(g.getPermissionId()))
+                .filter(c -> c != null && BUSINESS_CODES.contains(c)).collect(Collectors.toSet());
+    }
+
+    public List<AdminPermission> listAvailablePermissions() {
+        return permissions.findAll().stream().filter(p -> BUSINESS_CODES.contains(p.getPermissionCode()))
+                .sorted(Comparator.comparing(AdminPermission::getPermissionCode)).toList();
+    }
+
+    public Set<String> getStaffPermissionCodes(int id) {
+        Admin target = requireStaff(id);
+        return effectivePermissions(id, target.getAdminRole().getRoleCode());
+    }
+
+    private Admin requireStaff(int id) {
+        Admin target = admins.findById(id).orElseThrow(() -> new Problem(404, "找不到後台人員"));
+        if (!"ACTIVE".equals(target.getStatus()) || !"STAFF".equals(target.getAdminRole().getRoleCode()))
+            throw new Problem(400, "只能調整啟用中的 STAFF 個別權限");
+        return target;
     }
 
     /**
-     * ADMIN 覆蓋 STAFF 的權限勾選結果。
-     * 保留未變動的授權紀錄，只刪除取消勾選的權限並新增新勾選的權限。
+     * Shared lock with StaffService: role changes and replacements cannot
+     * interleave.
      */
-    @Transactional
-    public void replaceStaffPermissions(Integer operatorAdminId,
-            Integer staffAdminId, Set<String> requestedCodes) {
-        // 與角色切換共用交易鎖，避免同時修改。
-        lockStaffChanges();
-        requireSuperAdmin(operatorAdminId);
-        requireStaff(staffAdminId);
-
-        if (requestedCodes == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "權限清單不可為 null；撤銷全部權限請傳空集合");
-        }
-        if (requestedCodes.stream().anyMatch(code -> code == null || code.isBlank())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "權限代碼不可為空白");
-        }
-
-        Set<String> forbidden = new HashSet<>(requestedCodes);
-        forbidden.removeAll(BUSINESS_CODES);
-        if (!forbidden.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "包含不支援或僅限 ADMIN 的權限代碼：" + forbidden);
-        }
-
-        Map<String, AdminPermission> available = permissionRepository.findAll().stream()
-                .collect(Collectors.toMap(AdminPermission::getPermissionCode, Function.identity()));
-        Set<String> notInitialized = new HashSet<>(requestedCodes);
-        notInitialized.removeAll(available.keySet());
-        if (!notInitialized.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "權限代碼尚未初始化於資料庫：" + notInitialized);
-        }
-
-        List<AdminUserPermission> currentRows =
-                userPermissionRepository.findByAdminId(staffAdminId);
-        Set<Integer> desiredIds = requestedCodes.stream()
-                .map(code -> available.get(code).getPermissionId())
-                .collect(Collectors.toSet());
-        Set<Integer> currentIds = currentRows.stream()
-                .map(AdminUserPermission::getPermissionId)
-                .collect(Collectors.toSet());
-
-        List<AdminUserPermission> toDelete = currentRows.stream()
-                .filter(row -> !desiredIds.contains(row.getPermissionId()))
-                .toList();
-        userPermissionRepository.deleteAll(toDelete);
-        userPermissionRepository.flush();
-
-        List<AdminUserPermission> toAdd = requestedCodes.stream()
-                .filter(code -> !currentIds.contains(available.get(code).getPermissionId()))
-                .map(code -> {
-                    AdminUserPermission row = new AdminUserPermission();
-                    row.setAdminId(staffAdminId);
-                    row.setPermissionId(available.get(code).getPermissionId());
-                    row.setGrantedByAdminId(operatorAdminId);
-                    return row;
-                }).toList();
-        userPermissionRepository.saveAll(toAdd);
-        userPermissionRepository.flush();
-    }
-
-    /** 取得目前登入管理員的有效權限，供 BackofficeService 驗證。 */
-    @Transactional(readOnly = true)
-    public Set<String> forActor(Actor actor) {
-        if (actor == null || actor.isMember()) {
-            return Set.of();
-        }
-        Admin admin = adminRepository.findById(actor.id()).orElse(null);
-        if (admin == null || !"ACTIVE".equals(admin.getStatus())
-                || admin.getAdminRole() == null) {
-            return Set.of();
-        }
-        String dbRole = admin.getAdminRole().getRoleCode();
-        // Actor 的角色必須與資料庫一致，避免舊憑證或角色變更後仍可存取。
-        if (!dbRole.equals(actor.role())) {
-            return Set.of();
-        }
-        if ("ADMIN".equals(dbRole)) {
-            return ALL_CODES;
-        }
-        if ("STAFF".equals(dbRole)) {
-            return getStaffPermissionCodes(actor.id());
-        }
-        if ("REVIEWER".equals(dbRole)) {
-            return REVIEWER_CODES;
-        }
-        if ("SUPPORT".equals(dbRole)) {
-            return SUPPORT_CODES;
-        }
-        return Set.of();
-    }
-
-    // 與 StaffService 使用相同的 SQL Server 交易鎖。
-    private void lockStaffChanges() {
+    private void lock() {
         Integer result = db.queryForObject(
-                "DECLARE @r INT; EXEC @r=sys.sp_getapplock " +
-                "@Resource='HERO_STAFF_ADMIN',@LockMode='Exclusive'," +
-                "@LockOwner='Transaction',@LockTimeout=10000; SELECT @r",
+                "DECLARE @r INT; EXEC @r=sys.sp_getapplock @Resource='HERO_STAFF_ADMIN',@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;SELECT @r",
                 Integer.class);
-        if (result == null || result < 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "人員管理忙碌，請稍後重試");
-        }
+        if (result == null || result < 0)
+            throw new Problem(409, "人員管理忙碌，請稍後重試");
     }
 
-    private void requireSuperAdmin(Integer operatorAdminId) {
-        Admin operator = findAdmin(operatorAdminId);
-        if (!"ACTIVE".equals(operator.getStatus())
-                || operator.getAdminRole() == null
-                || !"ADMIN".equals(operator.getAdminRole().getRoleCode())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "只有啟用中的 ADMIN 可以分配權限");
-        }
+    @Transactional
+    public void resetAfterRoleChange(Actor operator, int id, String role) {
+        lock();
+        requireHighestAdmin(operator);
+        grants.deleteAll(grants.findByAdminId(id));
+        grants.flush();
+        // 切換角色時清除舊授權，STAFF 不自動取得任何權限。
     }
 
-    private void requireStaff(Integer staffAdminId) {
-        Admin staff = findAdmin(staffAdminId);
-        if (!"ACTIVE".equals(staff.getStatus())
-                || staff.getAdminRole() == null
-                || !"STAFF".equals(staff.getAdminRole().getRoleCode())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "只能設定啟用中的 STAFF 管理員權限");
-        }
-    }
-
-    private Admin findAdmin(Integer adminId) {
-        if (adminId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "管理員 ID 不可為空");
-        }
-        return adminRepository.findById(adminId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "找不到管理員：" + adminId));
+    @Transactional
+    public void replaceStaffPermissions(Actor operator, int staffId, Set<String> requested) {
+        lock();
+        requireHighestAdmin(operator);
+        requireStaff(staffId);
+        if (requested == null || requested.stream().anyMatch(c -> c == null || !BUSINESS_CODES.contains(c)))
+            throw new Problem(400, "包含不支援或僅限 ADMIN 的權限代碼");
+        Map<String, AdminPermission> available = permissions.findAll().stream().collect(Collectors.toMap(
+                AdminPermission::getPermissionCode, p -> p));
+        if (!available.keySet().containsAll(requested))
+            throw new Problem(400, "權限代碼尚未初始化，請先執行 SQL");
+        // Full replacement result, applied as a diff: retained grants keep their audit
+        // provenance.
+        var current = grants.findByAdminId(staffId);
+        Set<Integer> desiredIds = requested.stream().map(c -> available.get(c).getPermissionId())
+                .collect(Collectors.toSet());
+        Set<Integer> currentIds = current.stream().map(AdminUserPermission::getPermissionId)
+                .collect(Collectors.toSet());
+        grants.deleteAll(current.stream().filter(g -> !desiredIds.contains(g.getPermissionId())).toList());
+        grants.flush();
+        grants.saveAll(
+                requested.stream().filter(c -> !currentIds.contains(available.get(c).getPermissionId())).map(code -> {
+                    AdminUserPermission g = new AdminUserPermission();
+                    g.setAdminId(staffId);
+                    g.setPermissionId(available.get(code).getPermissionId());
+                    g.setGrantedByAdminId(operator.id());
+                    return g;
+                }).toList());
+        grants.flush();
     }
 }

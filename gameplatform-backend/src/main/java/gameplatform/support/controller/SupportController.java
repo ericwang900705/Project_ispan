@@ -11,7 +11,6 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import gameplatform.support.model.Actor;
@@ -33,15 +32,18 @@ public class SupportController {
     private final SupportService service;
     private final EventHub events;
     private final JwtService jwtService;
+    private final gameplatform.support.service.SessionProfileService profiles;
 
     public SupportController(
             SupportService s,
             EventHub e,
-            JwtService jwtService) {
+            JwtService jwtService,
+            gameplatform.support.service.SessionProfileService profiles) {
 
         this.service = s;
         this.events = e;
         this.jwtService = jwtService;
+        this.profiles = profiles;
     }
 
     @GetMapping("/public/config")
@@ -51,7 +53,7 @@ public class SupportController {
 
     @GetMapping("/auth/me")
     public Object me(Actor a) {
-        return Map.of("id", a.id(), "role", a.role(), "username", a.username(), "demo", false);
+        return profiles.profile(a);
     }
 
     @GetMapping(value = "/events", produces = "text/event-stream")
@@ -76,13 +78,11 @@ public class SupportController {
         return events.subscribe(a, jwt);
     }
 
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPPORT', 'TICKET_HANDLE')")
     @GetMapping("/admin/workload")
     public Object workload(Actor a) {
         return service.workload(a);
     }
 
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPPORT', 'TICKET_HANDLE')")
     @GetMapping("/admin/queue")
     public Object queue(Actor a, @RequestParam(defaultValue = "rooms") String kind,
             @RequestParam(defaultValue = "unassigned") String scope,
@@ -95,7 +95,7 @@ public class SupportController {
         return service.categories();
     }
 
-    @GetMapping("/games")
+    @GetMapping("/support/games")
     public Object games(Actor a, @RequestParam(defaultValue = "") String q) {
         if (q.length() > 100)
             throw new Problem(400, "搜尋字數過長");
@@ -131,14 +131,12 @@ public class SupportController {
         return service.closeRoom(a, id);
     }
 
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPPORT', 'TICKET_HANDLE')")
     @PostMapping("/admin/rooms/{id}/claim")
     public Room claim(Actor a, @PathVariable int id) {
         return service.claimRoom(a, id);
     }
 
     @PostMapping("/admin/rooms/{id}/escalate")
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPPORT', 'TICKET_HANDLE')")
     public Ticket escalate(Actor a, @PathVariable int id,
             @Valid @RequestBody EscalateInput input) {
         return service.escalate(a, id, input);
@@ -170,7 +168,6 @@ public class SupportController {
     public record PriorityInput(String priority) {
     }
 
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPPORT', 'TICKET_HANDLE')")
     @org.springframework.web.bind.annotation.PutMapping("/admin/tickets/{id}/priority")
     public Ticket priority(Actor a, @PathVariable int id,
             @RequestBody PriorityInput input) {
@@ -187,13 +184,11 @@ public class SupportController {
         return service.origins(a, id);
     }
 
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPPORT', 'TICKET_HANDLE')")
     @PostMapping("/admin/tickets/{id}/claim")
     public Ticket claimTicket(Actor a, @PathVariable int id) {
         return service.claimTicket(a, id);
     }
 
-    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPPORT', 'TICKET_HANDLE')")
     @PostMapping("/admin/tickets/{id}/close")
     public Ticket closeTicket(Actor a, @PathVariable int id) {
         return service.closeTicket(a, id);

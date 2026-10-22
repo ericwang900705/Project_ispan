@@ -1,39 +1,34 @@
 package gameplatform.admin.controller;
 
-import org.springframework.http.ResponseEntity;
+import java.util.Map;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
 import gameplatform.admin.service.AdminMemberService;
 
 @RestController
 @RequestMapping("/api/admin/members")
-@PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_REVIEWER', 'MEMBER_SUSPEND')")
+@PreAuthorize("hasAnyRole('ADMIN', 'STAFF', 'REVIEWER', 'SUPPORT')")
 public class AdminMemberController {
+    private final AdminMemberService members;
 
-    private final AdminMemberService adminMemberService;
-
-    // 手動建立建構子
-    public AdminMemberController(AdminMemberService adminMemberService) {
-        this.adminMemberService = adminMemberService;
+    public AdminMemberController(AdminMemberService members) {
+        this.members = members;
     }
 
-    // 停權會員
+    @GetMapping
+    public AdminMemberService.MemberPage search(@RequestParam(defaultValue = "") String keyword,
+            @RequestParam(defaultValue = "") String status, @RequestParam(defaultValue = "") String type,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return members.search(keyword, status, type, page, size);
+    }
+
     @PatchMapping("/{memberId}/suspend")
-    public ResponseEntity<String> suspendMember(
-            @PathVariable Integer memberId,
-            @RequestParam(defaultValue = "3") int hours) {
-
-        String result = adminMemberService.suspendMember(memberId, hours);
-        return ResponseEntity.ok(result);
+    public Map<String, String> suspend(@PathVariable Integer memberId, @RequestParam(defaultValue = "3") int hours) {
+        return Map.of("message", members.suspendMember(memberId, hours));
     }
 
-    // 恢復會員權限
     @PatchMapping("/{memberId}/reactivate")
-    public ResponseEntity<String> reactivateMember(
-            @PathVariable Integer memberId) {
-
-        String result = adminMemberService.reactivateMember(memberId);
-        return ResponseEntity.ok(result);
+    public Map<String, String> reactivate(@PathVariable Integer memberId) {
+        return Map.of("message", members.reactivateMember(memberId));
     }
 }

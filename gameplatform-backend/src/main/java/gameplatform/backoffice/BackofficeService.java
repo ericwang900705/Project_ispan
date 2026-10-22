@@ -114,8 +114,8 @@ public class BackofficeService {
                     throw bad("此頁不提供狀態篩選");
             }
             case "coupons" -> {
-                from = "dbo.coupons c";
-                select = "c.coupon_id,c.coupon_name,c.discount_type,c.discount_value,c.min_spend,c.total_limit,c.per_member_limit,c.used_count,c.status,c.start_at,c.expires_at";
+                from = "dbo.coupons c LEFT JOIN dbo.coupon_rules cr ON cr.coupon_id=c.coupon_id LEFT JOIN dbo.members cm ON cm.member_id=cr.publisher_member_id LEFT JOIN dbo.tags ct ON ct.tag_id=cr.tag_id";
+                select = "c.coupon_id,c.coupon_name,c.discount_type,c.discount_value,c.min_spend,c.total_limit,c.per_member_limit,c.used_count,c.status,c.start_at,c.expires_at,COALESCE(cr.scope_type,'ALL') AS scope_type,cr.publisher_member_id,cr.tag_id,cm.username AS publisher_name,ct.tag_name";
                 search = "c.coupon_name";
                 order = "c.coupon_id DESC";
                 if (!status.isEmpty()) {
@@ -201,13 +201,22 @@ public class BackofficeService {
     }
 
     public record CouponInput(String name, String type, BigDecimal value, BigDecimal minimum, Integer totalLimit,
-            Integer memberLimit, String status, LocalDateTime start, LocalDateTime end) {
+            Integer memberLimit, String status, LocalDateTime start, LocalDateTime end,
+            String scopeType, Integer publisherId, Integer tagId) {
+        public CouponInput(String name,String type,BigDecimal value,BigDecimal minimum,Integer totalLimit,Integer memberLimit,String status,LocalDateTime start,LocalDateTime end) {
+            this(name,type,value,minimum,totalLimit,memberLimit,status,start,end,"ALL",null,null);
+        }
     }
 
     static void validateCoupon(CouponInput c) {
         if (c == null)
             throw bad("請填寫優惠券資料");
         text(c.name(), 100);
+        String scope=Objects.toString(c.scopeType(),"ALL");
+        if(!Set.of("ALL","PUBLISHER","TAG").contains(scope)
+            || (scope.equals("PUBLISHER") && (c.publisherId()==null || c.publisherId()<1 || c.tagId()!=null))
+            || (scope.equals("TAG") && (c.tagId()==null || c.tagId()<1 || c.publisherId()!=null))
+            || (scope.equals("ALL") && (c.publisherId()!=null || c.tagId()!=null))) throw bad("優惠券使用範圍不正確");
         if (!Set.of("RATE", "AMOUNT").contains(Objects.toString(c.type(), "")) || c.value() == null
                 || c.value().signum() <= 0 || c.value().scale() > 2
                 || c.value().compareTo(new BigDecimal("99999999.99")) > 0)
@@ -227,6 +236,8 @@ public class BackofficeService {
     public void saveCoupon(Actor actor, Integer id, CouponInput c) {
         require(actor, "coupons");
         validateCoupon(c);
+        if("PUBLISHER".equals(c.scopeType()) && db.queryForObject("SELECT COUNT(*) FROM dbo.members WHERE member_id=? AND is_publisher=1",Integer.class,c.publisherId())!=1) throw bad("請選擇有效的發行商");
+        if("TAG".equals(c.scopeType()) && db.queryForObject("SELECT COUNT(*) FROM dbo.tags WHERE tag_id=?",Integer.class,c.tagId())!=1) throw bad("請選擇有效的遊戲類型");
         boolean creating = id == null;
         if (id == null)
             id = db.queryForObject(
@@ -244,7 +255,15 @@ public class BackofficeService {
                     c.name().trim(), c.type(), c.value(), c.minimum(), c.totalLimit(), c.memberLimit(), c.status(),
                     c.start(), c.end(), id);
         }
+        db.update("DELETE FROM dbo.coupon_rules WHERE coupon_id=?",id);
+        db.update("INSERT INTO dbo.coupon_rules(coupon_id,scope_type,publisher_member_id,tag_id) VALUES(?,?,?,?)",id,Objects.toString(c.scopeType(),"ALL"),c.publisherId(),c.tagId());
         audit(actor, creating ? "COUPON_CREATE" : "COUPON_UPDATE", Objects.requireNonNull(id), c.name().trim());
+    }
+
+    public Object couponOptions(Actor actor) {
+        require(actor,"coupons");
+        return Map.of("publishers",db.queryForList("SELECT member_id AS id,username AS name FROM dbo.members WHERE is_publisher=1 ORDER BY username"),
+            "tags",db.queryForList("SELECT tag_id AS id,tag_name AS name FROM dbo.tags ORDER BY tag_name"));
     }
 
     public record ReviewInput(String status, String reason) {
