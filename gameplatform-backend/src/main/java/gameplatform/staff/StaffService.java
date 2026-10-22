@@ -30,11 +30,60 @@ public class StaffService {
     }
 
     private void lock() {
-        Integer result = db.queryForObject(
-                "DECLARE @r INT; EXEC @r=sys.sp_getapplock @Resource='HERO_STAFF_ADMIN',@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;SELECT @r",
-                Integer.class);
-        if (result == null || result < 0)
-            throw new Problem(409, "人員管理忙碌，請稍後再試");
+        db.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) con -> {
+
+            try (var stmt = con.createStatement()) {
+                try (var rs = stmt.executeQuery(
+                        "SELECT COUNT(*) FROM dbo.admin")) {
+
+                    if (rs.next()) {
+                        System.out.println(
+                                "[STAFF LOCK] AdminCount = " + rs.getInt(1));
+                    }
+                }
+
+                try (var rs = stmt.executeQuery(
+                        "SELECT @@SPID AS session_id, " +
+                                "@@TRANCOUNT AS transaction_count")) {
+
+                    if (rs.next()) {
+                        System.out.println(
+                                "[STAFF LOCK] SessionID = " + rs.getInt(1));
+                        System.out.println(
+                                "[STAFF LOCK] TransactionCount = " + rs.getInt(2));
+                    }
+                }
+
+                try (var rs = stmt.executeQuery(
+                        "DECLARE @r INT; " +
+                                "EXEC @r = sys.sp_getapplock " +
+                                "@Resource='HERO_STAFF_ADMIN', " +
+                                "@LockMode='Exclusive', " +
+                                "@LockOwner='Transaction', " +
+                                "@LockTimeout=10000; " +
+                                "SELECT @r")) {
+
+                    if (rs.next()) {
+                        int result = rs.getInt(1);
+
+                        System.out.println(
+                                "[STAFF LOCK] LockResult = " + result);
+
+                        if (result < 0) {
+                            throw new Problem(
+                                    409,
+                                    "人員管理忙碌，請稍後再試");
+                        }
+                    } else {
+                        throw new Problem(
+                                500,
+                                "無法取得資料庫鎖定結果");
+                    }
+                }
+            }
+
+            return null;
+        });
     }
 
     private boolean top(Actor actor) {
@@ -121,7 +170,7 @@ public class StaffService {
 
         // 初次核准 PENDING 時啟用；其餘角色可相互切換。
         db.update("UPDATE dbo.admin SET admin_role_id=?,status='ACTIVE',updated_at=SYSDATETIME() "
-                        + "WHERE admin_id=?",
+                + "WHERE admin_id=?",
                 role(code), id);
 
         // 清除舊的個別授權；STAFF 不會自動取得任何權限。
