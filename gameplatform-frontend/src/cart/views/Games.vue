@@ -75,7 +75,7 @@ onMounted(() => {
         <!-- 底部列：左邊加入購物車按鈕，右邊價格條 -->
         <div class="bottom">
           <!-- 加入購物車按鈕，傳入遊戲 ID -->
-          <AddToCartButton :game-id="game.gameId" class="cart-btn" />
+          <AddToCartButton :status="game.status" :game-id="game.gameId" class="cart-btn" />
           <div class="price-bar">
             <!-- 折扣%：有打折才顯示 -->
             <span v-if="hasDiscount(game)" class="discount">-{{ discountPercent(game) }}%</span>

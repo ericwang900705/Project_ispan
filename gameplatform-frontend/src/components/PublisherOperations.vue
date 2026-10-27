@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import UiIcon from './UiIcon.vue'
 const props = defineProps({ game: { type: Object, required: true }, mode: String, canRestore: Boolean, remaining: String, editable: Boolean, busy: Boolean })
-const emit = defineEmits(['offShelf', 'restore', 'navigate'])
+const emit = defineEmits(['offShelf', 'restore', 'navigate', 'deleteDraft'])
 const date = value => value ? new Date(value).toLocaleString('zh-TW', { hour12: false }) : '—'
 const latest = computed(() => props.game.history[0])
 const canOffShelf = computed(() => !props.game.pending_review_type && ['PUBLISHED'].includes(props.game.status))
@@ -21,7 +21,7 @@ const canOffShelf = computed(() => !props.game.pending_review_type && ['PUBLISHE
       <template v-else-if="canOffShelf"><p>提出申請後 24 小時自動下架，期限內可取消；遊戲與購買紀錄仍保留。</p><button class="publisher-danger" :disabled="busy" @click="emit('offShelf')"><UiIcon name="power" />申請下架</button></template>
       <template v-else-if="canRestore"><p>預定下架時間：{{ date(game.restore_until) }}</p><p class="publisher-pending">可取消至 {{ date(game.restore_until) }}<br>剩餘 {{ remaining }}。到期前仍維持販售。</p><button class="publisher-positive" :disabled="busy" @click="emit('restore')">取消下架申請</button></template>
       <template v-else-if="game.status === 'OFF_SHELF' && !game.pending_review_type"><p>目前已下架，資料仍保留。重新上架需要送審。</p><button class="primary" :disabled="busy" @click="emit('navigate', 'publish')">重新送審上架</button></template>
-      <template v-else-if="editable"><p>這款遊戲尚未上架，可繼續設定資料並準備送審。</p><div class="publisher-button-row"><button class="secondary" :disabled="busy" @click="emit('navigate', 'edit')">修改遊戲資料</button><button class="primary" :disabled="busy" @click="emit('navigate', 'publish')">前往上架檢核</button></div></template>
+      <template v-else-if="editable"><p>這款遊戲尚未上架，可繼續設定資料並準備送審。</p><div class="publisher-button-row"><button class="secondary" :disabled="busy" @click="emit('navigate', 'edit')">修改遊戲資料</button><button class="primary" :disabled="busy" @click="emit('navigate', 'publish')">前往上架檢核</button><button v-if="game.status === 'DRAFT'" type="button" class="publisher-danger" :disabled="busy" @click="emit('deleteDraft')">刪除草稿</button></div></template>
     </div>
   </section>
 </template>

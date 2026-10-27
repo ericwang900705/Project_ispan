@@ -115,6 +115,7 @@ onMounted(() => store.fetchAll())
                 已使用 {{ m.usedCount }} 筆適用遊戲明細
               </div>
             </div>
+            <RouterLink class="sx-contact-link" :to="{path:'/member/support',query:{couponId:String(m.coupon.couponId)}}">使用有問題？聯絡客服</RouterLink>
             <RouterLink v-if="m.status === 'UNUSED'" to="/shopping-cart" class="claim">去使用</RouterLink>
             <span v-else class="stamp">{{ m.status === 'USED' ? '已用完' : m.status === 'UNAVAILABLE' ? '暫不可用' : '已失效' }}</span>
           </div>

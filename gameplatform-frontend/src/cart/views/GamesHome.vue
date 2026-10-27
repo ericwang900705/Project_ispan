@@ -13,6 +13,7 @@ import PriceBlock from '@/cart/components/PriceBlock.vue'
 import ParticleBackground from '@/cart/components/ParticleBackground.vue'
 // 共用的購物車 store、遊戲 store
 import { useCartStore } from '@/cart/stores/cart'
+import http from '@/http.js'
 import { useGamesStore, hasDiscount, discountPercent, getRecentIds } from '@/cart/stores/games'
 
 const router = useRouter()
@@ -23,9 +24,33 @@ const { games, genres, discountedGames, stats } = storeToRefs(gamesStore)
 // ===== 搜尋框 =====
 // 搜尋框輸入的文字
 const keyword = ref('')
+const searchFocused = ref(false)
+const searchBox = ref(null)
+const searchMatches = computed(() => {
+  const query = keyword.value.trim().toLocaleLowerCase()
+  if (!query) return []
+  return games.value.filter(game =>
+    String(game.gameName ?? '').toLocaleLowerCase().includes(query)
+  ).slice(0, 5)
+})
+const showSearchSuggestions = computed(() => searchFocused.value && keyword.value.trim().length > 0)
+function closeSearchOnOutsideClick(event) {
+  if (searchBox.value && !searchBox.value.contains(event.target)) searchFocused.value = false
+}
+function selectSearchResult(game) {
+  searchFocused.value = false
+  goDetail(game)
+}
+function formatSearchPrice(price) {
+  if (price == null) return '價格未提供'
+  const amount = Number(price)
+  if (!Number.isFinite(amount)) return '價格未提供'
+  return amount === 0 ? '免費' : `NT$ ${amount.toLocaleString('zh-TW')}`
+}
 // 按 Enter 或放大鏡：跳到所有遊戲頁，並把關鍵字放在網址 ?q=
 function search() {
-  router.push({ path: '/games/all', query: keyword.value ? { q: keyword.value } : {} })
+  searchFocused.value = false
+  router.push({ path: '/games/all', query: keyword.value.trim() ? { q: keyword.value.trim() } : {} })
 }
 
 // 點遊戲封面 / 名稱：到遊戲詳情頁（介紹 + 玩家評論）
@@ -33,11 +58,36 @@ function goDetail(game) {
   router.push(`/games/${game.gameId}`)
 }
 
-// ===== 精選與推薦（大輪播） =====
-// 輪播的遊戲：有打折的排前面，最多 8 款
-const featured = computed(() =>
-  [...games.value].sort((a, b) => hasDiscount(b) - hasDiscount(a)).slice(0, 8)
-)
+// ===== AI 為您推薦（大輪播） =====
+// 後端已提供 AI 推薦；沒有 AI 快取時會回傳熱門遊戲。
+const recommendedGames = ref([])
+const recommendationType = ref('')
+const featured = computed(() => {
+  const visibleGames = new Map(games.value.map(game => [Number(game.gameId), game]))
+  const matched = recommendedGames.value
+    .map(item => {
+      const original = visibleGames.get(Number(item.gameId))
+      return original ? { ...original, recommendationReason: item.reason || '' } : null
+    })
+    .filter(Boolean)
+  // 未登入、API 失敗或推薦資料未對應上架遊戲時，保留原本輪播。
+  return matched.length ? matched : [...games.value].sort((a, b) => hasDiscount(b) - hasDiscount(a)).slice(0, 8)
+})
+async function fetchHomeRecommendations() {
+  try {
+    const { data } = await http.get('/api/recommendations/home')
+    recommendedGames.value = Array.isArray(data?.games) ? data.games : []
+    recommendationType.value = data?.recommendationType || ''
+    slide.value = 0
+  } catch (error) {
+    // 未登入時可能收到 401，維持原本的公開遊戲輪播。
+    recommendedGames.value = []
+    recommendationType.value = ''
+    console.debug('首頁推薦暫時使用公開遊戲', error?.response?.status || error?.message)
+  }
+}
+// 熱門推薦或公開遊戲備援時，標題改為「熱門與精選」。
+const isAiRecommendation = computed(() => recommendationType.value === 'AI' && recommendedGames.value.some(item => featured.value.some(game => Number(game.gameId) === Number(item.gameId))))
 // 目前顯示第幾張
 const slide = ref(0)
 // 目前顯示的那款遊戲
@@ -45,10 +95,10 @@ const current = computed(() => featured.value[slide.value])
 
 // 上一張 / 下一張：超過頭尾就繞回來
 function prev() {
-  slide.value = (slide.value - 1 + featured.value.length) % featured.value.length
+  if (featured.value.length) slide.value = (slide.value - 1 + featured.value.length) % featured.value.length
 }
 function next() {
-  slide.value = (slide.value + 1) % featured.value.length
+  if (featured.value.length) slide.value = (slide.value + 1) % featured.value.length
 }
 
 // 自動輪播：每 5 秒換下一張；滑鼠移到輪播上時暫停
@@ -135,13 +185,18 @@ function countOf(genre) {
 // 進入頁面：抓遊戲、統計、購物車、遊戲庫，開始自動輪播
 onMounted(() => {
   gamesStore.fetchGames()
+  fetchHomeRecommendations()
   gamesStore.fetchStats()
   cart.fetchCart()
   cart.fetchLibrary()
   startAuto()
+  document.addEventListener('pointerdown', closeSearchOnOutsideClick)
 })
 // 離開頁面：停止自動輪播，避免計時器一直跑
-onUnmounted(stopAuto)
+onUnmounted(() => {
+  stopAuto()
+  document.removeEventListener('pointerdown', closeSearchOnOutsideClick)
+})
 </script>
 
 <template>
@@ -153,11 +208,31 @@ onUnmounted(stopAuto)
 
     <!-- ===== 搜尋框 ===== -->
     <div class="store-nav">
-      <!-- 搜尋框：按 Enter 或放大鏡就搜尋 -->
-      <form class="search" @submit.prevent="search">
-        <input v-model="keyword" placeholder="搜尋" />
-        <button type="submit" aria-label="搜尋">🔍</button>
-      </form>
+      <!-- 搜尋框：輸入時顯示即時建議；Enter 或放大鏡保留原本完整搜尋 -->
+      <div ref="searchBox" class="search-container">
+        <form class="search" role="search" @submit.prevent="search">
+          <input v-model="keyword" placeholder="搜尋遊戲" aria-label="搜尋遊戲"
+            autocomplete="off" :aria-expanded="showSearchSuggestions" aria-controls="home-search-suggestions"
+            @focus="searchFocused = true" @keydown.esc="searchFocused = false" />
+          <button type="submit" aria-label="搜尋">🔍</button>
+        </form>
+        <div v-if="showSearchSuggestions" id="home-search-suggestions" class="search-suggestions">
+          <template v-if="searchMatches.length">
+            <button v-for="game in searchMatches" :key="game.gameId" type="button"
+              class="search-suggestion" @click="selectSearchResult(game)">
+              <img v-if="game.coverUrl" :src="game.coverUrl" :alt="game.gameName" class="search-result-thumbnail" loading="lazy" />
+              <span v-else class="search-no-cover">🎮</span>
+              <span class="search-game-name">{{ game.gameName }}</span>
+              <span class="search-game-price">
+                <span v-if="hasDiscount(game)" class="search-old-price">{{ formatSearchPrice(game.originalPrice) }}</span>
+                {{ formatSearchPrice(game.price) }}
+              </span>
+            </button>
+            <button type="button" class="search-see-all" @click="search">查看所有搜尋結果 →</button>
+          </template>
+          <div v-else class="search-no-results">找不到符合的遊戲</div>
+        </div>
+      </div>
     </div>
 
     <div class="layout">
@@ -170,7 +245,7 @@ onUnmounted(stopAuto)
           <!-- ===== 精選與推薦 ===== -->
           <section>
             <div class="head">
-              <h2>精選與推薦</h2>
+              <h2>{{ isAiRecommendation ? 'AI 為您推薦' : '熱門與精選' }}</h2>
             </div>
             <div class="carousel" @mouseenter="stopAuto" @mouseleave="startAuto">
               <button class="arrow left" aria-label="上一個" @click="prev">‹</button>
@@ -184,9 +259,9 @@ onUnmounted(stopAuto)
                     <span v-if="current.genre" class="tag">{{ current.genre }}</span>
                     <span v-if="hasDiscount(current)" class="tag hot">特價中</span>
                   </div>
-                  <div class="reason">現已推出</div>
+                  <div class="reason">{{ current.recommendationReason || (recommendationType === 'POPULAR' ? '熱門遊戲推薦' : '現已推出') }}</div>
                   <div class="buy-row">
-                    <AddToCartButton :game-id="current.gameId" class="cart-btn" />
+                    <AddToCartButton :status="current.status" :game-id="current.gameId" class="cart-btn" />
                     <PriceBlock :game="current" />
                   </div>
                 </div>
@@ -260,7 +335,7 @@ onUnmounted(stopAuto)
                 </div>
                 <img :src="preview.coverUrl" :alt="preview.gameName" />
                 <p>{{ preview.description }}</p>
-                <AddToCartButton :game-id="preview.gameId" class="cart-btn" />
+                <AddToCartButton :status="preview.status" :game-id="preview.gameId" class="cart-btn" />
               </div>
             </div>
           </section>
@@ -295,11 +370,27 @@ onUnmounted(stopAuto)
   display: flex; align-items: center; height: 40px;
 }
 /* 搜尋框：靠右、圓角 */
-.search { margin-left: auto; display: flex; height: 28px; }
+.search-container { position: relative; margin-left: auto; z-index: 20; }
+.search { display: flex; height: 28px; }
 .search input { width: 200px; border: 1px solid var(--gold-dark); padding: 0 12px; background: var(--bg); color: var(--text); font-size: 13px; border-radius: 14px 0 0 14px; outline: none; }
 .search input::placeholder { color: var(--text-dim); }
 .search input:focus { border-color: var(--gold); }
 .search button { border: none; background: var(--gold); width: 34px; cursor: pointer; border-radius: 0 14px 14px 0; }
+
+/* ===== 搜尋建議：沿用遊戲封面與售價，不新增縮圖資料 ===== */
+.search-suggestions { position: absolute; top: calc(100% + 7px); right: 0; width: min(390px, calc(100vw - 32px)); background: #17234c; border: 1px solid var(--gold-dark); border-radius: 6px; box-shadow: 0 12px 30px rgba(0,0,0,.55); overflow: hidden; }
+.search-suggestion { display: flex; align-items: center; width: 100%; min-height: 66px; gap: 10px; padding: 7px 10px; background: transparent; color: var(--text); border: 0; border-bottom: 1px solid #2a3864; text-align: left; cursor: pointer; }
+.search-suggestion:hover, .search-suggestion:focus-visible { background: #293b70; outline: none; }
+.search-suggestion .search-result-thumbnail { width: 94px !important; height: 52px !important; max-width: 94px !important; min-width: 94px !important; max-height: 52px !important; flex: 0 0 94px; border-radius: 3px; object-fit: cover; display: block; }
+.search-no-cover { width: 94px; height: 52px; flex: 0 0 94px; border-radius: 3px; }
+.search-no-cover { display: grid; place-items: center; background: var(--surface); }
+.search-game-name { flex: 1; min-width: 0; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.search-game-price { flex: 0 0 auto; font-size: 12px; text-align: right; color: #f2cb79; }
+.search-old-price { display: block; color: var(--text-muted); text-decoration: line-through; font-size: 11px; }
+.search-see-all { display: block; width: 100%; border: 0; background: #1d2d5b; color: var(--gold); padding: 10px; text-align: center; cursor: pointer; }
+.search-see-all:hover { background: #304577; }
+.search-no-results { padding: 16px; text-align: center; font-size: 13px; color: var(--text-muted); }
+
 
 /* ===== 主要內容 ===== */
 .layout { display: flex; gap: 24px; margin-top: 24px; }

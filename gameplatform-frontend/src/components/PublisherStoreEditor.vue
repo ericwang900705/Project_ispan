@@ -6,7 +6,7 @@ import { api } from '../api'
 const form = defineModel('form', { required: true })
 const tagIds = defineModel('tagIds', { required: true })
 const media = defineModel('media', { required: true })
-const props = defineProps({ tags: { type: Array, default: () => [] }, disabled: Boolean, busy: Boolean })
+const props = defineProps({ tags: { type: Array, default: () => [] }, disabled: Boolean, publishedOnly: Boolean, busy: Boolean, tagError: { type: String, default: '' } })
 const emit = defineEmits(['uploading'])
 const uploading = ref(false)
 const uploadError = ref('')
@@ -16,8 +16,15 @@ const imageItems = computed(() => media.value.filter(item => item.type === 'IMAG
 const selectedTags = computed(() => props.tags.filter(tag => tagIds.value.includes(tag.tag_id)))
 const summary = computed(() => (form.value.description || '').trim().slice(0, 160))
 const shownImage = computed(() => imageItems.value.some(item => item.url === activeImage.value) ? activeImage.value : form.value.coverUrl || imageItems.value[0]?.url)
-const price = computed(() => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 2 }).format(Number(form.value.price) || 0))
+const price = computed(() => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(Number(form.value.price) || 0))
 const locked = computed(() => props.disabled || props.busy || uploading.value)
+// 使用瀏覽器本地日期，限制預定發行時間只能選擇明天起。
+const tomorrowMin = computed(() => {
+  const date = new Date()
+  date.setDate(date.getDate() + 1)
+  const pad = value => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T00:00`
+})
 
 function renumber() { media.value.forEach((item, index) => { item.order = index + 1 }) }
 function move(from, to) {
@@ -71,16 +78,16 @@ async function upload(event, cover = false) {
 <template>
   <div class="publisher-store-layout">
     <fieldset class="publisher-store-fields" :disabled="locked">
-      <section class="publisher-edit-section">
+      <section v-if="!publishedOnly" class="publisher-edit-section">
         <h3>基本資料 <span class="publisher-draft-label">草稿編輯</span></h3>
         <label>遊戲名稱<input v-model="form.name" maxlength="150" placeholder="輸入遊戲名稱" required></label>
         <div class="publisher-form-pair">
-          <label>售價（NT$）<input v-model.number="form.price" type="number" min="0" max="99999999.99" step="0.01" required></label>
-          <label>預定發行時間<DatePicker v-model="form.releaseDate" type="datetime-local" label="預定發行時間" /></label>
+          <label>售價（NT$）<input v-model.number="form.price" type="number" min="0" max="99999999" step="1" required></label>
+          <label>預定發行時間<DatePicker v-model="form.releaseDate" type="datetime-local" label="預定發行時間" :min="tomorrowMin" /></label>
         </div>
       </section>
 
-      <section class="publisher-edit-section">
+      <section v-if="!publishedOnly" class="publisher-edit-section">
         <h3>遊戲封面</h3>
         <div class="publisher-cover-upload">
           <img v-if="form.coverUrl" :src="form.coverUrl" alt="目前遊戲封面">
@@ -113,6 +120,7 @@ async function upload(event, cover = false) {
       <section class="publisher-edit-section">
         <h3>遊戲標籤</h3><p class="muted">僅能選擇平台提供的標籤，可複選。</p>
         <div class="publisher-select-tags"><label v-for="tag in tags" :key="tag.tag_id" :class="{ selected: tagIds.includes(tag.tag_id) }"><input v-model="tagIds" type="checkbox" :value="tag.tag_id"><span>{{ tag.tag_name }}</span></label></div>
+        <p v-if="tagError" class="error" role="alert">{{ tagError }}</p>
         <p v-if="!tags.length" class="muted">尚無可選用標籤，請確認資料庫已建立平台標籤。</p>
       </section>
 
@@ -120,11 +128,11 @@ async function upload(event, cover = false) {
         <label>完整遊戲介紹<textarea v-model="form.description" maxlength="20000" rows="8" placeholder="介紹遊戲玩法、故事與特色…"></textarea></label>
         <div class="publisher-description-footer"><small>右側簡介自動擷取介紹的前 160 字。</small><small>{{ (form.description || '').length }} / 20000</small></div>
       </section>
-      <div class="publisher-editor-actions"><button type="submit" class="secondary">{{ busy ? '儲存中…' : '儲存草稿' }}</button><button type="submit" class="primary" data-next="preview">儲存並預覽</button></div>
+      <div class="publisher-editor-actions"><button type="submit" class="secondary">{{ busy ? '儲存中…' : (publishedOnly ? '儲存修改' : '儲存草稿') }}</button><button type="submit" class="primary" data-next="preview">儲存並預覽</button></div>
     </fieldset>
 
     <aside class="publisher-live-preview" aria-label="即時遊戲預覽">
-      <header><h2>即時預覽</h2><p class="muted">隨編輯同步更新 · 尚未上架</p></header>
+      <header><h2>即時預覽</h2><p class="muted">{{ publishedOnly ? '隨編輯同步更新 · 已上架' : '隨編輯同步更新 · 尚未上架' }}</p></header>
       <img v-if="shownImage" class="publisher-preview-cover" :src="shownImage" alt="遊戲商品頁圖片預覽">
       <div v-else class="publisher-preview-cover publisher-image-placeholder">上傳封面後，圖片會顯示在這裡</div>
       <div class="publisher-preview-content">
