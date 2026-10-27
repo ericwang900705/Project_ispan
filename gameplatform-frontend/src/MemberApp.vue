@@ -219,7 +219,7 @@ watch(() => route.fullPath, () => {
             發行商工作區
           </RouterLink>
 
-          <RouterLink v-if="session.user" to="/member/support">
+          <RouterLink :to="session.user ? '/member/support' : '/faq'">
             客服中心
           </RouterLink>
 

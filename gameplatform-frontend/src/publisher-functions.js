@@ -42,7 +42,7 @@ export const publisherFunctions = [
   {
     mode: 'builds',
     label: '遊戲版本資訊管理',
-    description: '維護版本號、檔案網址、大小與啟用狀態。'
+    description: '維護版本號，上傳 ZIP 或填寫檔案網址，並設定啟用狀態。'
   },
   {
     mode: 'tags',
@@ -52,7 +52,7 @@ export const publisherFunctions = [
   {
     mode: 'media',
     label: '遊戲圖片與影片管理',
-    description: '維護封面、圖片與影片網址及顯示順序。'
+    description: '前往修改遊戲，上傳封面、圖片與 MP4 影片並調整順序。'
   },
   {
     mode: 'buyers',

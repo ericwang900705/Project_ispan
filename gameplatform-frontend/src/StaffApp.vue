@@ -1,4 +1,6 @@
 <script setup>
+// 後台入口自行宣告樣式依賴，避免換入口或直接開啟管理頁時漏載。
+import './styles/shared.js'
 import { computed, ref, watch, watchEffect, onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView, useRouter, useRoute } from 'vue-router'
 import { session, logout } from './api'

@@ -1,9 +1,10 @@
 <script setup>
+import PublisherBuildLink from '../components/PublisherBuildLink.vue'
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter, RouterLink, onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router'
-import { api, session } from '../api'
-import { publisherFunctions, publisherLink, publisherGroups, publisherIcons } from '../publisher-functions'
-import { notifyPublisher } from '../publisher-notifications'
+import { api, session } from '../api.js'
+import { publisherFunctions, publisherLink, publisherGroups, publisherIcons } from '../publisher-functions.js'
+import { notifyPublisher } from '../publisher-notifications.js'
 import UiIcon from '../components/UiIcon.vue'
 import PublisherDialog from '../components/PublisherDialog.vue'
 import PublisherSaveActions from '../components/PublisherSaveActions.vue'
@@ -49,7 +50,7 @@ const tick = ref(Date.now())
 const clockOffset = ref(0)
 const dialog = ref(null)
 const dialogError = ref('')
-const discardIndex = ref(-1)
+const tagValidationError = ref('')
 let clockTimer
 let listRun = 0
 let detailRun = 0
@@ -61,17 +62,38 @@ const remaining = computed(() => {
   return Math.floor(seconds / 3600) + ' 小時 ' + Math.floor(seconds % 3600 / 60) + ' 分 ' + seconds % 60 + ' 秒'
 })
 const editable = computed(() => selected.value && !selected.value.pending_review_type && selected.value.off_shelf_source !== 'ADMIN' && !canRestore.value && ['DRAFT', 'OFF_SHELF'].includes(selected.value.status))
+// 遊戲標籤頁僅開放已上架且沒有進行中審核的遊戲修改。
+const canEditPublishedContent = computed(() => selected.value?.status === 'PUBLISHED' && !selected.value?.pending_review_type && selected.value?.off_shelf_source !== 'ADMIN' && !canRestore.value)
+const canEditTags = computed(() => selected.value?.status === 'PUBLISHED' && !selected.value?.pending_review_type && selected.value?.off_shelf_source !== 'ADMIN' && !canRestore.value)
+const canManageBuilds = computed(() => editable.value || (selected.value?.status === 'PUBLISHED' && !selected.value.pending_review_type))
+// 只顯示唯一啟用的目前版本及最近一筆歷史版本；其餘紀錄保留在資料庫。
+const visibleBuilds = computed(() => {
+  const saved = builds.value.map((build, index) => ({ build, index }))
+    .filter(item => item.build.id != null)
+    .sort((a, b) => Number(a.build.id) - Number(b.build.id))
+  const current = [...saved].reverse().find(item => item.build.status === 'ACTIVE') ?? saved.at(-1)
+  const history = [...saved].reverse().find(item => item.build.id !== current?.build.id)
+  const pending = builds.value.map((build, index) => ({ build, index }))
+    .filter(item => item.build.id == null)
+  return [...(history ? [history] : []), ...(current ? [current] : []), ...pending]
+})
+const currentBuildId = computed(() =>
+  [...builds.value].reverse().find(build => build.id != null && build.status === 'ACTIVE')?.id
+  ?? [...builds.value].reverse().find(build => build.id != null)?.id
+)
+const hasPendingBuild = computed(() => builds.value.some(build => build.id == null))
+const hasStatusChanges = computed(() => selected.value?.status === 'PUBLISHED' && builds.value.some(build => {
+  const original = selected.value?.builds?.find(item => item.build_id === build.id)
+  return original && original.status !== build.status
+}))
+function changeBuildStatus(build) {
+  if (selected.value?.status === 'DRAFT') { build.status = 'ACTIVE'; return }
+  if (selected.value?.status === 'PUBLISHED' && build.status === 'ACTIVE')
+    builds.value.forEach(item => { if (item !== build) item.status = 'INACTIVE' })
+}
 const checks = computed(() => selected.value?.publish_checks || [])
 const publishable = computed(() => editable.value && checks.value.length === 4 && checks.value.every(x => x.complete))
 const date = value => value ? new Date(value).toLocaleString('zh-TW', { hour12: false }) : '—'
-const downloadSpace = (() => {
-  try {
-    const url = new URL(import.meta.env.VITE_PUBLISHER_DOWNLOAD_SPACE_URL || '');
-    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : ''
-  } catch {
-    return ''
-  }
-})()
 function payload() {
   return {
     ...form.value,
@@ -79,9 +101,42 @@ function payload() {
     releaseDate: form.value.releaseDate || null
   }
 }
+// 新增版本依上一版提供三種語意化版本號；既有版本號不允許在此改名。
+const versionPattern = /(?:^|[^\d])(\d+)\.(\d+)\.(\d+)$/
+function versionChoices(index) {
+  const current = builds.value[index]
+  if (!current || current.id != null) return []
+  // 依清單順序找前一個版本，避免同時新增多筆時產生重複版本號。
+  const previous = builds.value.slice(0, index).at(-1)
+  if (!previous) return [{ value: '1.0.0', label: '1.0.0（第一版）' }]
+  const match = String(previous.version || '').trim().match(versionPattern)
+  if (!match) return []
+  const [, majorText, minorText, patchText] = match
+  const major = Number(majorText), minor = Number(minorText), patch = Number(patchText)
+  if (![major, minor, patch].every(Number.isSafeInteger)) return []
+  return [
+    { value: `${major}.${minor}.${patch + 1}`, label: `${major}.${minor}.${patch + 1}（小幅修正）` },
+    { value: `${major}.${minor + 1}.0`, label: `${major}.${minor + 1}.0（功能更新）` },
+    { value: `${major + 1}.0.0`, label: `${major + 1}.0.0（重大改版）` }
+  ]
+}
+watch(() => builds.value.map(b => b.version).join('|'), () => {
+  builds.value.forEach((build, index) => {
+    if (build.id != null) return
+    const choices = versionChoices(index)
+    if (!choices.some(choice => choice.value === build.version)) build.version = choices[0]?.value || ''
+  })
+})
+function addNextBuild() {
+  // 草稿尚無版本時允許建立第一版；已有版本的草稿不允許再新增。
+  if (selected.value?.status === 'DRAFT' && builds.value.length > 0) return
+  if (!canManageBuilds.value || builds.value.length >= 50 || hasPendingBuild.value) return
+  const choices = versionChoices(builds.value.length)
+  builds.value.push({ id: null, version: choices[0]?.value || '', fileUrl: '', fileSize: null, status: 'ACTIVE', source: 'upload' })
+}
 function buildPayload() {
   return builds.value.map(x => ({
-    ...x,
+    id: x.id, version: x.version, fileUrl: x.fileUrl, status: x.status,
     fileSize: x.fileSize === '' || x.fileSize == null ? null : Number(x.fileSize)
   }))
 }
@@ -100,7 +155,7 @@ function snapshot() {
     return JSON.stringify(media.value)
   return ''
 }
-const dirty = computed(() => (mode.value === 'new' ? !selected.value || editable.value : editable.value) && baseline.value !== snapshot())
+const dirty = computed(() => (mode.value === 'new' ? !selected.value || editable.value : mode.value === 'builds' ? canManageBuilds.value : mode.value === 'edit' ? (editable.value || canEditPublishedContent.value) : mode.value === 'media' ? (editable.value || canEditPublishedContent.value) : mode.value === 'tags' ? canEditTags.value : editable.value) && baseline.value !== snapshot())
 function assign(game) {
   selected.value = game
   clockOffset.value = game.server_time - Date.now()
@@ -117,7 +172,8 @@ function assign(game) {
     id: x.build_id,
     version: x.version,
     fileUrl: x.file_url,
-    fileSize: x.file_size, status: x.status
+    fileSize: x.file_size, status: x.status,
+    source: x.file_url?.startsWith('/api/publisher-assets/builds/') ? 'upload' : 'url' 
   }))
   media.value = game.media.map(x => ({
     type: x.media_type,
@@ -180,8 +236,21 @@ async function saveEditor(next = '', syncRoute = true) {
     return null
   }
   const current = mode.value
+  tagValidationError.value = ''
+  if (['new', 'edit', 'tags'].includes(current) && !tagIds.value.length) {
+    tagValidationError.value = '請至少選擇一個遊戲標籤，再進行儲存。'
+    return null
+  }
+  if (current === 'builds' && selected.value?.status === 'PUBLISHED' && !hasPendingBuild.value) {
+    dialogError.value = '請先新增下一個版本，再儲存更新。'
+    error.value = dialogError.value
+    return null
+  }
   let path, body, method = 'PUT'
-  if (['new', 'edit'].includes(current)) {
+  if (current === 'edit' && canEditPublishedContent.value) {
+    path = endpoint('published-content')
+    body = { description: form.value.description, tags: { tagIds: tagIds.value }, media: { media: media.value } }
+  } else if (['new', 'edit'].includes(current)) {
     path = '/workspace/publisher/games' + (selected.value ? '/' + selected.value.game_id : '') + '/document'
     method = selected.value ? 'PUT' : 'POST'; body = { game: payload(), tags: { tagIds: tagIds.value }, media: { media: media.value } }
   } else {
@@ -192,14 +261,27 @@ async function saveEditor(next = '', syncRoute = true) {
   try {
     const game = await api(path, { method, body })
     assign(game); await load()
-    notifyPublisher(['new', 'builds'].includes(current) ? '草稿已儲存' : current === 'edit' ? '修改已儲存' : '設定已儲存')
+    notifyPublisher(current === 'builds' && game.status === 'PUBLISHED' ? '新版本已儲存' : ['new', 'builds'].includes(current) ? '草稿已儲存' : current === 'edit' ? '修改已儲存' : '設定已儲存')
     if (syncRoute && (next || current === 'new')) await goTo(next || current, game.game_id)
     return game
   } catch (e) { error.value = e.message; dialogError.value = e.message; return null }
   finally { busy.value = false }
 }
-function submitEditor(event) { saveEditor(event.submitter?.dataset.next || '') }
-function openDialog(type, index = -1) { dialogError.value = ''; discardIndex.value = index; dialog.value = type }
+function submitEditor(event) {
+  const next = event.submitter?.dataset.next || ''
+  // 草稿版本按「儲存草稿」時，先讓發行商確認。
+  if (mode.value === 'builds' && selected.value?.status === 'DRAFT' && !next) {
+    if (!editorForm.value?.reportValidity()) return
+    openDialog('saveDraftBuild')
+    return
+  }
+  saveEditor(next)
+}
+async function confirmSaveDraftBuild() {
+  const game = await saveEditor()
+  if (game) dialog.value = null
+}
+function openDialog(type) { dialogError.value = ''; dialog.value = type }
 function closeDialog() {
   if (busy.value) return
   if (pendingLeave) { pendingLeave.resolve(false); pendingLeave = null }
@@ -235,18 +317,44 @@ async function action(suffix, message, next = '') {
   } catch (e) { error.value = e.message; dialogError.value = e.message }
   finally { busy.value = false }
 }
-function discardBuild() {
-  const index = discardIndex.value, build = builds.value[index]
-  if (!build) return closeDialog()
-  const original = selected.value.builds.find(x => x.build_id === build.id)
-  if (original) builds.value[index] = { id: original.build_id, version: original.version, fileUrl: original.file_url, fileSize: original.file_size, status: original.status }
-  else builds.value.splice(index, 1)
-  closeDialog()
+async function confirmDeleteDraft() {
+  if (busy.value || selected.value?.status !== 'DRAFT' || selected.value.pending_review_type) return
+  busy.value = true; error.value = ''; dialogError.value = ''
+  try {
+    await api('/workspace/publisher/games/' + selected.value.game_id, { method: 'DELETE' })
+    dialog.value = null
+    selected.value = null
+    builds.value = []; media.value = []; tagIds.value = []
+    baseline.value = snapshot()
+    await load()
+    notifyPublisher('草稿已永久刪除')
+    await goTo('list', null)
+  } catch (e) {
+    error.value = e.message; dialogError.value = e.message
+  } finally { busy.value = false }
+}
+function changeBuildSource(build) { build.fileUrl = ''; build.fileSize = null }
+async function uploadBuild(event, build) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file || busy.value || uploading.value || !canManageBuilds.value) return
+  if (!/\.zip$/i.test(file.name) || !file.size || file.size > 100 * 1024 * 1024) {
+    error.value = '請選擇 ZIP 檔案，每個最多 100 MB。'; return
+  }
+  uploading.value = true; error.value = ''
+  try {
+    const body = new FormData(); body.append('file', file); body.append('kind', 'BUILD')
+    const result = await api('/publisher/files', { method: 'POST', body })
+    build.fileUrl = result.url; build.fileSize = result.fileSize
+    notifyPublisher('ZIP 已上傳，請儲存版本設定')
+  } catch (e) { error.value = e.message }
+  finally { uploading.value = false }
 }
 function beforeUnload(event) { if (dirty.value || busy.value || uploading.value) { event.preventDefault(); event.returnValue = '' } }
 onMounted(() => { clockTimer = setInterval(() => { tick.value = Date.now() }, 1000); window.addEventListener('beforeunload', beforeUnload) })
 onUnmounted(() => { clearInterval(clockTimer); window.removeEventListener('beforeunload', beforeUnload); pendingLeave?.resolve(false) })
 watch(() => [route.query.mode, route.query.game], async () => {
+  if (route.query.mode === 'media') { await goTo('edit', route.query.game); return }
   detailRun++; selected.value = null; error.value = ''
   form.value = emptyForm(); tagIds.value = []; builds.value = []; media.value = []; reason.value = ''; baseline.value = snapshot()
   if (route.query.game && /^\d+$/.test(String(route.query.game))) await choose(route.query.game)
@@ -337,7 +445,7 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
               <form v-if="['new', 'edit'].includes(mode)" class="publisher-form" ref="editorForm"
                 @submit.prevent="submitEditor">
                 <PublisherStoreEditor v-model:form="form" v-model:tag-ids="tagIds" v-model:media="media" :tags="allTags"
-                  :disabled="!!selected && !editable" :busy="busy" @uploading="uploading = $event" />
+                  :disabled="!!selected && !editable && !canEditPublishedContent" :published-only="!!canEditPublishedContent" :busy="busy" :tag-error="tagValidationError && !tagIds.length ? tagValidationError : ''" @uploading="uploading = $event" />
               </form>
               <template v-else-if="mode === 'publish'">
                 <div class="publisher-notice-toolbar">
@@ -349,18 +457,19 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
                   <li v-for="check in checks" :key="check.key" :class="{ complete: check.complete }">
                     <UiIcon :name="check.complete ? 'check' : 'alert'" />
                     <div>
-                      <strong>{{ check.label }}</strong>
+                      <button v-if="check.key === 'media' && editable" type="button" class="text-button" @click="goTo('edit')">{{ check.label }}</button>
+                      <strong v-else>{{ check.label }}</strong>
                       <small>{{ check.complete ? '已完成' : '未完成' }}</small>
                     </div>
-                    <button v-if="!check.complete && editable" class="secondary"
-                      @click="goTo(check.key === 'media' && !selected.cover_url ? 'edit' : check.mode)">
+                    <button v-if="editable" class="secondary"
+                      @click="goTo(check.key === 'media' ? 'edit' : check.mode)">
                       前往設定
                     </button>
                   </li>
                 </ul>
                 <form class="publisher-form" @submit.prevent="openDialog('publish')">
                   <label>補充說明
-                    <textarea v-model="reason" maxlength="500" rows="3" :disabled="busy || !editable"></textarea>
+                    <textarea v-model="reason" maxlength="500" rows="3" :disabled="busy || uploading || !editable"></textarea>
                   </label>
                   <button class="primary" :disabled="busy || !publishable">送出上架審核</button>
                   <p v-if="editable && !publishable" class="muted">尚有未完成的必要設定，無法送出審核。</p>
@@ -369,62 +478,66 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
               </template>
               <form v-else-if="mode === 'builds'" class="publisher-form" ref="editorForm"
                 @submit.prevent="submitEditor">
-                <fieldset :disabled="busy || !editable">
-                  <div v-for="(build, index) in builds" :key="index" class="publisher-resource-card">
-                    <h3>版本 {{ index + 1 }}</h3>
+                <fieldset :disabled="busy || uploading || !canManageBuilds">
+                  <fieldset v-for="{ build, index } in visibleBuilds" :key="build.id ?? `new-${index}`" class="publisher-resource-card" :disabled="build.id != null && selected?.status !== 'PUBLISHED'">
+                    <h3>{{ build.id == null ? '新增遊戲更新（尚未儲存）' : (currentBuildId === build.id ? '目前版本' : '歷史版本') }} · {{ build.version || '待選擇版本號' }}</h3>
                     <label>版本號
-                      <input v-model="build.version" maxlength="30" required>
+                      <input v-if="build.id != null" :value="build.version" type="text" readonly aria-label="已建立的版本號">
+                      <select v-else v-model="build.version" required>
+                        <option disabled value="">請先完成上一個版本</option>
+                        <option v-for="choice in versionChoices(index)" :key="choice.value" :value="choice.value">{{ choice.label }}</option>
+                      </select>
                     </label>
-                    <label>版本檔案網址
-                      <input v-model="build.fileUrl" type="url" maxlength="500" required>
-                    </label>
+                    <p v-if="build.id == null && !versionChoices(index).length" class="muted">上一個版本號格式不符，請先確認版本資料。</p>
+                    <div class="publisher-build-source" role="group" aria-label="版本檔案來源">
+                      <label><input v-model="build.source" type="radio" :disabled="build.id != null" :name="'build-source-' + index" value="upload" @change="changeBuildSource(build)">上傳 ZIP</label>
+                      <label><input v-model="build.source" type="radio" :disabled="build.id != null" :name="'build-source-' + index" value="url" @change="changeBuildSource(build)">使用網址</label>
+                    </div>
+                    <template v-if="build.source === 'upload'">
+                      <label>選擇 ZIP 檔案（最多 100 MB）<input type="file" accept=".zip,application/zip" :disabled="uploading || build.id != null" @change="uploadBuild($event, build)"></label>
+                      <label>已上傳版本<input v-model="build.fileUrl" type="text" readonly required placeholder="請先上傳 ZIP"></label>
+                      <div v-if="build.fileUrl" class="publisher-build-download"><PublisherBuildLink :url="build.fileUrl" /></div><p v-if="uploading" role="status">ZIP 上傳中，請稍候…</p>
+                    </template>
+                    <label v-else>版本檔案網址<input v-model="build.fileUrl" type="url" maxlength="500" :readonly="build.id != null" required placeholder="https\://…"></label>
                     <div class="publisher-form-pair">
                       <label>檔案大小（Bytes，可留空）
-                        <input v-model="build.fileSize" type="number" min="0" step="1"
+                        <input v-model="build.fileSize" type="number" min="0" step="1" :readonly="build.id != null"
                           @change="build.fileSize = build.fileSize === '' ? null : Number(build.fileSize)">
                       </label>
                       <label>狀態
-                        <select v-model="build.status">
+                        <select v-model="build.status" :disabled="selected?.status === 'DRAFT'" @change="changeBuildStatus(build)">
                           <option value="ACTIVE">啟用</option>
                           <option value="INACTIVE">停用</option>
                         </select>
                       </label>
                     </div>
-                    <button type="button" class="text-button" @click="openDialog('discardBuild', index)">
-                      放棄此版本變更
+                  </fieldset>
+                  <div class="publisher-button-row"><button type="button" :disabled="(selected?.status === 'DRAFT' && builds.length > 0) || builds.length >= 50 || hasPendingBuild || !canManageBuilds"
+                      class="publisher-next-version-button" @click="addNextBuild">
+                      {{ selected?.status === 'DRAFT' ? '新增遊戲' : '新增下一個版本' }}
                     </button>
                   </div>
-                  <div class="publisher-button-row"><button type="button" :disabled="builds.length >= 50"
-                      @click="builds.push({ id: null, version: '', fileUrl: '', fileSize: null, status: 'ACTIVE' })">
-                      新增下一個版本
-                    </button>
-                  </div>
-                  <div class="publisher-download-space">
-                    <a v-if="downloadSpace" :href="downloadSpace" target="_blank" rel="noopener noreferrer">
-                      前往下載空間複製 ↗
-                    </a>
-                    <button v-else type="button" disabled>前往下載空間複製</button>
-                    <small v-if="!downloadSpace">尚未設定團隊下載空間網址。</small>
-                  </div>
-                  <PublisherSaveActions secondary="儲存草稿" primary="儲存並前往：上架檢核" next="publish" :busy="busy" />
+                  <button v-if="selected?.status === 'PUBLISHED' && (hasPendingBuild || hasStatusChanges)" type="submit" class="primary" :disabled="busy || uploading">{{ hasPendingBuild ? '儲存新版本' : '儲存版本狀態' }}</button>
+                  <PublisherSaveActions v-else-if="selected?.status === 'DRAFT'" secondary="儲存草稿" primary="儲存並前往：上架檢核" next="publish" :busy="busy" />
                 </fieldset>
-                <p class="muted">此處管理版本資訊與檔案網址；檔案請先放到團隊的下載空間。既有版本可停用，不直接刪除。</p>
+                <p class="muted">新增版本可選擇上傳 ZIP 或填寫 HTTP／HTTPS 網址，擇一即可。畫面僅顯示目前版本與上一個歷史版本；更早版本仍保留在資料庫。</p>
               </form>
               <form v-else-if="mode === 'tags'" class="publisher-form" ref="editorForm" @submit.prevent="submitEditor">
-                <fieldset :disabled="busy || !editable">
-                  <p class="muted">只能勾選平台提供的標籤，可複選。</p>
+                <fieldset :disabled="busy || uploading || !canEditTags">
+                  <p class="muted">只能勾選平台提供的標籤，至少選擇一個，可複選。</p>
                   <div class="publisher-tag-grid">
                     <label v-for="tag in allTags" :key="tag.tag_id">
                       <input v-model="tagIds" type="checkbox" :value="tag.tag_id">
                       {{ tag.tag_name }}
                     </label>
                   </div>
+                  <p v-if="tagValidationError && !tagIds.length" class="error" role="alert">{{ tagValidationError }}</p>
                   <p v-if="!allTags.length" class="muted">尚未建立可選用的標籤。</p>
                   <PublisherSaveActions primary="儲存並前往：設定圖片與影片" next="media" :busy="busy" />
                 </fieldset>
               </form>
               <form v-else-if="mode === 'media'" class="publisher-form" ref="editorForm" @submit.prevent="submitEditor">
-                <fieldset :disabled="busy || !editable">
+                <fieldset :disabled="busy || uploading || !(editable || canEditPublishedContent)">
                   <div v-for="(item, index) in media" :key="index" class="publisher-resource-card">
                     <div class="publisher-form-pair">
                       <label>類型
@@ -455,9 +568,9 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
               <PublisherOperations v-else :game="selected" :mode="mode" :can-restore="!!canRestore"
                 :remaining="remaining" :editable="!!editable" :busy="busy"
                 @off-shelf="reason = ''; openDialog('offShelf')" @restore="action('restore', '已取消下架申請')"
-                @navigate="goTo" />
-              <p v-if="!editable && ['edit', 'builds', 'tags', 'media'].includes(mode)" class="publisher-pending">
-                已上架、待審核及預定下架期間保留原資料，不可修改。
+                @navigate="goTo" @delete-draft="openDialog('deleteDraft')" />
+              <p v-if="!editable && ((['edit', 'media'].includes(mode) && !canEditPublishedContent) || (mode === 'tags' && !canEditTags) || (mode === 'builds' && !canManageBuilds))" class="publisher-pending">
+                {{ mode === 'tags' ? '只有已上架且非審核中的遊戲可以修改標籤。' : '目前狀態無法修改此資料；待審核及預定下架期間不可修改。' }}
               </p>
             </template>
             <div v-else class="publisher-empty">
@@ -473,8 +586,8 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
     </div>
   </section>
   <PublisherDialog :open="!!dialog" :busy="busy"
-    :title="dialog === 'leave' ? '尚有未儲存的變更' : dialog === 'publish' ? '確認送出上架審核' : dialog === 'offShelf' ? '確認申請下架' : '放棄此版本變更'"
-    :description="dialog === 'leave' ? '您有尚未儲存的資料，要先儲存再前往嗎？' : dialog === 'publish' ? '送出後在審核完成前將無法修改遊戲資料，確定要送出嗎？' : dialog === 'offShelf' ? '提出申請後 24 小時會自動下架，期限內可以取消下架。遊戲資料與購買紀錄會保留。' : '確定要捨棄此版本尚未儲存的變更嗎？既有版本會還原，新增版本會移除。'"
+    :title="dialog === 'leave' ? '尚有未儲存的變更' : dialog === 'publish' ? '確認送出上架審核' : dialog === 'offShelf' ? '確認申請下架' : dialog === 'saveDraftBuild' ? '確認儲存草稿版本' : dialog === 'deleteDraft' ? '確認永久刪除草稿？' : ''"
+    :description="dialog === 'leave' ? '您有尚未儲存的資料，要先儲存再前往嗎？' : dialog === 'publish' ? '送出後在審核完成前將無法修改遊戲資料，確定要送出嗎？' : dialog === 'offShelf' ? '提出申請後 24 小時會自動下架，期限內可以取消下架。遊戲資料與購買紀錄會保留。' : dialog === 'saveDraftBuild' ? '確定要儲存此版本嗎？儲存後，這筆已建立的版本將暫時鎖定，不能在版本管理畫面直接修改；請先確認版本號與 ZIP／網址。' : dialog === 'deleteDraft' ? `確定要永久刪除「${selected?.game_name || '此遊戲'}」嗎？遊戲草稿、版本及相關設定將永久刪除，無法復原。` : ''"
     @close="closeDialog">
     <label v-if="dialog === 'offShelf'">下架說明（選填）
       <textarea v-model="reason" maxlength="500" rows="3" :disabled="busy"></textarea>
@@ -490,6 +603,8 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
           儲存並前往
         </button>
       </template>
+      <button v-else-if="dialog === 'deleteDraft'" class="publisher-danger" :disabled="busy" @click="confirmDeleteDraft">確定刪除</button>
+      <button v-else-if="dialog === 'saveDraftBuild'" class="primary" :disabled="busy || uploading" @click="confirmSaveDraftBuild">確定儲存</button>
       <button v-else-if="dialog === 'publish'" class="primary" :disabled="busy || !publishable"
         @click="action('publish', '已送出上架審核', 'history')">
         確認送出審核
@@ -498,12 +613,21 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
         @click="action('off-shelf', '已提出下架申請，24 小時內可取消')">
         確認申請下架
       </button>
-      <button v-else class="publisher-danger" :disabled="busy" @click="discardBuild">放棄此版本變更</button>
     </template>
   </PublisherDialog>
 </template>
 
 <style scoped>
+/* 新增下一個版本按鈕使用黃色文字。 */
+.publisher-next-version-button { color: #f5cf61; }
+/* 下載 ZIP 按鈕與下方檔案大小、狀態欄位留一排間距。 */
+.publisher-build-download { margin-bottom: 22px; }
+
+/* 來源選項保留原生單選尺寸，不套用一般文字欄位的滿寬規則。 */
+.publisher-build-source { display: flex; flex-wrap: wrap; gap: 18px; margin: 12px 0; }
+.publisher-build-source label { display: flex; align-items: center; gap: 8px; }
+.publisher-build-source input[type="radio"] { width: auto; margin: 0; accent-color: #d4a64a; }
+
 /* 修改遊戲：清單和編輯區上下排列 */
 .publisher-games .publisher-editing {
   display: grid;

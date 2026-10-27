@@ -1,4 +1,5 @@
 <script setup>
+import SupportContext from '../components/SupportContext.vue'
 
 import { canSupport, canUseTickets, homeFor, roleName } from '../permissions'
 
@@ -338,6 +339,7 @@ async function changePriority(priority) {
 
       </div>
 
+      <SupportContext scope="tickets" :id="ticket.id" :context-state="ticket.status + ':' + ticket.adminId" />
       <!-- 原始聊天展開區 -->
       <section v-if="origin" class="origin-panel" aria-label="原始聊天紀錄">
         <div class="discussion-heading">
