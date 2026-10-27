@@ -6,6 +6,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 // 共用的購物車 store
 import { useCartStore } from '@/cart/stores/cart'
+import PriceBlock from '@/cart/components/PriceBlock.vue'
 
 // 取得購物車 store（與其他頁面共用同一份資料）
 const cart = useCartStore()
@@ -164,10 +165,12 @@ async function checkout() {
               <!-- 移除：做成文字連結，比較不搶眼 -->
               <button class="remove" :disabled="cart.loading" @click="remove(item.cartItemId)">移除</button>
             </div>
-            <!-- 價格：有折扣時原價加刪除線 -->
-            <div class="price">
-              <del v-if="item.finalPrice !== item.game.price">NT$ {{ item.game.price }}</del>
-              <span>NT$ {{ item.finalPrice }}</span>
+            <!-- 遊戲活動折扣使用共用價格元件；優惠券折抵另列，避免混淆 -->
+            <div class="cart-price-area">
+              <PriceBlock :game="item.game" />
+              <small v-if="Number(item.finalPrice) < Number(item.game.price)" class="coupon-price">
+                優惠券折抵後：NT$ {{ Number(item.finalPrice).toLocaleString('zh-TW') }}
+              </small>
             </div>
           </div>
           <RouterLink to="/" class="continue">← 繼續購物</RouterLink>
@@ -348,4 +351,9 @@ async function checkout() {
   .summary { width: auto; position: static; }
   .item img { width: 110px; height: 52px; }
 }
+</style>
+
+<style scoped>
+.cart-price-area { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px; white-space: nowrap; }
+.coupon-price { color: #f0bb4d; font-size: 12px; font-weight: 600; }
 </style>

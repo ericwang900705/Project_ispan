@@ -7,6 +7,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 // 加入購物車按鈕元件
 import AddToCartButton from '@/cart/components/AddToCartButton.vue'
+import PriceBlock from '@/cart/components/PriceBlock.vue'
 // 共用的購物車 store
 import { useCartStore } from '@/cart/stores/cart'
 // 共用的遊戲 store 和價格小工具
@@ -76,15 +77,7 @@ onMounted(() => {
         <div class="bottom">
           <!-- 加入購物車按鈕，傳入遊戲 ID -->
           <AddToCartButton :status="game.status" :game-id="game.gameId" class="cart-btn" />
-          <div class="price-bar">
-            <!-- 折扣%：有打折才顯示 -->
-            <span v-if="hasDiscount(game)" class="discount">-{{ discountPercent(game) }}%</span>
-            <span class="prices">
-              <!-- 刪除線原價：有打折才顯示 -->
-              <s v-if="hasDiscount(game)">NT$ {{ game.originalPrice }}</s>
-              NT$ {{ game.price }}
-            </span>
-          </div>
+          <PriceBlock :game="game" />
         </div>
       </div>
     </div>

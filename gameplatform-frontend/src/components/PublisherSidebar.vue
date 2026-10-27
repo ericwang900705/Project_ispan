@@ -3,7 +3,7 @@ import { useRoute, RouterLink } from 'vue-router'
 import { publisherFunctions, publisherGroups, publisherIcons, publisherLink } from '../publisher-functions'
 import UiIcon from './UiIcon.vue'
 const route = useRoute()
-const active = key => key === 'notifications' ? route.path === '/publisher/notifications' : key === 'sales' ? route.path === '/publisher/sales' : route.path === '/publisher/games' && (route.query.mode || 'list') === key
+const active = key => key === 'notifications' ? route.path === '/publisher/notifications' : ['sales', 'discounts'].includes(key) ? route.path === `/publisher/${key}` : route.path === '/publisher/games' && (route.query.mode || 'list') === key
 </script>
 <template>
   <aside class="publisher-global-sidebar" aria-label="發行商工作區">

@@ -19,7 +19,7 @@ export const useGamesStore = defineStore('games', () => {
   async function fetchGames() {
     // GET /api/games：向後端取得全部遊戲
     const { data } = await axios.get('/api/games')
-    games.value = data
+    games.value = Array.isArray(data) ? data : []
   }
 
   // 每款遊戲的統計，用 gameId 查：{ 1: { avgRating, reviewCount, soldCount }, ... }
@@ -32,17 +32,30 @@ export const useGamesStore = defineStore('games', () => {
     stats.value = Object.fromEntries(data.map((s) => [s.gameId, s]))
   }
 
+  // 活動開始或結束後，重新讀取後端權威價格；切回分頁時也立即更新。
+  let refreshTimer = null
+  function refreshOnVisible() {
+    if (document.visibilityState === 'visible') fetchGames().catch(console.error)
+  }
+  function startPriceRefresh() {
+    if (refreshTimer || typeof window === 'undefined') return
+    refreshTimer = window.setInterval(refreshOnVisible, 30000)
+    document.addEventListener('visibilitychange', refreshOnVisible)
+  }
+  startPriceRefresh()
   return { games, genres, discountedGames, stats, fetchGames, fetchStats }
 })
 
 // 有原價且原價比售價高，才算有打折
 export function hasDiscount(game) {
-  return game.originalPrice > game.price
+  return Number(game?.originalPrice) > Number(game?.price) && Number(game?.discountPercent ?? discountPercent(game)) > 0
 }
 
 // 折扣百分比，例如原價 1590、售價 318 → 80
 export function discountPercent(game) {
-  return Math.round((1 - game.price / game.originalPrice) * 100)
+  if (Number.isInteger(Number(game?.discountPercent)) && game?.discountPercent != null) return Number(game.discountPercent)
+  if (!(Number(game?.originalPrice) > 0)) return 0
+  return Math.round((1 - Number(game.price) / Number(game.originalPrice)) * 100)
 }
 
 // 每個分類的圖示：要換圖示改這裡就好；沒列到的分類用 🎮

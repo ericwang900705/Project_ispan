@@ -224,8 +224,9 @@ onUnmounted(() => {
               <span v-else class="search-no-cover">🎮</span>
               <span class="search-game-name">{{ game.gameName }}</span>
               <span class="search-game-price">
+                <span v-if="hasDiscount(game)" class="search-discount-badge">-{{ game.discountPercent ?? discountPercent(game) }}%</span>
                 <span v-if="hasDiscount(game)" class="search-old-price">{{ formatSearchPrice(game.originalPrice) }}</span>
-                {{ formatSearchPrice(game.price) }}
+                <strong class="search-final-price">{{ formatSearchPrice(game.price) }}</strong>
               </span>
             </button>
             <button type="button" class="search-see-all" @click="search">查看所有搜尋結果 →</button>
@@ -385,7 +386,9 @@ onUnmounted(() => {
 .search-no-cover { width: 94px; height: 52px; flex: 0 0 94px; border-radius: 3px; }
 .search-no-cover { display: grid; place-items: center; background: var(--surface); }
 .search-game-name { flex: 1; min-width: 0; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.search-discount-badge { display: inline-block; background: #a4d007; color: #1b2b08; font-weight: 700; padding: 2px 5px; margin-right: 5px; }
 .search-game-price { flex: 0 0 auto; font-size: 12px; text-align: right; color: #f2cb79; }
+.search-final-price { color: #fff; font-weight: 700; }
 .search-old-price { display: block; color: var(--text-muted); text-decoration: line-through; font-size: 11px; }
 .search-see-all { display: block; width: 100%; border: 0; background: #1d2d5b; color: var(--gold); padding: 10px; text-align: center; cursor: pointer; }
 .search-see-all:hover { background: #304577; }

@@ -182,7 +182,7 @@ function day(dateTime) {
         <h2>詳細資訊</h2>
         <dl class="box facts">
           <div><dt>類型</dt><dd>{{ game.genre || '未分類' }}</dd></div>
-          <div><dt>售價</dt><dd>{{ game.price === 0 ? '免費' : `NT$ ${game.price}` }}</dd></div>
+          <div><dt>售價</dt><dd><PriceBlock :game="game" /></dd></div>
           <div v-if="game.originalPrice > game.price"><dt>原價</dt><dd>NT$ {{ game.originalPrice }}</dd></div>
           <div><dt>整體評價</dt><dd>{{ summary }}</dd></div>
         </dl>
