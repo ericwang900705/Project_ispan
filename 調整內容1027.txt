@@ -1,0 +1,17 @@
+調整內容
+
+1. 加好友功能及聊天測試
+	a.調整後端檔案 friend/FriendService.java
+
+2. 發行商申請按鈕: 
+	a.調整 src/views/MemberAccount.vue
+	b.調整 main.js  --->
+ 	// ─── 新增：申請遊戲發行商頁面 ───
+    {
+        path: '/member/apply-publisher',
+        component: () => import('./views/MemberAccount.vue'),
+        meta: { member: true }
+    },
+	c.調整後端檔案 member/service/memberservice.java
+	    // ---11.申請成為發行商 applyToBePublisher
+	d.調整後端檔案 member/dto/PublisherApplicationRequest.java
