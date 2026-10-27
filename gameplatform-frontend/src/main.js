@@ -181,6 +181,11 @@ const routes = [
         meta: { publisher: true }
     },
     {
+        path: '/publisher/discounts',
+        component: () => import('./views/PublisherDiscounts.vue'),
+        meta: { publisher: true }
+    },
+    {
         path: '/publisher/sales',
         component: () => import('./views/PublisherSales.vue'),
         meta: { publisher: true }

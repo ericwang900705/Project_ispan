@@ -15,6 +15,11 @@ export const publisherFunctions = [
     description: '建立遊戲草稿，填寫名稱、售價與介紹。'
   },
   {
+    mode: 'discounts',
+    label: '遊戲折扣管理',
+    description: '設定 1～99% 整數折扣，固定七天，結束後冷卻三十天。'
+  },
+  {
     mode: 'edit',
     label: '修改遊戲',
     description: '編輯草稿或已下架遊戲。'
@@ -62,8 +67,8 @@ export const publisherFunctions = [
 ]
 
 export const publisherLink = mode =>
-  mode === 'sales'
-    ? { path: '/publisher/sales' }
+  ['sales', 'discounts'].includes(mode)
+    ? { path: mode === 'sales' ? '/publisher/sales' : '/publisher/discounts' }
     : { path: '/publisher/games', query: { mode } }
 
 // 呈現分組沿用相同功能模式及路由。
@@ -71,7 +76,7 @@ export const publisherGroups = [
   {
     title: '遊戲管理',
     icon: 'game',
-    modes: ['list', 'new', 'edit', 'preview', 'offShelf']
+    modes: ['list', 'new', 'edit', 'discounts', 'preview', 'offShelf']
   },
   {
     title: '素材與版本',
@@ -90,6 +95,7 @@ export const publisherIcons = {
   list: 'game',
   new: 'plus',
   edit: 'edit',
+  discounts: 'tag',
   offShelf: 'power',
   builds: 'folder',
   tags: 'tag',
