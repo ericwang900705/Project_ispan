@@ -83,7 +83,8 @@ export const useCartStore = defineStore('cart', () => {
   async function fetchLibrary() {
     // GET /api/member-games/{memberId}
     const { data } = await axios.get(`/api/member-games/${MEMBER_ID}`)
-    library.value = data
+    // 退款停用的遊戲（is_active = 0）不算擁有：不顯示在遊戲庫，也可以再買一次
+    library.value = data.filter((entry) => entry.isActive !== false)
   }
 
   // 加入購物車；後端拒絕時（例如已擁有）把錯誤訊息往外丟給元件顯示

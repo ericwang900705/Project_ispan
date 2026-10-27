@@ -1,12 +1,15 @@
 <script setup>
 // onMounted：元件顯示到畫面上之後要執行的動作
 import { ref, computed, onMounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 // 共用的購物車 store（遊戲庫資料也放在這裡）
 import { useCartStore } from '@/stores/cart'
 import ReviewForm from '@/components/ReviewForm.vue'
+// 可以在網頁上玩的小遊戲
+import { miniGameOf } from '@/minigames'
 
 const cart = useCartStore()
+const router = useRouter()
 // 進入頁面時向後端抓最新的遊戲庫
 onMounted(() => cart.fetchLibrary())
 
@@ -38,9 +41,10 @@ function playTime(minutes) {
   return `${Math.round((minutes / 60) * 10) / 10} 小時`
 }
 
-// 點「開始遊戲」：目前還沒有遊戲本體，先跳提示
+// 點「開始遊戲」：有小遊戲版本的就進遊玩頁，其他遊戲還沒有遊戲本體
 function play(entry) {
-  alert(`啟動 ${entry.game.gameName}（尚未實作）`)
+  if (miniGameOf(entry.game)) router.push(`/play/${entry.game.gameId}`)
+  else alert(`${entry.game.gameName} 還沒有可以在網頁上玩的版本`)
 }
 
 // 正在寫評論的遊戲（null 代表評論視窗沒打開）
@@ -92,6 +96,7 @@ function openReview(entry) {
           <span class="badge" :class="{ gift: entry.obtainedSource === 'GIFT' }">
             {{ entry.obtainedSource === 'GIFT' ? '🎁 ' : '' }}{{ sourceLabel[entry.obtainedSource] ?? entry.obtainedSource }}
           </span>
+          <span v-if="miniGameOf(entry.game)" class="playable">可遊玩</span>
           <button class="play" @click="play(entry)">▶ 開始遊戲</button>
         </div>
 
@@ -180,6 +185,11 @@ function openReview(entry) {
   font-size: 11px; background: rgba(11, 12, 50, .8); color: var(--text-muted); border: 1px solid var(--border);
 }
 .badge.gift { color: #f0c060; border-color: var(--gold); }
+/* 右上角：可以直接在網頁上玩的小遊戲 */
+.playable {
+  position: absolute; top: 8px; right: 8px; padding: 2px 8px; border-radius: 10px;
+  font-size: 11px; font-weight: bold; background: rgba(11, 12, 50, .8); color: #9bd46a; border: 1px solid #9bd46a;
+}
 
 /* 開始遊戲按鈕：平常隱藏，滑鼠移到卡片上才出現在封面正中間 */
 .play {

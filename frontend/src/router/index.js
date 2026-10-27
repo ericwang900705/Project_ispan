@@ -34,9 +34,10 @@ const routes = [
         component: () => import('../views/Coupons.vue')
     },
     {
-        path: '/point-store',//點數商店
-        name: 'PointStore',
-        component: () => import('../views/PointStore.vue')
+        // 遊玩小遊戲：:id 是遊戲編號，遊戲庫裡有的才能玩
+        path: '/play/:id',
+        name: 'PlayGame',
+        component: () => import('../views/PlayGame.vue')
     },
     {
         path: '/member-games',//遊戲庫
