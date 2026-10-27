@@ -147,9 +147,13 @@ public class BackofficeService {
         }
         if (keyword == null || keyword.length() > 100)
             throw bad("搜尋字數最多 100 字");
-        String where = " WHERE CHARINDEX(?," + search + ")>0" + filter;
+        // 空白搜尋不加入關鍵字條件，直接顯示全部資料。
+        String trimmedKeyword = keyword.trim();
+        String where = trimmedKeyword.isEmpty() ? " WHERE 1=1" + filter
+                : " WHERE CHARINDEX(?," + search + ")>0" + filter;
         var args = new ArrayList<Object>();
-        args.add(keyword.trim());
+        if (!trimmedKeyword.isEmpty())
+            args.add(trimmedKeyword);
         if (!status.isEmpty())
             args.add(status);
         Long total = db.queryForObject("SELECT COUNT_BIG(*) FROM " + from + where, Long.class, args.toArray());

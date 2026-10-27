@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -26,6 +27,7 @@ public class GameTagService {
     private final TagRepository tagRepository;
     private final GameTagRepository gameTagRepository;
     private final GameRepository gameRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     // 1. 查詢全部標籤
     public List<Tag> findAllTags() {
@@ -102,18 +104,12 @@ public class GameTagService {
             }
         }
 
-        // 刪除舊標籤
-        gameTagRepository.deleteByGameId(gameId);
-        gameTagRepository.flush();
-
-        // 新增標籤
+        // 以 JDBC 更新標籤關聯，避免 Hibernate INSERT 筆數檢查異常。
+        jdbcTemplate.update("DELETE FROM game_tags WHERE game_id = ?", gameId);
         for (Integer tagId : uniqueTagIds) {
-
-            GameTag gameTag = new GameTag();
-            gameTag.setGameId(gameId);
-            gameTag.setTagId(tagId);
-
-            gameTagRepository.save(gameTag);
+            jdbcTemplate.update(
+                    "INSERT INTO game_tags (game_id, tag_id) VALUES (?, ?)",
+                    gameId, tagId);
         }
 
         return findGameTags(gameId);
