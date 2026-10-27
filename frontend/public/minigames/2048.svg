@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#2b2140"/>
+  <rect x="40" y="40" width="280" height="280" rx="14" fill="#3d3058"/>
+  <g font-family="Arial, sans-serif" font-weight="900" text-anchor="middle">
+    <rect x="56" y="56" width="116" height="116" rx="10" fill="#f2b179"/>
+    <text x="114" y="132" font-size="52" fill="#fff">8</text>
+    <rect x="188" y="56" width="116" height="116" rx="10" fill="#f67c5f"/>
+    <text x="246" y="132" font-size="48" fill="#fff">64</text>
+    <rect x="56" y="188" width="116" height="116" rx="10" fill="#edcc61"/>
+    <text x="114" y="262" font-size="40" fill="#fff">512</text>
+    <rect x="188" y="188" width="116" height="116" rx="10" fill="#edc22e"/>
+    <text x="246" y="260" font-size="34" fill="#fff">2048</text>
+    <text x="608" y="210" text-anchor="end" font-size="120" fill="#edc22e">2048</text>
+    <text x="608" y="270" text-anchor="end" font-size="40" fill="#e8dcf8" font-weight="700">數字合成</text>
+  </g>
+</svg>

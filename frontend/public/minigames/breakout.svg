@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141a52"/>
+      <stop offset="1" stop-color="#0a0c2e"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#bg)"/>
+  <g>
+    <rect x="40" y="40" width="64" height="22" rx="4" fill="#ff6b6b"/><rect x="110" y="40" width="64" height="22" rx="4" fill="#ff6b6b"/>
+    <rect x="180" y="40" width="64" height="22" rx="4" fill="#ff6b6b"/><rect x="320" y="40" width="64" height="22" rx="4" fill="#ff6b6b"/>
+    <rect x="390" y="40" width="64" height="22" rx="4" fill="#ff6b6b"/><rect x="530" y="40" width="64" height="22" rx="4" fill="#ff6b6b"/>
+    <rect x="40" y="68" width="64" height="22" rx="4" fill="#ffa94d"/><rect x="180" y="68" width="64" height="22" rx="4" fill="#ffa94d"/>
+    <rect x="250" y="68" width="64" height="22" rx="4" fill="#ffa94d"/><rect x="390" y="68" width="64" height="22" rx="4" fill="#ffa94d"/>
+    <rect x="460" y="68" width="64" height="22" rx="4" fill="#ffa94d"/><rect x="530" y="68" width="64" height="22" rx="4" fill="#ffa94d"/>
+    <rect x="110" y="96" width="64" height="22" rx="4" fill="#ffd43b"/><rect x="250" y="96" width="64" height="22" rx="4" fill="#ffd43b"/>
+    <rect x="320" y="96" width="64" height="22" rx="4" fill="#ffd43b"/><rect x="460" y="96" width="64" height="22" rx="4" fill="#ffd43b"/>
+    <rect x="40" y="124" width="64" height="22" rx="4" fill="#69db7c"/><rect x="180" y="124" width="64" height="22" rx="4" fill="#69db7c"/>
+    <rect x="390" y="124" width="64" height="22" rx="4" fill="#69db7c"/><rect x="530" y="124" width="64" height="22" rx="4" fill="#69db7c"/>
+  </g>
+  <path d="M300 178L248 236" stroke="#d4a64a" stroke-width="2" stroke-dasharray="6 6" opacity=".7"/>
+  <circle cx="246" cy="240" r="10" fill="#f8f1dc"/>
+  <rect x="190" y="300" width="130" height="16" rx="8" fill="#d4a64a"/>
+  <text x="608" y="290" text-anchor="end" font-family="Arial, sans-serif" font-size="64" font-weight="900" fill="#e4e8f8">打磚塊</text>
+</svg>

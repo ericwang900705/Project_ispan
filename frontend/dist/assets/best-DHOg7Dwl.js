@@ -1,0 +1,1 @@
+import{R as e}from"./_plugin-vue_export-helper-B7d3M5fG.js";function t(t,n=!1){let r=`minigame-best-${t}`,i=e(a());function a(){try{let e=localStorage.getItem(r);return e===null?null:Number(e)}catch{return null}}function o(e){if(!(i.value===null||(n?e<i.value:e>i.value)))return!1;i.value=e;try{localStorage.setItem(r,String(e))}catch{}return!0}return{best:i,submit:o}}export{t};
