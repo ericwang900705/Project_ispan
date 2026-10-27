@@ -1,4 +1,5 @@
 <script setup>
+import SupportFaqPanel from '../components/SupportFaqPanel.vue'
 import { canSupport, canUseTickets, homeFor, roleName } from '../permissions'
 
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
@@ -115,7 +116,7 @@ onUnmounted(() => {
       <div class="case-hero-main">
         <span class="eyebrow">CASE TRACKING</span>
         <h1>
-          {{ canSupport(session.user?.role) ? '客服案件管理' : '我的案件' }}
+          {{ canSupport(session.user?.role) ? '客服案件管理' : '會員客服中心' }}
         </h1>
         <p class="hero-text">
           {{
@@ -128,21 +129,7 @@ onUnmounted(() => {
 
     </section>
 
-    <section v-if="session.user?.role === 'MEMBER'" class="member-help-strip">
-      <span class="member-help-icon">
-        <UiIcon name="headset" />
-      </span>
-
-      <div>
-        <strong>有新的問題需要協助？</strong>
-        <p>建議先從線上客服詢問，需要持續追蹤時再由客服整理成案件。</p>
-      </div>
-
-      <button class="primary small" @click="openSupport">
-        詢問客服
-        <UiIcon name="arrow" />
-      </button>
-    </section>
+    <SupportFaqPanel v-if="['MEMBER','PUBLISHER'].includes(session.user?.role)" />
 
     <section class="case-toolbar">
 

@@ -80,6 +80,7 @@ class StaffAuthorizationTests {
     @Test void unknownStaffRejected() { denied(404,()->service.replaceStaffPermissions(highest,99,Set.of())); }
     @Test void securityAdapterUsesTheSamePolicy() {
         assertEquals(AdminPermissionService.ALL_CODES,StaffPermissionService.ALL_CODES);
-        assertEquals(AdminPermissionService.BUSINESS_CODES,StaffPermissionService.options("STAFF"));
+        assertEquals(AdminPermissionService.BUSINESS_CODES,StaffPermissionService.CODES);
+        assertTrue(StaffPermissionService.options("STAFF").isEmpty());
     }
 }

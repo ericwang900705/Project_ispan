@@ -1,3 +1,4 @@
+
 package gameplatform.admin.service;
 
 import gameplatform.admin.entity.*;
@@ -40,7 +41,7 @@ public class AdminPermissionService {
     public static Set<String> fixedPermissions(String role) {
         return switch (role) {
             case "ADMIN" -> ALL_CODES;
-            case "STAFF" -> BUSINESS_CODES;
+            case "STAFF" -> Set.of(); // STAFF 權限由管理員個別授予
             case "REVIEWER" -> Set.of("GAME_REVIEW", "PUBLISHER_REVIEW", "MEMBER_SUSPEND", "COMMENT_REVIEW");
             case "SUPPORT" -> Set.of("TICKET_HANDLE");
             default -> Set.of();
@@ -96,16 +97,57 @@ public class AdminPermissionService {
         return target;
     }
 
-    /**
-     * Shared lock with StaffService: role changes and replacements cannot
-     * interleave.
-     */
     private void lock() {
-        Integer result = db.queryForObject(
-                "DECLARE @r INT; EXEC @r=sys.sp_getapplock @Resource='HERO_STAFF_ADMIN',@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;SELECT @r",
-                Integer.class);
-        if (result == null || result < 0)
-            throw new Problem(409, "人員管理忙碌，請稍後重試");
+        db.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) con -> {
+
+            try (var stmt = con.createStatement()) {
+
+                // 先執行資料表查詢，促使 SQL Server 啟動實際交易
+                try (var rs = stmt.executeQuery(
+                        "SELECT COUNT(*) FROM dbo.admin")) {
+                    rs.next();
+                }
+
+                // 確認交易狀態
+                try (var rs = stmt.executeQuery(
+                        "SELECT @@TRANCOUNT")) {
+
+                    if (!rs.next() || rs.getInt(1) <= 0) {
+                        throw new Problem(
+                                500,
+                                "資料庫交易尚未啟動，無法儲存權限");
+                    }
+                }
+
+                // 保留原本的交易鎖
+                try (var rs = stmt.executeQuery(
+                        "DECLARE @r INT; " +
+                                "EXEC @r = sys.sp_getapplock " +
+                                "@Resource='HERO_STAFF_ADMIN', " +
+                                "@LockMode='Exclusive', " +
+                                "@LockOwner='Transaction', " +
+                                "@LockTimeout=10000; " +
+                                "SELECT @r")) {
+
+                    if (!rs.next()) {
+                        throw new Problem(500, "無法取得權限鎖定結果");
+                    }
+
+                    int result = rs.getInt(1);
+
+                    System.out.println(
+                            "[PERMISSION LOCK] LockResult = " + result);
+
+                    if (result < 0) {
+                        throw new Problem(
+                                409,
+                                "人員管理忙碌，請稍後重試");
+                    }
+                }
+            }
+
+            return null;
+        });
     }
 
     @Transactional
@@ -114,8 +156,7 @@ public class AdminPermissionService {
         requireHighestAdmin(operator);
         grants.deleteAll(grants.findByAdminId(id));
         grants.flush();
-        if ("STAFF".equals(role))
-            replaceStaffPermissions(operator, id, Set.of("DASHBOARD_VIEW"));
+        // 切換角色時清除舊授權，STAFF 不自動取得任何權限。
     }
 
     @Transactional

@@ -8,11 +8,7 @@ import { cartRoutes } from './cart/router/index'
 
 import App from './App.vue'
 
-import './styles/core.css'
-import './styles/layout.css'
-import './styles/support.css'
-import './styles/theme.css'
-import './styles/friends.css'
+import './styles/shared.js'
 
 if (frontendArea !== 'staff') {
     await import('./cart/assets/main.css')
@@ -28,6 +24,9 @@ const storeRoutes = cartRoutes.map(route => ({
     }
 }))
 const routes = [
+    { path: '/faq', component: () => import('./views/SupportFaq.vue'), meta: { public: true } },
+    { path: '/admin/support/reply-templates', component: () => import('./views/SupportContentManagement.vue'), meta: { staff: true, management: true, supportContent: 'reply-templates' } },
+    { path: '/admin/support/faqs', component: () => import('./views/SupportContentManagement.vue'), meta: { staff: true, management: true, supportContent: 'faqs' } },
     ...Object.entries(backofficeModules).map(([area, config]) => ({
         path: '/admin/' + area, component: () =>
             import('./views/AdminOperations.vue'),

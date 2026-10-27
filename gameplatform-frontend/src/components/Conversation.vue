@@ -3,6 +3,7 @@ import { senderTypeFor } from '../permissions'
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { api, session, timeText } from '../api'
 import TicketImage from './TicketImage.vue'
+import SupportReplyPicker from './SupportReplyPicker.vue'
 
 // --- Props 定義 ---
 const props = defineProps({
@@ -21,6 +22,11 @@ const props = defineProps({
   }
 })
 
+function appendReply(value) {
+  const next = draft.value.trim() ? draft.value + '\n\n' + value : value
+  if (next.length > 4000) { error.value = '加入範本後超過 4000 字，請先縮短草稿'; return }
+  draft.value = next
+}
 // --- 狀態定義 ---
 const messages = ref([])
 const more = ref(false)
@@ -261,6 +267,7 @@ onUnmounted(() => {
       {{ error }}
     </p>
 
+    <SupportReplyPicker v-if="canSend && !['MEMBER', 'PUBLISHER'].includes(session.user?.role)" @choose="appendReply" />
     <!-- 訊息輸入表單 -->
     <form v-if="canSend" class="composer" @submit.prevent="send">
       <!-- 待傳送圖片預覽 -->

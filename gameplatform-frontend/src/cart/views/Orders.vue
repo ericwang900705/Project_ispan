@@ -8,6 +8,7 @@ const store = useOrdersStore()
 const STATUS_LABELS = {
   PENDING: '待付款',
   PAID: '已付款',
+  REFUNDED: '已退款',
   FAILED: '付款失敗',
   CANCELLED: '已取消',
   EXPIRED: '已逾期',
@@ -104,6 +105,7 @@ async function cancel(order) {
         </button>
 
         <div v-if="openId === order.orderId" class="detail">
+          <RouterLink class="sx-contact-link" :to="{path:'/member/support',query:{orderId:String(order.orderId)}}">此訂單有問題？聯絡客服 →</RouterLink>
           <!-- 待付款：ATM／超商代碼的繳費資訊 + 取消按鈕 -->
           <div v-if="order.orderStatus === 'PENDING'" class="pending">
             <dl v-if="order.paymentInfo" class="pay-info">

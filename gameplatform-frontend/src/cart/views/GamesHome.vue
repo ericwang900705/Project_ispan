@@ -186,7 +186,7 @@ onUnmounted(stopAuto)
                   </div>
                   <div class="reason">現已推出</div>
                   <div class="buy-row">
-                    <AddToCartButton :game-id="current.gameId" class="cart-btn" />
+                    <AddToCartButton :status="current.status" :game-id="current.gameId" class="cart-btn" />
                     <PriceBlock :game="current" />
                   </div>
                 </div>
@@ -260,7 +260,7 @@ onUnmounted(stopAuto)
                 </div>
                 <img :src="preview.coverUrl" :alt="preview.gameName" />
                 <p>{{ preview.description }}</p>
-                <AddToCartButton :game-id="preview.gameId" class="cart-btn" />
+                <AddToCartButton :status="preview.status" :game-id="preview.gameId" class="cart-btn" />
               </div>
             </div>
           </section>

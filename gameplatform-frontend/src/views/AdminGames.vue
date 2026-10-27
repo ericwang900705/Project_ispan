@@ -1,4 +1,5 @@
 <script setup>
+import PublisherBuildLink from '../components/PublisherBuildLink.vue'
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../api'
@@ -62,6 +63,7 @@ watch(() => route.query.mode, () => {
   detailRun++; detailLoading.value = false; selected.value = null; decision.value = ''; items.value = []; history.value = []
   status.value = ''; keyword.value = ''; load(true)
 }, { immediate: true })
+watch(() => [route.query.mode, route.query.game], ([, id]) => { if (/^\d+$/.test(String(id || ''))) choose(id) }, { immediate: true })
 onBeforeUnmount(() => { alive = false; run++; detailRun++ })
 </script>
 
@@ -97,7 +99,7 @@ onBeforeUnmount(() => { alive = false; run++; detailRun++ })
         <img v-if="selected.game.coverUrl" class="review-detail-cover" :src="selected.game.coverUrl" alt="遊戲封面">
         <dl class="review-facts"><div><dt>發行商編號</dt><dd>#{{ selected.game.memberId }}</dd></div><div><dt>售價</dt><dd>{{ money(selected.game.price) }}</dd></div><div><dt>發售時間</dt><dd>{{ selected.game.releaseDate ? date(selected.game.releaseDate) : '未設定' }}</dd></div><div><dt>遊戲標籤</dt><dd>{{ selected.tags.map(t => t.tagName).join('、') || '未設定' }}</dd></div></dl>
         <section class="review-detail-section"><h3>遊戲介紹</h3><p class="review-description">{{ selected.game.description || '未提供遊戲介紹' }}</p></section>
-        <section class="review-detail-section"><h3>版本資訊 <small>{{ selected.builds.length }} 個版本</small></h3><div v-for="build in selected.builds" :key="build.build_id" class="review-build"><div><strong>{{ build.version }}</strong><small>{{ build.status }}</small></div><a :href="build.file_url" target="_blank" rel="noopener noreferrer">查看版本檔案 ↗</a></div><p v-if="!selected.builds.length" class="muted">尚未提供版本檔案。</p></section>
+        <section class="review-detail-section"><h3>版本資訊 <small>{{ selected.builds.length }} 個版本</small></h3><div v-for="build in selected.builds" :key="build.build_id" class="review-build"><div><strong>{{ build.version }}</strong><small>{{ build.status }}</small></div><PublisherBuildLink :url="build.file_url" /></div><p v-if="!selected.builds.length" class="muted">尚未提供版本檔案。</p></section>
         <section class="review-detail-section"><h3>宣傳素材</h3><div class="review-media"><template v-for="media in selected.media" :key="media.media_id"><img v-if="media.media_type === 'IMAGE'" :src="media.media_url" alt="遊戲宣傳圖"><a v-else :href="media.media_url" target="_blank" rel="noopener noreferrer">查看影片 ↗</a></template><p v-if="!selected.media.length" class="muted">尚未提供宣傳素材。</p></div></section>
         <div class="management-actions review-decision-actions"><template v-if="selected.game.status === 'PENDING_REVIEW'"><button class="primary action-success" :disabled="busy" @click="decision = 'approve'; comment = ''">核准上架</button><button class="review-reject-button action-danger" :disabled="busy" @click="decision = 'reject'; comment = ''">退回申請</button></template><button class="action-danger" v-if="['PUBLISHED', 'COMING_SOON', 'PENDING_OFF_SHELF'].includes(selected.game.status)" :disabled="busy" @click="decision = 'force-off-shelf'; comment = ''">強制下架</button></div>
         <form v-if="decision" class="management-panel" @submit.prevent="submit"><h3>確認{{ decisionLabel }}</h3><label>{{ decision === 'approve' ? '審核說明（選填）' : '處理原因（必填）' }}<textarea v-model="comment" :required="decision !== 'approve'" :disabled="busy" maxlength="500" rows="3"></textarea></label><p>即將對「{{ selected.game.gameName }}」執行{{ decisionLabel }}。</p><div class="management-actions"><button class="primary" :class="decision === 'approve' ? 'action-success' : 'action-danger'" :disabled="busy">{{ busy ? '處理中…' : '確認送出' }}</button><button type="button" :disabled="busy" @click="decision = ''">取消</button></div></form>

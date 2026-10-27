@@ -42,15 +42,15 @@ function goTo(key) {
 
 // 遊戲畫面：封面排第一張，後面接資料庫 game_images 的截圖
 const images = ref([])
-const shots = computed(() => [game.value?.coverUrl, ...images.value].filter(Boolean))
+const shots = computed(() => [...(game.value?.coverUrl ? [{ mediaType: 'IMAGE', mediaUrl: game.value.coverUrl }] : []), ...images.value])
 
 // 向後端拿這款遊戲的截圖網址；拿不到就只顯示封面
 async function fetchImages(id) {
   images.value = []
   try {
-    // GET /api/games/{id}/images：回傳 [ "網址1", "網址2", ... ]
-    const { data } = await axios.get(`/api/games/${id}/images`)
-    images.value = data
+    // GET /api/games/{id}/media：回傳已儲存的圖片與影片
+    const { data } = await axios.get(`/api/games/${id}/media`)
+    if (String(route.params.id) === String(id)) images.value = data
   } catch {
     // 截圖不影響買遊戲，失敗就算了
   }
@@ -143,8 +143,8 @@ function day(dateTime) {
           <!-- 右側購買框 -->
           <aside class="buy-box">
             <PriceBlock :game="game" />
-            <AddToCartButton :game-id="game.gameId" />
-            <GiftButton :game-id="game.gameId" :game-name="game.gameName" />
+            <AddToCartButton :status="game.status" :game-id="game.gameId" />
+            <GiftButton v-if="game.status !== 'COMING_SOON'" :game-id="game.gameId" :game-name="game.gameName" />
           </aside>
         </div>
       </section>
@@ -155,7 +155,7 @@ function day(dateTime) {
         <button v-for="t in tabs" :key="t.key" :class="{ on: tab === t.key }" @click="goTo(t.key)">
           {{ t.label }}
         </button>
-        <AddToCartButton v-if="stuck" :game-id="game.gameId" class="tabs-buy" />
+        <AddToCartButton v-if="stuck" :status="game.status" :game-id="game.gameId" class="tabs-buy" />
       </nav>
 
       <!-- ③ 遊戲畫面：第一張大圖，其他小圖排在右邊；超過 5 張可以左右換頁 -->
@@ -170,7 +170,10 @@ function day(dateTime) {
           </div>
         </div>
         <div class="gallery" :class="{ single: pageShots.length === 1 }">
-          <img v-for="(src, i) in pageShots" :key="page * PAGE_SIZE + i" :src="src" :alt="game.gameName" />
+          <template v-for="(item, i) in pageShots" :key="page * PAGE_SIZE + i">
+            <video v-if="item.mediaType === 'VIDEO'" :src="item.mediaUrl" controls preload="metadata" style="width:100%;height:100%;min-height:0;object-fit:contain"></video>
+            <img v-else :src="item.mediaUrl" :alt="game.gameName" />
+          </template>
         </div>
       </section>
 
@@ -300,8 +303,8 @@ function day(dateTime) {
 .box { margin: 0; padding: 28px 36px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); }
 /* 遊戲畫面：第一張大圖佔左邊兩列，其他小圖兩兩排在右邊 */
 .gallery { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; }
-.gallery img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; }
-.gallery img:first-child { grid-row: span 2; height: 100%; }
+.gallery :is(img, video) { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; }
+.gallery :is(img, video):first-child { grid-row: span 2; height: 100%; }
 /* 只有一張圖：撐滿整排，但不要太高 */
 .gallery.single { grid-template-columns: 1fr; }
 .gallery.single img { max-height: 480px; }

@@ -1,7 +1,8 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { api } from '../api'
+import { api, session } from '../api'
+import { notificationTarget } from '../notification-target.js'
 import UiIcon from './UiIcon.vue'
 
 const router = useRouter()
@@ -32,7 +33,7 @@ async function openNotification(item) {
       await api(`/notifications/${item.notification_id}/read`, { method: 'POST' })
     }
     opened.value = false
-    await router.push(item.target_path)
+    await router.push(notificationTarget(item, session.user?.role))
     await refresh()
   } catch (exception) {
     error.value = exception.message

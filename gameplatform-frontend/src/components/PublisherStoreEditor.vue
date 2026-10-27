@@ -10,6 +10,16 @@ const props = defineProps({ tags: { type: Array, default: () => [] }, disabled: 
 const emit = defineEmits(['uploading'])
 const uploading = ref(false)
 const uploadError = ref('')
+const linkType = ref('VIDEO'), linkUrl = ref('')
+function addMediaLink() {
+  if (locked.value || media.value.length >= 50) return
+  try {
+    const url = new URL(linkUrl.value.trim())
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw Error()
+    media.value.push({ type: linkType.value, url: url.href, order: media.value.length + 1 })
+    linkUrl.value = ''; uploadError.value = ''
+  } catch { uploadError.value = '請輸入有效的 HTTP 或 HTTPS 圖片／影片網址。' }
+}
 const dragIndex = ref(null)
 const activeImage = ref('')
 const imageItems = computed(() => media.value.filter(item => item.type === 'IMAGE'))
@@ -43,8 +53,11 @@ async function upload(event, cover = false) {
     uploadError.value = '最多可新增 50 個媒體，請減少選取數量。'
     return
   }
-  if (files.some(file => file.size === 0 || file.size > 5 * 1024 * 1024 || !/\.(png|jpe?g)$/i.test(file.name))) {
-    uploadError.value = '請選擇 JPG 或 PNG 圖片，每張不超過 5 MB。'
+  if (files.some(file => {
+    const video = !cover && /\.mp4$/i.test(file.name)
+    return file.size === 0 || file.size > (video ? 100 : 5) * 1024 * 1024 || !(video || /\.(png|jpe?g)$/i.test(file.name))
+  })) {
+    uploadError.value = cover ? '封面請選 JPG、PNG，每張最多 5 MB。' : '請選 JPG、PNG（每張最多 5 MB）或 MP4（每個最多 100 MB）。'
     return
   }
   uploading.value = true
@@ -54,13 +67,15 @@ async function upload(event, cover = false) {
     for (const file of files) {
       const body = new FormData()
       body.append('file', file)
-      const result = await api('/publisher/images', { method: 'POST', body })
+      const video = !cover && /\.mp4$/i.test(file.name)
+      if (video) body.append('kind', 'VIDEO')
+      const result = await api(video ? '/publisher/files' : '/publisher/images', { method: 'POST', body })
       if (cover) { form.value.coverUrl = result.url; activeImage.value = '' }
-      else media.value.push({ type: 'IMAGE', url: result.url, order: media.value.length + 1 })
+      else media.value.push({ type: video ? 'VIDEO' : 'IMAGE', url: result.url, order: media.value.length + 1 })
       completed++
     }
   } catch (error) {
-    uploadError.value = `${completed ? `已上傳 ${completed} 張，其餘未完成。` : ''}${error.message}`
+    uploadError.value = `${completed ? `已上傳 ${completed} 個檔案，其餘未完成。` : ''}${error.message}`
   } finally {
     uploading.value = false
     emit('uploading', false)
@@ -95,18 +110,23 @@ async function upload(event, cover = false) {
       </section>
 
       <section class="publisher-edit-section">
-        <div class="publisher-section-title"><h3>遊戲圖片</h3><label class="publisher-upload-button">新增圖片<input type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" multiple aria-label="新增遊戲圖片" @change="upload($event)"></label></div>
-        <p class="muted">拖曳縮圖或使用左右按鈕調整順序，最多 50 個媒體。</p>
+        <div class="publisher-section-title"><h3>遊戲圖片與影片</h3><label class="publisher-upload-button">上傳圖片／影片<input type="file" accept=".jpg,.jpeg,.png,.mp4,image/jpeg,image/png,video/mp4" multiple aria-label="新增遊戲圖片與影片" @change="upload($event)"></label></div>
+        <p class="muted">圖片支援 JPG、PNG（5 MB）；影片支援 MP4（100 MB）。拖曳或使用箭頭調整順序，最多 50 個媒體。</p>
         <div v-if="media.length" class="publisher-sort-gallery">
           <article v-for="(item, index) in media" :key="item.url + ':' + index" class="publisher-sort-item" :draggable="!locked" @dragstart="dragIndex = index" @dragend="dragIndex = null" @dragover.prevent @drop.prevent="drop(index)">
             <span class="publisher-image-number">{{ index + 1 }}</span>
             <img v-if="item.type === 'IMAGE'" :src="item.url" :alt="`遊戲圖片 ${index + 1}`" draggable="false">
-            <div v-else class="publisher-image-placeholder">影片 {{ index + 1 }}</div>
+            <video v-else :src="item.url" controls preload="metadata" :aria-label="`影片 ${index + 1}`" style="width:100%;max-height:180px"></video>
             <div class="publisher-sort-actions"><button type="button" :disabled="index === 0" :aria-label="`將第 ${index + 1} 張向前移`" @click="move(index, index - 1)">←</button><button type="button" :disabled="index === media.length - 1" :aria-label="`將第 ${index + 1} 張向後移`" @click="move(index, index + 1)">→</button><button type="button" :aria-label="`移除第 ${index + 1} 個媒體`" @click="remove(index)">移除</button></div>
           </article>
         </div>
         <div v-else class="publisher-upload-empty">新增遊戲截圖，右側將同步顯示預覽。</div>
-        <p v-if="uploading" role="status" class="publisher-upload-status">圖片上傳中，請稍候…</p>
+        <details class="publisher-url-option"><summary>或使用圖片／影片網址</summary>
+          <label>類型<select v-model="linkType"><option value="IMAGE">圖片</option><option value="VIDEO">影片</option></select></label>
+          <label>媒體網址<input v-model="linkUrl" type="url" maxlength="500" placeholder="https://…（影片請使用可直接播放的 MP4 網址）"></label>
+          <button type="button" @click="addMediaLink">新增網址</button>
+        </details>
+        <p v-if="uploading" role="status" class="publisher-upload-status">素材上傳中，請稍候…</p>
         <p v-if="uploadError" role="alert" class="error">{{ uploadError }}</p>
       </section>
 

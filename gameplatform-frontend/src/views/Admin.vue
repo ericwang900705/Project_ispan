@@ -1,4 +1,5 @@
 <script setup>
+import SupportContext from '../components/SupportContext.vue'
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 
@@ -52,6 +53,7 @@ const summary = ref('')
 
 // Computed
 // 「遊戲問題」是客服標準分類；兼容既有資料庫的「遊戲」，不變更既有分類 ID。
+const selectedCategory = computed(() => categories.value.find(category => category.id === categoryId.value))
 const isGame = computed(() => {
   const name = categories.value.find(
     category => category.id === categoryId.value
@@ -334,17 +336,16 @@ watch(categoryId, async () => {
 })
 
 // Lifecycle
+watch(() => route.query.room, async id => {
+  if (!id || !/^\d+$/.test(String(id))) return
+  const current = ++selection
+  try {
+    const requested = await api(`/rooms/${id}`)
+    if (alive && current === selection) { room.value = requested; error.value = '' }
+  } catch (e) { if (alive && current === selection) error.value = e.message }
+}, { immediate: true })
+
 onMounted(async () => {
-  // 如果網址帶有 ?room=xxx
-  if (route.query.room) {
-    try {
-      room.value = await api(
-        `/rooms/${encodeURIComponent(route.query.room)}`
-      )
-    } catch (e) {
-      error.value = e.message
-    }
-  }
 
   await load()
 
@@ -402,7 +403,7 @@ onUnmounted(() => {
       {{ error }}
     </p>
     <!-- 客服工作區 -->
-    <div class="admin-layout" :class="{ 'transfer-open': modal }">
+    <div class="admin-layout support-expanded" :class="{ 'transfer-open': modal }">
       <!-- 左側聊天室列表 -->
       <aside class="room-sidebar">
         <div class="room-filters">
@@ -587,6 +588,7 @@ onUnmounted(() => {
 
       </section>
 
+      <SupportContext v-if="room && !modal" scope="rooms" :id="room.id" :context-state="room.status + ':' + room.adminId" />
       <!-- 右側轉案面板：完整表單位於此區塊，不是另外的彈窗。 -->
       <section v-if="modal" ref="transferPanel" class="modal transfer-panel" role="region" tabindex="-1"
         aria-labelledby="transfer-title" @keydown.esc="closeTransfer">
@@ -632,6 +634,8 @@ onUnmounted(() => {
             </select>
           </label>
 
+
+          <p v-if="selectedCategory?.description" class="case-category-help" role="note">{{ selectedCategory.description }}</p>
 
           <label>案件優先程度
             <select v-model="transferPriority" aria-label="案件優先程度" required>

@@ -1,7 +1,8 @@
 <script setup>
 
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import SupportContext from './SupportContext.vue'
 import { api, session, timeText } from '../api'
 import SearchBar from './SearchBar.vue'
 import Conversation from './Conversation.vue'
@@ -10,6 +11,8 @@ import UiIcon from './UiIcon.vue'
 const props = defineProps({ docked: Boolean })
 const emit = defineEmits(['expanded-change'])
 const router = useRouter()
+const route = useRoute()
+let linking = false
 
 // --- 狀態定義 ---
 const expanded = ref(sessionStorage.getItem('support-open-' + session.user?.username) === '1')
@@ -123,9 +126,26 @@ async function pick(r) {
   await refresh()
 }
 
-function openWidget() {
+async function openWidget() {
   expanded.value = true
-  refresh()
+  const requestedRoom = Number(route.query.room)
+  if (Number.isSafeInteger(requestedRoom) && requestedRoom > 0) {
+    selectionVersion++
+    try { room.value = await api(`/rooms/${requestedRoom}`); selected = true; history.value = false }
+    catch (e) { error.value = e.message; return }
+  } else await refresh()
+  const orderId = Number(route.query.orderId), couponId = Number(route.query.couponId)
+  if (linking || (!Number.isSafeInteger(orderId) || orderId <= 0) && (!Number.isSafeInteger(couponId) || couponId <= 0)) return
+  linking = true
+  try {
+    if (!room.value || room.value.status === 'CLOSED') room.value = await api('/member/rooms', { method: 'POST' })
+    if (Number.isSafeInteger(orderId) && orderId > 0) await api(`/rooms/${room.value.id}/order-links`, { method: 'POST', body: { orderId } })
+    if (Number.isSafeInteger(couponId) && couponId > 0) await api(`/rooms/${room.value.id}/coupon-links`, { method: 'POST', body: { couponId } })
+    const query = { ...route.query }; delete query.orderId; delete query.couponId; delete query.chat; delete query.room
+    window.dispatchEvent(new Event('support-refresh'))
+    await router.replace({ path: route.path, query })
+  } catch (e) { error.value = e.message }
+  finally { linking = false }
 }
 
 function goTicket() {
@@ -134,9 +154,11 @@ function goTicket() {
   router.push('/tickets/' + id)
 }
 
+watch(() => [route.query.orderId, route.query.couponId, route.query.chat, route.query.room], value => { if (value.some(Boolean)) openWidget() })
 // --- 生命週期 ---
 onMounted(() => {
   refresh()
+  if (route.query.orderId || route.query.couponId || route.query.chat || route.query.room) openWidget()
   window.addEventListener('open-chat', openWidget)
   window.addEventListener('support-refresh', refresh)
 
@@ -242,6 +264,7 @@ onUnmounted(() => {
           <button class="text-button" :disabled="busy" @click="start">詢問新問題</button>
         </div>
 
+        <details class="sx-widget-context"><summary>相關資料 <span>從你的訂單／已領券選取</span></summary><SupportContext scope="rooms" :id="room.id" :context-state="room.status + ':' + room.adminId" compact /></details>
         <Conversation :key="room.id" kind="rooms" :id="room.id" :can-send="room.status === 'OPEN'"
           :closed-text="room.ticketId ? '此對話已轉案，請到案件頁接續回覆。' : '這次對話已結束，紀錄會保留。'" />
 

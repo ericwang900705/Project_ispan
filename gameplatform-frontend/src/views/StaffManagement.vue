@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { api, session, refreshUser } from '../api'
-import { permissionOptions, permissionNames, permissionCatalog, roleName, isHighestAdmin, hasPermission } from '../permissions'
+import { permissionOptions, fixedPermissions, permissionNames, permissionCatalog, roleName, isHighestAdmin, hasPermission } from '../permissions'
 
 const rows = ref([])
 const selectedId = ref(null)
@@ -15,8 +15,6 @@ const form = ref({ username: '', name: '', email: '', password: '' })
 const highest = computed(() => isHighestAdmin(session.user))
 const canCreate = highest
 const roles = [
-  { code: 'ADMIN', name: '最高管理員' },
-  { code: 'PENDING', name: '待授權' },
   { code: 'STAFF', name: 'Staff 人員' },
   { code: 'REVIEWER', name: '審核人員' },
   { code: 'SUPPORT', name: '客服人員' }
@@ -30,22 +28,30 @@ const filtered = computed(() => {
   return rows.value.filter(row => [row.username, row.name, row.email]
     .some(value => String(value || '').toLocaleLowerCase().includes(query)))
 })
-const fixedRole = computed(() => ['REVIEWER', 'SUPPORT'].includes(selected.value?.role))
 const protectedAccount = computed(() => selected.value?.role === 'ADMIN')
 const roleChanged = computed(() => selected.value && selected.value.draftRole !== selected.value.role)
 const same = (a, b) => JSON.stringify([...new Set(a)].sort()) === JSON.stringify([...new Set(b)].sort())
-const dirty = row => !same(row.selected, row.permissions)
-const selectedCount = computed(() => protectedAccount.value ? allCodes.length : (selected.value?.selected.length || 0))
-const editable = computed(() => highest.value && selected.value?.role === 'STAFF' && selected.value.status === 'ACTIVE')
+const dirty = row => row?.role === 'STAFF' && row.draftRole === 'STAFF' && !same(row.selected, row.permissions)
+const displayedPermissions = computed(() => {
+  const row = selected.value
+  if (!row) return []
+  const role = row.draftRole
+  if (role === 'ADMIN') return allCodes
+  if (role === 'REVIEWER' || role === 'SUPPORT') return fixedPermissions[role] || []
+  if (role === 'STAFF') return row.selected
+  return []
+})
+const selectedCount = computed(() => displayedPermissions.value.length)
+const editable = computed(() => highest.value && !protectedAccount.value && selected.value?.draftRole === 'STAFF' && (selected.value.status === 'ACTIVE' || selected.value.role === 'PENDING'))
 const canEditCode = code => editable.value && !catalogByCode[code].reserved
 function selectAll() {
-  if (editable.value && !busy.value && !roleChanged.value) selected.value.selected = [...new Set([...selected.value.selected, ...allCodes.filter(canEditCode)])]
+  if (editable.value && !busy.value) selected.value.selected = [...new Set([...selected.value.selected, ...allCodes.filter(canEditCode)])]
 }
 function clearAll() {
-  if (editable.value && !busy.value && !roleChanged.value) selected.value.selected = selected.value.selected.filter(code => !canEditCode(code))
+  if (editable.value && !busy.value) selected.value.selected = selected.value.selected.filter(code => !canEditCode(code))
 }
-const available = code => permissionOptions(selected.value?.role).includes(code)
-const statusText = row => row.status !== 'ACTIVE' ? '停用' : row.role === 'PENDING' ? '待授權' : '啟用'
+const available = code => permissionOptions(selected.value?.draftRole).includes(code)
+const statusText = row => row.role === 'PENDING' ? '待授權' : row.status !== 'ACTIVE' ? '停用' : '啟用'
 
 async function load(resetId = null) {
   const previous = new Map(rows.value.map(row => [row.id, row]))
@@ -60,38 +66,83 @@ async function load(resetId = null) {
     const preserve = old && row.id !== resetId && old.role === row.role && same(old.permissions, permissions)
     return {
       ...row, permissions: [...permissions],
-      selected: preserve ? [...old.selected] : permissions.filter(code => permissionOptions(row.role).includes(code)),
+      selected: preserve ? [...old.selected] : row.role === 'STAFF' ? permissions.filter(code => permissionOptions(row.role).includes(code)) : [...(fixedPermissions[row.role] || [])],
       draftRole: preserve ? old.draftRole : row.role
     }
   })
   if (!rows.value.some(row => row.id === selectedId.value)) selectedId.value = rows.value[0]?.id ?? null
 }
+function restoreSavedState(row) {
+  if (!row) return
+  row.draftRole = row.role
+  row.selected = row.role === 'STAFF'
+    ? row.permissions.filter(code => permissionOptions('STAFF').includes(code))
+    : [...(fixedPermissions[row.role] || [])]
+}
 function choose(row) {
-  if (busy.value) return
+  if (busy.value || selectedId.value === row.id) return
+  // Switching people discards unsaved role and permission drafts.
+  restoreSavedState(selected.value)
+  restoreSavedState(row)
   selectedId.value = row.id
   error.value = ''; notice.value = ''
 }
 function resetPermissions() {
-  if (selected.value) selected.value.selected = selected.value.permissions.filter(available)
+  if (!selected.value) return
+  selected.value.selected = roleChanged.value ? [] : selected.value.permissions.filter(available)
+}
+function onRoleChange(role) {
+  const row = selected.value
+  if (!row) return
+  row.draftRole = role
+  // Changing the role is a local draft until the administrator confirms it.
+  row.selected = role === 'STAFF'
+    ? (role === row.role ? row.permissions.filter(code => permissionOptions(role).includes(code)) : [])
+    : [...(fixedPermissions[role] || [])]
 }
 async function changeRole() {
   const row = selected.value
-  if (!row || busy.value || !highest.value || protectedAccount.value || fixedRole.value || !roleChanged.value) return
+  if (!row || busy.value || !highest.value || protectedAccount.value || !roleChanged.value) return
+  const id = row.id
+  const nextRole = row.draftRole
+  const requested = nextRole === 'STAFF' ? row.selected.filter(code => permissionOptions('STAFF').includes(code)) : []
   busy.value = true; error.value = ''; notice.value = ''
+  let roleUpdated = false
   try {
-    await api(`/management/staff/${row.id}/role`, { method: 'PATCH', body: { role: row.draftRole } })
-    await load(row.id)
-    notice.value = '角色已更新並套用預設權限；該人員須重新登入。'
+    await api(`/management/staff/${id}/role`, { method: 'PATCH', body: { role: nextRole } })
+    roleUpdated = true
+    if (nextRole === 'STAFF') {
+      await api(`/admin/permissions/staff/${id}`, {
+        method: 'PUT',
+        body: { permissionCodes: requested }
+      })
+    }
+    await load(id)
+    notice.value = '角色與對應權限已更新；該人員須重新登入。'
   } catch (e) {
-    error.value = e.message
+    if (roleUpdated) {
+      // The role PATCH succeeded; reload actual persisted state rather than
+      // claiming that the second permission request was rolled back.
+      try { await load(id) } catch (_) { /* preserve the original error */ }
+      error.value = `角色已更新，但後續授權或資料重新載入失敗：${e.message}。請檢查實際權限後再操作。`
+    } else {
+      error.value = e.message
+    }
   } finally {
     busy.value = false
   }
 }
+
 async function savePermissions() {
   const row = selected.value
-  if (!row || busy.value || !editable.value || roleChanged.value || !dirty(row))
+  if (!row || busy.value || !editable.value || (!roleChanged.value && !dirty(row)))
     return
+  // When role is still a draft, the role must be persisted before STAFF grants.
+  // changeRole() handles both requests and reports partial failure.
+  if (roleChanged.value) {
+    await changeRole()
+    return
+  }
   busy.value = true; error.value = ''
   notice.value = ''
   try {
@@ -224,14 +275,12 @@ onMounted(async () => {
         <div class="role-section">
           <div>
             <h3>人員角色</h3>
-            <p>最高管理員可指定 Staff 人員升級；審核與客服的角色及權限固定。</p>
+            <p>最高管理員可切換一般後台人員的角色；審核與客服的功能權限固定。</p>
           </div>
           <div v-if="protectedAccount" class="protected-badge">最高管理員 · 受保護</div>
-          <div v-else-if="fixedRole" class="protected-badge">{{ roleName(selected.role) }} · 角色與權限鎖定</div>
           <div v-else-if="highest" class="role-actions">
-            <select v-model="selected.draftRole" :disabled="busy" aria-label="人員角色">
-              <option v-for="role in roles" :key="role.code" :value="role.code"
-                :disabled="role.code === 'ADMIN' && selected.role !== 'STAFF'">
+            <select :value="selected.draftRole" @change="onRoleChange($event.target.value)" :disabled="busy" aria-label="人員角色">
+              <option v-for="role in roles" :key="role.code" :value="role.code">
                 {{ role.name }}
               </option>
             </select>
@@ -241,13 +290,13 @@ onMounted(async () => {
           </div>
         </div>
         <p v-if="roleChanged" class="role-notice" role="status">
-          請先按「更新角色」。STAFF 預設勾選平台主頁；審核與客服套用固定權限；最高管理員具有完整權限。
+          目前是尚未儲存的角色預覽。若選擇 STAFF，可先勾選 13 項業務權限，再按「更新角色」一併提交；審核與客服使用固定權限。
         </p>
         <p v-else-if="protectedAccount" class="role-notice">
           最高管理員具有完整權限，帳號角色與功能授權受保護。
         </p>
         <p v-else-if="['REVIEWER', 'SUPPORT'].includes(selected.role)" class="role-notice">
-          此角色只能使用固定功能，不能新增或移除權限、變更角色，也不能升為最高管理員。
+          此角色使用固定功能權限，不能個別增減權限；最高管理員仍可切換其角色。
         </p>
         <p v-else-if="!highest && selected.id === session.user?.id" class="role-notice">
           Staff 人員不能修改自己的權限。
@@ -259,29 +308,30 @@ onMounted(async () => {
         <section class="function-section" aria-labelledby="function-title">
           <div class="function-heading">
             <div>
-              <h3 id="function-title">功能權限</h3>
-              <p>勾選允許使用的功能，完成後儲存。</p>
+              <h3 id="function-title">權限管理</h3>
+              <p>勾選允許使用的權限，完成後儲存。</p>
             </div>
             <span class="count-badge">
               已勾選 {{ selectedCount }} / {{ allCodes.length }} 項
             </span>
           </div>
           <div v-if="editable" class="selection-actions">
-            <button type="button" class="secondary-action" :disabled="busy || !editable || roleChanged"
+            <button type="button" class="secondary-action" :disabled="busy || !editable"
               @click="selectAll">
               全選可授權項目
             </button>
-            <button type="button" class="secondary-action" :disabled="busy || !editable || roleChanged"
+            <button type="button" class="secondary-action" :disabled="busy || !editable"
               @click="clearAll">
               清空勾選
             </button>
           </div>
           <div class="permission-grid">
             <label v-for="code in allCodes" :key="`${selected.id}-${code}`" class="permission-card"
-              :class="{ checked: protectedAccount || selected.selected.includes(code), unavailable: !protectedAccount && !available(code) }">
+              :class="{ checked: displayedPermissions.includes(code), unavailable: !protectedAccount && !available(code) }">
               <input v-if="protectedAccount" type="checkbox" checked disabled :aria-label="permissionNames[code]" />
-              <input v-else v-model="selected.selected" type="checkbox" :value="code"
-                :disabled="busy || roleChanged || !canEditCode(code)" :aria-label="permissionNames[code]" />
+              <input v-else-if="selected.draftRole === 'STAFF'" v-model="selected.selected" type="checkbox" :value="code"
+                :disabled="busy || !canEditCode(code)" :aria-label="permissionNames[code]" />
+              <input v-else type="checkbox" :checked="displayedPermissions.includes(code)" disabled :aria-label="permissionNames[code]" />
               <span class="permission-copy">
                 <small class="permission-category">
                   {{ catalogByCode[code].group }}
@@ -289,7 +339,7 @@ onMounted(async () => {
                 <strong>{{ permissionNames[code] }}</strong>
                 <span>{{ descriptions[code] }}</span>
                 <small v-if="!protectedAccount && !available(code)">
-                  {{ selected.role === 'PENDING' ? '請先指定角色' : '此角色不開放' }}
+                  {{ selected.draftRole === 'PENDING' ? '請先指定角色' : '此角色不開放' }}
                 </small>
                 <small v-if="available(code) && !canEditCode(code) && !protectedAccount">
                   {{ catalogByCode[code].reserved ? '僅 ADMIN 可使用，不可授予 STAFF' : '固定或未獲授權，已鎖定' }}
@@ -309,16 +359,16 @@ onMounted(async () => {
         </section>
         <footer class="permissions-footer">
           <span>
-            {{ protectedAccount ? '完整權限，不需另行儲存' : dirty(selected) ? '有尚未儲存的功能權限' : '功能權限已同步' }}
+            {{ protectedAccount ? '完整權限，不需另行儲存' : roleChanged ? '角色與權限尚未儲存，可按更新角色或儲存權限變更' : dirty(selected) ? '有尚未儲存的功能權限' : '功能權限已同步' }}
           </span>
           <div v-if="editable" class="footer-actions">
-            <button type="button" class="secondary-action" :disabled="busy || !dirty(selected)"
+            <button type="button" class="secondary-action" :disabled="busy || (!roleChanged && !dirty(selected))"
               @click="resetPermissions">
               還原勾選
             </button>
             <button type="button" class="primary-action"
-              :disabled="busy || !editable || roleChanged || !dirty(selected)" @click="savePermissions">
-              {{ busy ? '處理中…' : '儲存功能權限' }}
+              :disabled="busy || !editable || (!roleChanged && !dirty(selected))" @click="savePermissions">
+              {{ busy ? '處理中…' : '儲存權限變更' }}
             </button>
           </div>
         </footer>

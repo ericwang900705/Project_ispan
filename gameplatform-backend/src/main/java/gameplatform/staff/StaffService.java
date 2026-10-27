@@ -30,11 +30,60 @@ public class StaffService {
     }
 
     private void lock() {
-        Integer result = db.queryForObject(
-                "DECLARE @r INT; EXEC @r=sys.sp_getapplock @Resource='HERO_STAFF_ADMIN',@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;SELECT @r",
-                Integer.class);
-        if (result == null || result < 0)
-            throw new Problem(409, "人員管理忙碌，請稍後再試");
+        db.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) con -> {
+
+            try (var stmt = con.createStatement()) {
+                try (var rs = stmt.executeQuery(
+                        "SELECT COUNT(*) FROM dbo.admin")) {
+
+                    if (rs.next()) {
+                        System.out.println(
+                                "[STAFF LOCK] AdminCount = " + rs.getInt(1));
+                    }
+                }
+
+                try (var rs = stmt.executeQuery(
+                        "SELECT @@SPID AS session_id, " +
+                                "@@TRANCOUNT AS transaction_count")) {
+
+                    if (rs.next()) {
+                        System.out.println(
+                                "[STAFF LOCK] SessionID = " + rs.getInt(1));
+                        System.out.println(
+                                "[STAFF LOCK] TransactionCount = " + rs.getInt(2));
+                    }
+                }
+
+                try (var rs = stmt.executeQuery(
+                        "DECLARE @r INT; " +
+                                "EXEC @r = sys.sp_getapplock " +
+                                "@Resource='HERO_STAFF_ADMIN', " +
+                                "@LockMode='Exclusive', " +
+                                "@LockOwner='Transaction', " +
+                                "@LockTimeout=10000; " +
+                                "SELECT @r")) {
+
+                    if (rs.next()) {
+                        int result = rs.getInt(1);
+
+                        System.out.println(
+                                "[STAFF LOCK] LockResult = " + result);
+
+                        if (result < 0) {
+                            throw new Problem(
+                                    409,
+                                    "人員管理忙碌，請稍後再試");
+                        }
+                    } else {
+                        throw new Problem(
+                                500,
+                                "無法取得資料庫鎖定結果");
+                    }
+                }
+            }
+
+            return null;
+        });
     }
 
     private boolean top(Actor actor) {
@@ -90,37 +139,42 @@ public class StaffService {
         return rows;
     }
 
+    // 由最高管理員調整人員角色，保留原本帳號資料。
     @Transactional
     public void change(Actor actor, int id, String code) {
         lock();
-        if (!top(actor))
-            throw new Problem(403, "只有最高管理員可以指定人員角色與其他最高管理員");
-        if (code == null || !Set.of("ADMIN", "STAFF", "REVIEWER", "SUPPORT", "PENDING").contains(code))
-            throw new Problem(400, "不支援的後台角色");
+        permissionService.requireHighestAdmin(actor);
+
+        // 一般角色調整不包含 ADMIN，避免透過此 API 提升最高權限。
+        if (code == null || !Set.of("STAFF", "REVIEWER", "SUPPORT").contains(code))
+            throw new Problem(400, "只能切換 STAFF、REVIEWER、SUPPORT");
+
         var target = db.queryForList(
-                "SELECT r.role_code,a.status FROM dbo.admin a JOIN dbo.admin_roles r ON r.admin_role_id=a.admin_role_id WHERE a.admin_id=?",
+                "SELECT r.role_code,a.status FROM dbo.admin a "
+                        + "JOIN dbo.admin_roles r ON r.admin_role_id=a.admin_role_id WHERE a.admin_id=?",
                 id);
         if (target.isEmpty())
             throw new Problem(404, "找不到後台人員");
+
         String previous = (String) target.get(0).get("role_code");
-        if (previous.equals(code))
-            return;
-        // Existing highest administrators stay protected, including self.
+        String status = (String) target.get(0).get("status");
+
+        // 既有最高管理員不能降級或被其他角色取代。
         if ("ADMIN".equals(previous))
             throw new Problem(409, "最高管理員帳號受保護，不能變更角色");
-        if (Set.of("REVIEWER", "SUPPORT").contains(previous))
-            throw new Problem(409, "審核與客服的角色及權限固定，不能變更角色或升為最高管理員");
-        if ("ADMIN".equals(code) && !"STAFF".equals(previous))
-            throw new Problem(409, "只有 Staff 人員可以被指定為最高管理員");
-        if ("ADMIN".equals(code) && !"ACTIVE".equals(target.get(0).get("status")))
-            throw new Problem(409, "只能指定啟用中的 Staff 人員為最高管理員");
-        db.update("UPDATE dbo.admin SET admin_role_id=?,updated_at=SYSDATETIME() WHERE admin_id=?", role(code), id);
-        // Preserve historical grants for fixed roles and highest administrators; they
-        // are ignored at runtime.
-        // Returning to STAFF starts with one explicit safe default, never old hidden
-        // grants.
-        if ("STAFF".equals(code) || "PENDING".equals(code))
-            permissionService.resetAfterRoleChange(actor, id, code);
+        // 停用帳號不得透過角色切換重新啟用。
+        if (!"ACTIVE".equals(status) && !("PENDING".equals(previous) && "PENDING".equals(status)))
+            throw new Problem(409, "停用中的管理員不可變更角色");
+        if (previous.equals(code))
+            return;
+
+        // 初次核准 PENDING 時啟用；其餘角色可相互切換。
+        db.update("UPDATE dbo.admin SET admin_role_id=?,status='ACTIVE',updated_at=SYSDATETIME() "
+                + "WHERE admin_id=?",
+                role(code), id);
+
+        // 清除舊的個別授權；STAFF 不會自動取得任何權限。
+        permissionService.resetAfterRoleChange(actor, id, code);
     }
 
     /** Compatibility endpoint delegates to the single JPA permission service. */

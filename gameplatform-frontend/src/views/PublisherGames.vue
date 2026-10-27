@@ -1,4 +1,5 @@
 <script setup>
+import PublisherBuildLink from '../components/PublisherBuildLink.vue'
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter, RouterLink, onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router'
 import { api, session } from '../api'
@@ -81,7 +82,7 @@ function payload() {
 }
 function buildPayload() {
   return builds.value.map(x => ({
-    ...x,
+    id: x.id, version: x.version, fileUrl: x.fileUrl, status: x.status,
     fileSize: x.fileSize === '' || x.fileSize == null ? null : Number(x.fileSize)
   }))
 }
@@ -117,7 +118,8 @@ function assign(game) {
     id: x.build_id,
     version: x.version,
     fileUrl: x.file_url,
-    fileSize: x.file_size, status: x.status
+    fileSize: x.file_size, status: x.status,
+    source: x.file_url?.startsWith('/api/publisher-assets/builds/') ? 'upload' : 'url' 
   }))
   media.value = game.media.map(x => ({
     type: x.media_type,
@@ -239,14 +241,32 @@ function discardBuild() {
   const index = discardIndex.value, build = builds.value[index]
   if (!build) return closeDialog()
   const original = selected.value.builds.find(x => x.build_id === build.id)
-  if (original) builds.value[index] = { id: original.build_id, version: original.version, fileUrl: original.file_url, fileSize: original.file_size, status: original.status }
+  if (original) builds.value[index] = { id: original.build_id, version: original.version, fileUrl: original.file_url, fileSize: original.file_size, status: original.status, source: original.file_url?.startsWith('/api/publisher-assets/builds/') ? 'upload' : 'url' }
   else builds.value.splice(index, 1)
   closeDialog()
+}
+function changeBuildSource(build) { build.fileUrl = ''; build.fileSize = null }
+async function uploadBuild(event, build) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file || busy.value || uploading.value || !editable.value) return
+  if (!/\.zip$/i.test(file.name) || !file.size || file.size > 100 * 1024 * 1024) {
+    error.value = '請選擇 ZIP 檔案，每個最多 100 MB。'; return
+  }
+  uploading.value = true; error.value = ''
+  try {
+    const body = new FormData(); body.append('file', file); body.append('kind', 'BUILD')
+    const result = await api('/publisher/files', { method: 'POST', body })
+    build.fileUrl = result.url; build.fileSize = result.fileSize
+    notifyPublisher('ZIP 已上傳，請儲存版本設定')
+  } catch (e) { error.value = e.message }
+  finally { uploading.value = false }
 }
 function beforeUnload(event) { if (dirty.value || busy.value || uploading.value) { event.preventDefault(); event.returnValue = '' } }
 onMounted(() => { clockTimer = setInterval(() => { tick.value = Date.now() }, 1000); window.addEventListener('beforeunload', beforeUnload) })
 onUnmounted(() => { clearInterval(clockTimer); window.removeEventListener('beforeunload', beforeUnload); pendingLeave?.resolve(false) })
 watch(() => [route.query.mode, route.query.game], async () => {
+  if (route.query.mode === 'media') { await goTo('edit', route.query.game); return }
   detailRun++; selected.value = null; error.value = ''
   form.value = emptyForm(); tagIds.value = []; builds.value = []; media.value = []; reason.value = ''; baseline.value = snapshot()
   if (route.query.game && /^\d+$/.test(String(route.query.game))) await choose(route.query.game)
@@ -349,18 +369,19 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
                   <li v-for="check in checks" :key="check.key" :class="{ complete: check.complete }">
                     <UiIcon :name="check.complete ? 'check' : 'alert'" />
                     <div>
-                      <strong>{{ check.label }}</strong>
+                      <button v-if="check.key === 'media' && editable" type="button" class="text-button" @click="goTo('edit')">{{ check.label }}</button>
+                      <strong v-else>{{ check.label }}</strong>
                       <small>{{ check.complete ? '已完成' : '未完成' }}</small>
                     </div>
-                    <button v-if="!check.complete && editable" class="secondary"
-                      @click="goTo(check.key === 'media' && !selected.cover_url ? 'edit' : check.mode)">
+                    <button v-if="editable" class="secondary"
+                      @click="goTo(check.key === 'media' ? 'edit' : check.mode)">
                       前往設定
                     </button>
                   </li>
                 </ul>
                 <form class="publisher-form" @submit.prevent="openDialog('publish')">
                   <label>補充說明
-                    <textarea v-model="reason" maxlength="500" rows="3" :disabled="busy || !editable"></textarea>
+                    <textarea v-model="reason" maxlength="500" rows="3" :disabled="busy || uploading || !editable"></textarea>
                   </label>
                   <button class="primary" :disabled="busy || !publishable">送出上架審核</button>
                   <p v-if="editable && !publishable" class="muted">尚有未完成的必要設定，無法送出審核。</p>
@@ -369,15 +390,22 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
               </template>
               <form v-else-if="mode === 'builds'" class="publisher-form" ref="editorForm"
                 @submit.prevent="submitEditor">
-                <fieldset :disabled="busy || !editable">
+                <fieldset :disabled="busy || uploading || !editable">
                   <div v-for="(build, index) in builds" :key="index" class="publisher-resource-card">
                     <h3>版本 {{ index + 1 }}</h3>
                     <label>版本號
                       <input v-model="build.version" maxlength="30" required>
                     </label>
-                    <label>版本檔案網址
-                      <input v-model="build.fileUrl" type="url" maxlength="500" required>
-                    </label>
+                    <div class="publisher-build-source" role="group" aria-label="版本檔案來源">
+                      <label><input v-model="build.source" type="radio" :name="'build-source-' + index" value="upload" @change="changeBuildSource(build)">上傳 ZIP</label>
+                      <label><input v-model="build.source" type="radio" :name="'build-source-' + index" value="url" @change="changeBuildSource(build)">使用網址</label>
+                    </div>
+                    <template v-if="build.source === 'upload'">
+                      <label>選擇 ZIP 檔案（最多 100 MB）<input type="file" accept=".zip,application/zip" :disabled="uploading" @change="uploadBuild($event, build)"></label>
+                      <label>已上傳版本<input v-model="build.fileUrl" type="text" readonly required placeholder="請先上傳 ZIP"></label>
+                      <PublisherBuildLink v-if="build.fileUrl" :url="build.fileUrl" /><p v-if="uploading" role="status">ZIP 上傳中，請稍候…</p>
+                    </template>
+                    <label v-else>版本檔案網址<input v-model="build.fileUrl" type="url" maxlength="500" required placeholder="https://…"></label>
                     <div class="publisher-form-pair">
                       <label>檔案大小（Bytes，可留空）
                         <input v-model="build.fileSize" type="number" min="0" step="1"
@@ -395,7 +423,7 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
                     </button>
                   </div>
                   <div class="publisher-button-row"><button type="button" :disabled="builds.length >= 50"
-                      @click="builds.push({ id: null, version: '', fileUrl: '', fileSize: null, status: 'ACTIVE' })">
+                      @click="builds.push({ id: null, version: '', fileUrl: '', fileSize: null, status: 'ACTIVE', source: 'upload' })">
                       新增下一個版本
                     </button>
                   </div>
@@ -408,10 +436,10 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
                   </div>
                   <PublisherSaveActions secondary="儲存草稿" primary="儲存並前往：上架檢核" next="publish" :busy="busy" />
                 </fieldset>
-                <p class="muted">此處管理版本資訊與檔案網址；檔案請先放到團隊的下載空間。既有版本可停用，不直接刪除。</p>
+                <p class="muted">每個版本可選擇上傳 ZIP 或填寫 HTTP／HTTPS 網址，擇一即可。上傳後請儲存；既有版本可停用，不直接刪除。</p>
               </form>
               <form v-else-if="mode === 'tags'" class="publisher-form" ref="editorForm" @submit.prevent="submitEditor">
-                <fieldset :disabled="busy || !editable">
+                <fieldset :disabled="busy || uploading || !editable">
                   <p class="muted">只能勾選平台提供的標籤，可複選。</p>
                   <div class="publisher-tag-grid">
                     <label v-for="tag in allTags" :key="tag.tag_id">
@@ -424,7 +452,7 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
                 </fieldset>
               </form>
               <form v-else-if="mode === 'media'" class="publisher-form" ref="editorForm" @submit.prevent="submitEditor">
-                <fieldset :disabled="busy || !editable">
+                <fieldset :disabled="busy || uploading || !editable">
                   <div v-for="(item, index) in media" :key="index" class="publisher-resource-card">
                     <div class="publisher-form-pair">
                       <label>類型
@@ -504,6 +532,11 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
 </template>
 
 <style scoped>
+/* 來源選項保留原生單選尺寸，不套用一般文字欄位的滿寬規則。 */
+.publisher-build-source { display: flex; flex-wrap: wrap; gap: 18px; margin: 12px 0; }
+.publisher-build-source label { display: flex; align-items: center; gap: 8px; }
+.publisher-build-source input[type="radio"] { width: auto; margin: 0; accent-color: #d4a64a; }
+
 /* 修改遊戲：清單和編輯區上下排列 */
 .publisher-games .publisher-editing {
   display: grid;

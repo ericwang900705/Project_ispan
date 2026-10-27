@@ -1,4 +1,5 @@
 import { reactive } from 'vue'
+import { readJsonResponse } from './response-body.js'
 import { loginFor } from './permissions.js'
 export const frontendArea = ['staff', 'member'].includes(import.meta.env.MODE) ? import.meta.env.MODE : 'combined'
 
@@ -86,8 +87,13 @@ async function request(path, options = {}, responseType = 'json') {
     return r.blob()
   }
 
+  if (responseType === 'file') {
+    const result = await r.blob()
+    if (requestGeneration !== authGeneration || requestToken !== token) throw Error('登入狀態已變更，請重新下載')
+    return result
+  }
   if (responseType === 'text') return r.text()
-  const result = await r.json()
+  const result = await readJsonResponse(r)
   if (requestGeneration !== authGeneration || (requestToken && requestToken !== token)) throw Error('登入狀態已變更，請重新載入')
   return result
 }
@@ -97,6 +103,7 @@ export const api = (path, options = {}) => request(path, options)
 
 // 透過私密 Fetch 取得 Blob，再轉為暫時性 Object URL 以夾帶 Bearer Header
 export const apiImage = (path, options = {}) => request(path, options, 'blob')
+export const apiFile = path => request(path, {}, 'file')
 
 // 同一分頁重整時還原 Token；身分必須由後端 /auth/me 驗證。
 // expiresAt 是原登入的到期時間，重整不會延長登入期限。

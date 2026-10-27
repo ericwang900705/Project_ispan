@@ -52,6 +52,11 @@ public class SecurityConfig {
 
                                 .authorizeHttpRequests(a -> a
 
+                                                // 客服全域內容限最高管理員；私人資料與範本使用須即時客服授權。
+                                                .requestMatchers("/api/admin/support/faqs", "/api/admin/support/faqs/**", "/api/admin/support/reply-templates", "/api/admin/support/reply-templates/**")
+                                                .access(permissions.highestAdmin())
+                                                .requestMatchers("/api/admin/support/**", "/api/support/reply-templates")
+                                                .access(permissions.require("TICKET_HANDLE"))
                                                 // 1. 公開的會員註冊與登入 API
                                                 .requestMatchers(
                                                                 "/api/auth/login",
@@ -143,6 +148,9 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/publisher/games", "/api/publisher/games/**")
                                                 .denyAll()
 
+                                                // 版本檔下載另由 Controller 核對檔案擁有者、審核權與遊戲庫。
+                                                .requestMatchers("/api/publisher-assets/builds/**")
+                                                .hasAnyRole("MEMBER", "PUBLISHER", "ADMIN", "STAFF", "REVIEWER")
                                                 // 9. 發行商功能
                                                 .requestMatchers(
                                                                 "/api/publisher/**")

@@ -85,6 +85,7 @@ public class PublisherWorkspaceService {
     }
 
     private void address(String value, boolean artwork) {
+        if (artwork && gameplatform.support.service.PublisherFileStorage.isVideoUrl(value)) return;
         if (artwork && value != null && value.startsWith("/uploads/publisher/")
                 && gameplatform.support.service.PublisherImageStorage.isStoredUrl(value))
             return;
@@ -225,7 +226,10 @@ public class PublisherWorkspaceService {
         editable(a, id);
         var seen = new HashSet<Integer>();
         for (var build : input.builds()) {
-            address(build.fileUrl(), false);
+            if (build.fileUrl().startsWith("/api/publisher-assets/builds/")) {
+                if (!gameplatform.support.service.PublisherFileStorage.isBuildUrl(build.fileUrl(), a.id()))
+                    throw new Problem(400, "只能使用自己上傳的 ZIP 版本檔案");
+            } else address(build.fileUrl(), false);
             if (build.id() != null) {
                 if (!seen.add(build.id())
                         || db.queryForObject("SELECT COUNT(*) FROM game_builds WHERE build_id=? AND game_id=?",
@@ -277,7 +281,7 @@ public class PublisherWorkspaceService {
                 }
                 games.submitForReview(id);
                 notifications.reviewers("GAME_SUBMITTED", "新的遊戲上架申請", current.get("game_name").toString(),
-                        "/admin/games?mode=pending");
+                        "/admin/games?mode=pending&game=" + id);
             }
             case "off-shelf" -> games.requestOffShelf(id);
             case "cancel-off-shelf" -> {

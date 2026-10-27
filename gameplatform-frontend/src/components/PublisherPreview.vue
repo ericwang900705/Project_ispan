@@ -4,7 +4,7 @@ import UiIcon from './UiIcon.vue'
 const props = defineProps({ game: { type: Object, required: true }, readonly: { type: Boolean, default: false } })
 const emit = defineEmits(['navigate'])
 const active = ref(0), failed = ref(false)
-const safe = value => { if (/^\/uploads\/publisher\/[0-9a-f-]{36}\.(png|jpg)$/.test(value || '')) return value; try { const u = new URL(value); return ['http:', 'https:'].includes(u.protocol) && !u.username && !u.password ? u.href : '' } catch { return '' } }
+const safe = value => { if (/^\/uploads\/publisher\/[0-9a-f-]{36}\.(png|jpg)$/.test(value || '') || /^\/uploads\/publisher-files\/videos\/[1-9][0-9]*\/[0-9a-f-]{36}\.mp4$/.test(value || '')) return value; try { const u = new URL(value); return ['http:', 'https:'].includes(u.protocol) && !u.username && !u.password ? u.href : '' } catch { return '' } }
 const gallery = computed(() => [...(safe(props.game.cover_url) ? [{ media_type: 'IMAGE', media_url: props.game.cover_url, label: '封面' }] : []), ...props.game.media.filter(x => safe(x.media_url)).map((x, i) => ({ ...x, label: `宣傳素材 ${i + 1}` }))])
 const current = computed(() => gallery.value[active.value])
 watch(() => props.game.game_id, () => { active.value = 0; failed.value = false })
