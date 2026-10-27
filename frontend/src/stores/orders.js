@@ -39,5 +39,20 @@ export const useOrdersStore = defineStore('orders', () => {
     await Promise.all([fetchOrders(), useCartStore().fetchCart()])
   }
 
-  return { orders, loading, fetchOrders, cancelOrder }
+  // 自己退款（已付款、付款後 14 天內）：遊戲會停用、優惠券還回來，所以遊戲庫和可用的券也要重新抓
+  async function refundOrder(orderId) {
+    loading.value = true
+    try {
+      // POST /api/orders/{memberId}/{orderId}/refund
+      await axios.post(`/api/orders/${MEMBER_ID}/${orderId}/refund`)
+    } catch (e) {
+      throw new Error(e.response?.data?.message ?? '退款失敗')
+    } finally {
+      loading.value = false
+    }
+    const cart = useCartStore()
+    await Promise.all([fetchOrders(), cart.fetchLibrary(), cart.fetchCoupons()])
+  }
+
+  return { orders, loading, fetchOrders, cancelOrder, refundOrder }
 })

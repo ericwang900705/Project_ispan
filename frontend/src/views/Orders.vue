@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useOrdersStore } from '@/stores/orders'
+// 券的說明文字（「8 折」、「滿 NT$500 折 NT$100」），和優惠券頁共用
+import { discountLabel } from '@/stores/coupons'
 
 const store = useOrdersStore()
 
@@ -53,10 +55,6 @@ function paymentLabel(type) {
 function couponOf(order) {
   return order.orderItems.find((i) => i.coupon)?.coupon ?? null
 }
-// 折扣乘數換成「幾折」，例如 0.20 → 2 折、0.75 → 7.5 折
-function discountLabel(coupon) {
-  return `${Number((coupon.discountValue * 10).toFixed(1))} 折`
-}
 // 優惠券省了多少：原價加總 - 實付金額（原價用遊戲現在的售價，之後改過價格的話會有誤差）
 function savedOf(order) {
   const original = order.orderItems.reduce((sum, i) => sum + i.game.price, 0)
@@ -78,6 +76,28 @@ async function cancel(order) {
     await store.cancelOrder(order.orderId)
   } catch (e) {
     alert(e.message)
+  }
+}
+
+// 還能不能自己退款：後端只有已付款的訂單會給 refundDeadline，還沒過期就能退（真正的檢查在後端）
+function canRefund(order) {
+  return order.refundDeadline && new Date(order.refundDeadline) > new Date()
+}
+
+// 自己退款：先講清楚會發生什麼事
+async function refund(order) {
+  const hasGift = order.orderItems.some((i) => i.isGift)
+  const message = `確定要退款訂單 #${order.orderId}（NT$ ${order.totalAmount}）？\n`
+    + '・訂單裡的遊戲會從遊戲庫停用，寫過的評論會隱藏\n'
+    + (hasGift ? '・送給朋友的遊戲，朋友那邊也會停用\n' : '')
+    + (couponOf(order) ? '・用掉的優惠券會還給你（已過期的不會）\n' : '')
+    + '・之後想玩可以再買一次'
+  if (!confirm(message)) return
+  try {
+    await store.refundOrder(order.orderId)
+    alert('退款完成')
+  } catch (e) {
+    alert(e.message) // 例如「已經超過退款期限」
   }
 }
 </script>
@@ -134,6 +154,12 @@ async function cancel(order) {
             <p v-else-if="order.paymentType" class="hint">繳費資訊請查看綠界寄給你的通知信</p>
             <p v-else class="hint">付款還沒完成，超過 1 小時沒付款會自動取消</p>
             <button class="cancel" :disabled="store.loading" @click="cancel(order)">取消訂單</button>
+          </div>
+
+          <!-- 已付款、還在退款期限內：可以自己退款 -->
+          <div v-if="canRefund(order)" class="pending">
+            <p class="hint">{{ formatTime(order.refundDeadline) }} 前可以申請退款</p>
+            <button class="cancel" :disabled="store.loading" @click="refund(order)">申請退款</button>
           </div>
 
           <!-- 訂單項目 -->
