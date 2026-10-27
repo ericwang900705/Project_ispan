@@ -55,6 +55,11 @@ public class PublisherWorkspaceService {
     public record Document(@NotNull @Valid GameInput game, @NotNull @Valid Tags tags, @NotNull @Valid MediaList media) {
     }
 
+    // 已上架遊戲僅能更新簡介、標籤與宣傳媒體。
+    public record PublishedContent(@Size(max = 20000) String description,
+            @NotNull @Valid Tags tags, @NotNull @Valid MediaList media) {
+    }
+
     public record Build(Integer id, @NotBlank @Size(max = 30) String version, @NotBlank @Size(max = 500) String fileUrl,
             @PositiveOrZero Long fileSize, @NotNull @Pattern(regexp = "ACTIVE|INACTIVE") String status) {
     }
@@ -85,6 +90,7 @@ public class PublisherWorkspaceService {
     }
 
     private void address(String value, boolean artwork) {
+        if (artwork && gameplatform.support.service.PublisherFileStorage.isVideoUrl(value)) return;
         if (artwork && value != null && value.startsWith("/uploads/publisher/")
                 && gameplatform.support.service.PublisherImageStorage.isStoredUrl(value))
             return;
@@ -197,8 +203,24 @@ public class PublisherWorkspaceService {
     }
 
     @Transactional
+    public Object savePublishedContent(Actor a, int id, PublishedContent input) {
+        var game = owned(a, id, true);
+        if (!"PUBLISHED".equals(game.get("status")) || game.get("scheduled_off_shelf_at") != null)
+            throw new Problem(409, "只有正常已上架的遊戲可以修改簡介、標籤與媒體");
+        // 不使用通用 document()，避免更動遊戲名稱、售價、封面及發行時間。
+        db.update("UPDATE games SET description=? WHERE game_id=? AND member_id=?", input.description(), id, a.id());
+        tags.updateGameTags(id, a.id(), input.tags().tagIds());
+        replaceMedia(id, input.media());
+        entities.flush();
+        return game(a, id);
+    }
+
+    @Transactional
     public Object saveTags(Actor a, int id, Tags input) {
-        editable(a, id);
+        // 標籤獨立控管：僅允許發行商修改自己已上架的遊戲。
+        var game = owned(a, id, true);
+        if (!"PUBLISHED".equals(game.get("status")))
+            throw new Problem(409, "只有已上架的遊戲可以修改標籤");
         tags.updateGameTags(id, a.id(), input.tagIds());
         entities.flush();
         return game(a, id);
@@ -222,10 +244,65 @@ public class PublisherWorkspaceService {
 
     @Transactional
     public Object saveBuilds(Actor a, int id, Builds input) {
-        editable(a, id);
+        var currentGame = owned(a, id, true);
+        boolean published = "PUBLISHED".equals(currentGame.get("status"));
+        if (!published && !Set.of("DRAFT", "OFF_SHELF").contains(currentGame.get("status")))
+            throw new Problem(409, "目前狀態不可更新遊戲版本");
+        if (published) {
+            // 已上架遊戲僅可新增版本；原有版本內容與狀態都不可被更動或省略。
+            var existingBuilds = db.queryForList(
+                    "SELECT build_id,version,file_url,file_size,status FROM game_builds WHERE game_id=?", id);
+            var originalById = new HashMap<Integer, Map<String, Object>>();
+            for (var row : existingBuilds)
+                originalById.put(((Number) row.get("build_id")).intValue(), row);
+            var incomingIds = new HashSet<Integer>();
+            var versions = new HashSet<String>();
+            for (var row : existingBuilds)
+                versions.add(String.valueOf(row.get("version")));
+            boolean hasNew = false;
+            int activeNewCount = 0;
+            int activeExistingCount = 0;
+            for (var build : input.builds()) {
+                if (build.id() == null) {
+                    hasNew = true;
+                    if ("ACTIVE".equals(build.status())) activeNewCount++;
+                    if (!versions.add(build.version()))
+                        throw new Problem(400, "版本號不可重複");
+                } else {
+                    var original = originalById.get(build.id());
+                    if (original == null || !incomingIds.add(build.id()))
+                        throw new Problem(400, "版本不屬於此遊戲或重複");
+                    if (!Objects.equals(original.get("version"), build.version())
+                            || !Objects.equals(original.get("file_url"), build.fileUrl())
+                            || !Objects.equals(original.get("file_size") == null ? null : ((Number) original.get("file_size")).longValue(), build.fileSize()))
+                        throw new Problem(409, "已上架遊戲不可修改既有版本內容，只能變更狀態");
+                    if ("ACTIVE".equals(build.status())) activeExistingCount++;
+                }
+            }
+            if (!incomingIds.equals(originalById.keySet()))
+                throw new Problem(409, "已上架遊戲不可移除既有版本");
+            if (activeNewCount > 1 || (activeNewCount == 0 && activeExistingCount > 1))
+                throw new Problem(400, "同一款遊戲只能啟用一個版本");
+            if (!hasNew && activeExistingCount == 0)
+                throw new Problem(400, "已上架遊戲必須保留一個啟用版本");
+        }
+        if ("DRAFT".equals(currentGame.get("status")))
+            for (var build : input.builds())
+                if (!"ACTIVE".equals(build.status())) throw new Problem(400, "草稿版本只能設定為啟用");
         var seen = new HashSet<Integer>();
         for (var build : input.builds()) {
-            address(build.fileUrl(), false);
+            if (build.fileUrl().startsWith("/api/publisher-assets/builds/")) {
+                if (!gameplatform.support.service.PublisherFileStorage.isBuildUrl(build.fileUrl(), a.id()))
+                    throw new Problem(400, "只能使用自己上傳的 ZIP 版本檔案");
+            } else address(build.fileUrl(), false);
+            if (published && build.id() != null) {
+                // 已上架的既有版本只允許切換啟用狀態，不修改檔案與版本號。
+                if (!seen.add(build.id())) throw new Problem(400, "版本重複");
+                db.update("UPDATE game_builds SET status=? WHERE build_id=? AND game_id=?",
+                        (input.builds().stream().anyMatch(b -> b.id() == null && "ACTIVE".equals(b.status()))
+                            ? "INACTIVE" : build.status()), build.id(), id);
+                continue;
+            }
             if (build.id() != null) {
                 if (!seen.add(build.id())
                         || db.queryForObject("SELECT COUNT(*) FROM game_builds WHERE build_id=? AND game_id=?",
@@ -235,6 +312,9 @@ public class PublisherWorkspaceService {
                         "UPDATE game_builds SET version=?,file_url=?,file_size=?,status=? WHERE build_id=? AND game_id=?",
                         build.version(), build.fileUrl(), build.fileSize(), build.status(), build.id(), id);
             } else {
+                // 新版成功啟用時，先停用同遊戲的舊版；整段方法在同一交易內。
+                if ("ACTIVE".equals(build.status()))
+                    db.update("UPDATE game_builds SET status='INACTIVE' WHERE game_id=? AND status='ACTIVE'", id);
                 var holder = new GeneratedKeyHolder();
                 db.update(c -> {
                     var ps = c.prepareStatement(
@@ -257,6 +337,28 @@ public class PublisherWorkspaceService {
         return game(a, id);
     }
 
+    /** 僅允許擁有者永久刪除未送審草稿；外鍵失敗會回滾整筆交易。 */
+    @Transactional
+    public void deleteDraft(Actor a, int id) {
+        var current = owned(a, id, true);
+        if (!"DRAFT".equals(current.get("status")) || current.get("scheduled_off_shelf_at") != null)
+            throw new Problem(409, "只有草稿可以永久刪除");
+
+        // 曾有交易或遊玩紀錄的遊戲不應永久刪除。
+        for (String table : List.of("order_items", "cart_items", "game_reviews", "play_records")) {
+            if (db.queryForObject("SELECT COUNT(*) FROM " + table + " WHERE game_id=?", Integer.class, id) > 0)
+                throw new Problem(409, "這款遊戲已有關聯紀錄，不能永久刪除");
+        }
+        // 先刪除草稿專屬的子資料，避免違反外鍵限制。
+        db.update("DELETE FROM game_tags WHERE game_id=?", id);
+        db.update("DELETE FROM game_media WHERE game_id=?", id);
+        db.update("DELETE FROM game_builds WHERE game_id=?", id);
+        db.update("DELETE FROM game_audit_logs WHERE game_id=?", id);
+        // 如有其他外鍵關聯，SQL Server 會拒絕刪除並回滾交易。
+        if (db.update("DELETE FROM games WHERE game_id=? AND member_id=? AND status='DRAFT'", id, a.id()) != 1)
+            throw new Problem(409, "草稿狀態已變更，請重新整理");
+    }
+
     @Transactional
     public Object action(Actor a, int id, String action) {
         var current = owned(a, id, true);
@@ -277,7 +379,7 @@ public class PublisherWorkspaceService {
                 }
                 games.submitForReview(id);
                 notifications.reviewers("GAME_SUBMITTED", "新的遊戲上架申請", current.get("game_name").toString(),
-                        "/admin/games?mode=pending");
+                        "/admin/games?mode=pending&game=" + id);
             }
             case "off-shelf" -> games.requestOffShelf(id);
             case "cancel-off-shelf" -> {

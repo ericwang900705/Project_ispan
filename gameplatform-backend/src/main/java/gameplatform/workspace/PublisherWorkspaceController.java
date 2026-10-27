@@ -54,6 +54,12 @@ public class PublisherWorkspaceController {
                 return service.document(a, id, body);
         }
 
+        @PutMapping("/games/{id}/published-content")
+        public Object publishedContent(Actor a, @PathVariable int id,
+                        @Valid @RequestBody PublisherWorkspaceService.PublishedContent body) {
+                return service.savePublishedContent(a, id, body);
+        }
+
         @PutMapping("/games/{id}/tags")
         public Object tags(Actor a, @PathVariable int id, @Valid @RequestBody PublisherWorkspaceService.Tags body) {
                 return service.saveTags(a, id, body);
@@ -68,6 +74,11 @@ public class PublisherWorkspaceController {
         public Object media(Actor a, @PathVariable int id,
                         @Valid @RequestBody PublisherWorkspaceService.MediaList body) {
                 return service.saveMedia(a, id, body);
+        }
+
+        @DeleteMapping("/games/{id}")
+        public void deleteDraft(Actor a, @PathVariable int id) {
+                service.deleteDraft(a, id);
         }
 
         @PostMapping("/games/{id}/publish")

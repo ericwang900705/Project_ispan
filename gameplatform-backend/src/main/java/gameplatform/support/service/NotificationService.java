@@ -12,17 +12,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationService {
     // 共用通知表目前僅由客服使用；查詢與已讀操作限定客服事件。
     private static final String SUPPORT_EVENTS = " AND event_type IN "
-            + "('NEW_CHAT','TICKET_CREATED','CHAT_REPLY','TICKET_REPLY','CHAT_MESSAGE','TICKET_MESSAGE')";
+            + "('NEW_CHAT','TICKET_CREATED','CHAT_REPLY','TICKET_REPLY','CHAT_MESSAGE','TICKET_MESSAGE','ROOM_CLOSED','TICKET_CLOSED')";
 
     private static final String PUBLISHER_EVENTS = " AND event_type IN "
             + "('NEW_CHAT','TICKET_CREATED','CHAT_REPLY',"
-            + "'TICKET_REPLY','CHAT_MESSAGE','TICKET_MESSAGE',"
+            + "'TICKET_REPLY','CHAT_MESSAGE','TICKET_MESSAGE','ROOM_CLOSED','TICKET_CLOSED',"
             + "'GAME_APPROVED','GAME_REJECTED','GAME_FORCE_OFF_SHELF')";
 
     // 管理員可以看到客服通知與遊戲送審通知
     private static final String ADMIN_EVENTS = " AND event_type IN "
             + "('NEW_CHAT','TICKET_CREATED','CHAT_REPLY',"
-            + "'TICKET_REPLY','CHAT_MESSAGE','TICKET_MESSAGE',"
+            + "'TICKET_REPLY','CHAT_MESSAGE','TICKET_MESSAGE','ROOM_CLOSED','TICKET_CLOSED',"
             + "'GAME_SUBMITTED')";
 
     // 審核人員可以看到送審通知
@@ -63,7 +63,7 @@ public class NotificationService {
     public Object list(Actor a) {
         String k = kind(a);
         var items = db.queryForList(
-                "SELECT TOP 40 notification_id,event_type,title,body,target_path,created_at,read_at FROM dbo.notifications WHERE recipient_type=? AND recipient_id=?"
+                "SELECT TOP 40 notification_id,event_type,title,body,target_path,related_game_id,created_at,read_at FROM dbo.notifications WHERE recipient_type=? AND recipient_id=?"
                         + visibleEvents(a) + " ORDER BY notification_id DESC",
                 k, a.id());
         Integer unread = db.queryForObject(

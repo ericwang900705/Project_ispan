@@ -23,6 +23,8 @@ public class SupportService {
     private final EventHub events;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private NotificationService notifications;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private gameplatform.support.extension.SupportExtensionService extension;
     private final boolean sqlServer;
 
     public SupportService(JdbcTemplate db, EventHub events, @Value("${app.dialect}") String dialect) {
@@ -172,9 +174,10 @@ public class SupportService {
         int id = insert("support_room_id",
                 "INSERT INTO chat_rooms(member_id,status,created_at) VALUES (?,'OPEN',CURRENT_TIMESTAMP)",
                 a.id());
+        if (extension != null) extension.record(a,"rooms",id,"ROOM_CREATED","會員開始客服對話",false);
         events.changed(a.id());
         if (notifications != null)
-            notifications.supportQueue("NEW_CHAT", "新的即時聊天室", "聊天室 #" + id + " 等待接手", "/admin");
+            notifications.supportQueue("NEW_CHAT", "新的即時聊天室", "聊天室 #" + id + " 等待接手", "/admin/chats?room=" + id);
         return room(id);
     }
 
@@ -307,6 +310,7 @@ public class SupportService {
         if (r.adminId() != null && !r.adminId().equals(a.id()))
             throw new Problem(409, "其他客服已接手此對話");
         db.update("UPDATE chat_rooms SET admin_id=? WHERE support_room_id=?", a.id(), id);
+        if (extension != null && r.adminId() == null) extension.record(a,"rooms",id,"ROOM_CLAIMED","客服已接手對話",false);
         events.changed(r.memberId());
         return room(id);
     }
@@ -323,6 +327,7 @@ public class SupportService {
             assigned(a, t.adminId());
         db.update("UPDATE customer_service_tickets SET priority=?, updated_at=CURRENT_TIMESTAMP WHERE ticket_id=?",
                 priority, id);
+        if (extension != null && !priority.equals(t.priority())) extension.record(a,"tickets",id,"PRIORITY_CHANGED","優先程度由 "+t.priority()+" 調整為 "+priority,true);
         events.changed(t.memberId());
         return ticket(id);
     }
@@ -338,6 +343,7 @@ public class SupportService {
                 "UPDATE customer_service_tickets SET admin_id=?,status='IN_PROGRESS',updated_at=CURRENT_TIMESTAMP WHERE ticket_id=?",
                 a.id(), id);
         events.changed(t.memberId());
+        if (extension != null && t.adminId() == null) extension.record(a,"tickets",id,"TICKET_CLAIMED","客服已接手案件",false);
         return ticket(id);
     }
 
@@ -349,6 +355,8 @@ public class SupportService {
         if (r.status().equals("CLOSED"))
             return r;
         db.update("UPDATE chat_rooms SET status='CLOSED',closed_at=CURRENT_TIMESTAMP WHERE support_room_id=?", id);
+        if (extension != null) extension.record(a,"rooms",id,"ROOM_CLOSED","對話已結束",false);
+        if (notifications != null && !a.isMember()) notifications.member(r.memberId(),"ROOM_CLOSED","客服對話已結束","可查看對話紀錄或開始新的詢問","/member/support?room="+id);
         events.changed(r.memberId());
         return room(id);
     }
@@ -358,8 +366,10 @@ public class SupportService {
         lock("customer_service_tickets", "ticket_id", id);
         Ticket t = ticket(id);
         assigned(a, t.adminId());
-        db.update("UPDATE customer_service_tickets SET status='CLOSED',updated_at=CURRENT_TIMESTAMP WHERE ticket_id=?",
-                id);
+        if ("CLOSED".equals(t.status())) return t;
+        db.update("UPDATE customer_service_tickets SET status='CLOSED',updated_at=CURRENT_TIMESTAMP WHERE ticket_id=?", id);
+        if (extension != null) extension.record(a,"tickets",id,"TICKET_CLOSED","客服案件已結案",false);
+        if (notifications != null) notifications.member(t.memberId(),"TICKET_CLOSED","客服案件已結案",t.ticketNo(),"/member/support/"+id);
         events.changed(t.memberId());
         return ticket(id);
     }
@@ -412,6 +422,7 @@ public class SupportService {
         db.update(
                 "UPDATE chat_rooms SET ticket_id=?,status='CLOSED',closed_at=CURRENT_TIMESTAMP WHERE support_room_id=?",
                 ticketId, id);
+        if (extension != null) extension.escalated(a,id,ticketId,r.memberId());
         events.changed(r.memberId());
         if (notifications != null)
             notifications.member(r.memberId(), "TICKET_CREATED", "客服已建立正式案件", ticketNo, "/tickets/" + ticketId);
@@ -451,10 +462,10 @@ public class SupportService {
             if (a.canSupport())
                 notifications.member(owner, chat ? "CHAT_REPLY" : "TICKET_REPLY", chat ? "客服已回覆聊天室" : "客服已回覆案件",
                         chat ? "聊天室 #" + id + " 有新訊息" : "案件 #" + id + " 有新訊息",
-                        chat ? "/member/support" : "/tickets/" + id);
+                        chat ? "/member/support?room=" + id : "/member/support/" + id);
             else if (assignedId != null)
                 notifications.staff(assignedId, chat ? "CHAT_MESSAGE" : "TICKET_MESSAGE", chat ? "聊天室有新訊息" : "負責案件有新訊息",
-                        chat ? "聊天室 #" + id + " 有會員回覆" : "案件 #" + id + " 有會員回覆", chat ? "/admin" : "/tickets/" + id);
+                        chat ? "聊天室 #" + id + " 有會員回覆" : "案件 #" + id + " 有會員回覆", chat ? "/admin/chats?room=" + id : "/tickets/" + id);
         }
         return messageQuery(chat, "WHERE x." + (chat ? "support_message_id" : "message_id") + "=?", List.of(messageId),
                 false).get(0);
@@ -653,7 +664,11 @@ public class SupportService {
 
     public List<Map<String, Object>> categories() {
         return db.queryForList(
-                "SELECT category_id AS id,category_name AS name FROM customer_service_categories ORDER BY category_id");
+                "SELECT category_id AS id,category_name AS name,description FROM customer_service_categories "
+                + "ORDER BY CASE LTRIM(RTRIM(category_name)) "
+                + "WHEN N'帳號與登入' THEN 10 WHEN N'遊戲問題' THEN 20 WHEN N'訂單問題' THEN 30 "
+                + "WHEN N'付款問題' THEN 40 WHEN N'退款問題' THEN 50 WHEN N'優惠券問題' THEN 60 "
+                + "WHEN N'網站操作異常' THEN 70 WHEN N'其他問題' THEN 90 ELSE 80 END,category_id");
     }
 
     public List<Map<String, Object>> games(String q) {

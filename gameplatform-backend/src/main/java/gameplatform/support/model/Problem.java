@@ -31,12 +31,12 @@ public class Problem extends RuntimeException {
     public static class Handler {
         @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
         ResponseEntity<?> tooLarge(Exception e) {
-            return ResponseEntity.status(413).body(Map.of("message", "每張圖片最多 5 MB，每則訊息最多 3 張。"));
+            return ResponseEntity.status(413).body(Map.of("message", "檔案超過上傳限制：客服與發行商圖片最多 5 MB；發行商 MP4／ZIP 最多 100 MB。"));
         }
 
         @ExceptionHandler(org.springframework.web.multipart.support.MissingServletRequestPartException.class)
         ResponseEntity<?> missingPart(Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", "請選擇要上傳的圖片。"));
+            return ResponseEntity.badRequest().body(Map.of("message", "請選擇要上傳的檔案。"));
         }
 
         @ExceptionHandler(Problem.class)
