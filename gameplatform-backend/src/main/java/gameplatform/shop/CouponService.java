@@ -62,7 +62,7 @@ public class CouponService {
             if(!active(c)) continue;
             boolean has=claimed(id,n(c.get("coupon_id")));
             if(has) continue;
-            result.add(Map.of("coupon",dto(c),"canClaim",available(c),"reason",available(c)?"":"使用名額已滿"));
+            result.add(Map.of("coupon",dto(c),"canClaim",true,"reason",""));
         }
         return result;
     }
@@ -96,7 +96,7 @@ public class CouponService {
         if(db.update("UPDATE coupons SET used_count=used_count WHERE coupon_id=?",coupon)!=1) throw new Problem(404,"找不到優惠券");
         var c=rule(coupon);
         if(claimed(id,coupon)) throw new Problem(409,"已領取這張優惠券");
-        if(!available(c)) throw new Problem(409,"優惠券未開始、已失效或使用名額已滿");
+        if(!active(c)) throw new Problem(409,"優惠券未開始或已失效");
         db.update("INSERT INTO member_coupon_claims(member_id,coupon_id,received_at) VALUES(?,?,?)",id,coupon,LocalDateTime.now());
     }
     public List<Map<String,Object>> usable(Actor a) {
