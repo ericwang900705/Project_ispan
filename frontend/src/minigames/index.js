@@ -9,6 +9,7 @@ export const MINI_GAMES = {
   '踩地雷': { component: defineAsyncComponent(() => import('./MinesweeperGame.vue')), howTo: '左鍵翻開、右鍵插旗' },
   '打磚塊': { component: defineAsyncComponent(() => import('./BreakoutGame.vue')), howTo: '滑鼠或方向鍵移動板子，點一下發球' },
   '記憶翻牌': { component: defineAsyncComponent(() => import('./MemoryGame.vue')), howTo: '一次翻兩張，一樣就配對成功' },
+  '火柴人格鬥：霓虹對決': { component: defineAsyncComponent(() => import('./StickmanGame.vue')), howTo: 'A / D 移動、W 跳、J 拳、K 踢、L 防禦、U 氣功波' },
 }
 
 // 這款遊戲有沒有可以玩的版本

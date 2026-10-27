@@ -80,7 +80,7 @@ onBeforeUnmount(() => {
       <span>最佳 <b>{{ best === null ? '—' : `${best} 步` }}</b></span>
       <button class="small" @click="newGame">重新洗牌</button>
     </div>
-    <div class="board">
+    <div class="board memory">
       <button v-for="c in cards" :key="c.id" class="card" :class="{ open: c.open || c.matched, matched: c.matched }"
         @click="flip(c)">
         <span class="inner">
