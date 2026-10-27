@@ -83,6 +83,8 @@ public class ShopService {
         out.put("gameName", r.get("game_name"));
         out.put("coverUrl", r.get("cover_url"));
         out.put("price", r.get("price"));
+        out.put("originalPrice", r.getOrDefault("original_price", r.get("price")));
+        out.put("discountPercent", r.get("discount_percent"));
         return out;
     }
 
@@ -127,7 +129,18 @@ public class ShopService {
 
     List<Map<String, Object>> cartRows(int member) {
         return db.queryForList(
-                "SELECT c.*,g.game_name,g.cover_url,g.price,g.member_id AS publisher_member_id,g.status AS game_status,m.username AS recipient_name FROM cart_items c JOIN games g ON g.game_id=c.game_id LEFT JOIN members m ON m.member_id=c.recipient_member_id WHERE c.member_id=? ORDER BY c.created_at,c.cart_item_id",
+                """
+                SELECT c.*,g.game_name,g.cover_url,g.price AS original_price,
+                    CASE WHEN d.discount_percent IS NULL THEN g.price
+                         ELSE CAST(ROUND(g.price*(100-d.discount_percent)/100.0,0) AS decimal(18,0)) END AS price,
+                    d.discount_percent,g.member_id AS publisher_member_id,g.status AS game_status,m.username AS recipient_name
+                FROM cart_items c JOIN games g ON g.game_id=c.game_id
+                OUTER APPLY (SELECT TOP 1 discount_percent FROM dbo.game_discounts
+                    WHERE game_id=g.game_id AND start_at<=SYSDATETIME() AND end_at>SYSDATETIME()
+                    ORDER BY start_at DESC) d
+                LEFT JOIN members m ON m.member_id=c.recipient_member_id
+                WHERE c.member_id=? ORDER BY c.created_at,c.cart_item_id
+                """,
                 member);
     }
 

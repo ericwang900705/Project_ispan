@@ -5,6 +5,8 @@ import gameplatform.game.service.GameService;
 import gameplatform.support.model.Actor;
 import gameplatform.support.model.Problem;
 import java.util.*;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -21,12 +23,19 @@ public class StorefrontController {
         this.db = db;
     }
 
-    private Map<String, Object> dto(Game game, Map<Integer, String> genres) {
+    private Map<String, Object> dto(Game game, Map<Integer, String> genres, Map<Integer, Integer> activeDiscounts) {
         var out = new LinkedHashMap<String, Object>();
         out.put("gameId", game.getGameId());
         out.put("gameName", game.getGameName());
-        out.put("price", game.getPrice());
-        out.put("originalPrice", game.getPrice());
+        // 價格由後端統一計算；未生效的折扣不顯示。
+        Integer percent = activeDiscounts.get(game.getGameId());
+        BigDecimal original = game.getPrice();
+        BigDecimal current = percent == null ? original : original
+                .multiply(BigDecimal.valueOf(100 - percent))
+                .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
+        out.put("price", current);
+        out.put("originalPrice", original);
+        out.put("discountPercent", percent);
         out.put("coverUrl", game.getCoverUrl());
         out.put("description", game.getDescription());
         out.put("status", game.getStatus());
@@ -41,13 +50,29 @@ public class StorefrontController {
         db.query("SELECT gt.game_id,t.tag_name FROM game_tags gt JOIN tags t ON t.tag_id=gt.tag_id ORDER BY t.tag_id",
                 (org.springframework.jdbc.core.RowCallbackHandler) rs -> genres.putIfAbsent(rs.getInt(1),
                         rs.getString(2)));
+        // 一次取得所有正在進行的折扣，避免每款遊戲都額外查詢。
+        var activeDiscounts = new HashMap<Integer, Integer>();
+        db.query("""
+                SELECT g.game_id, d.discount_percent
+                FROM dbo.games g
+                CROSS APPLY (
+                    SELECT TOP 1 discount_percent
+                    FROM dbo.game_discounts
+                    WHERE game_id = g.game_id
+                      AND start_at <= SYSDATETIME()
+                      AND end_at > SYSDATETIME()
+                    ORDER BY start_at DESC, discount_id DESC
+                ) d
+                WHERE g.status = 'PUBLISHED'
+                """, (org.springframework.jdbc.core.RowCallbackHandler) rs ->
+                activeDiscounts.put(rs.getInt(1), rs.getInt(2)));
         var result = new ArrayList<Map<String, Object>>();
         int page = 0;
         org.springframework.data.domain.Page<Game> batch;
         do {
             batch = games.findAll(PageRequest.of(page++, 200));
             for (var game : batch)
-                result.add(dto(game, genres));
+                result.add(dto(game, genres, activeDiscounts));
         } while (batch.hasNext());
         return result;
     }
