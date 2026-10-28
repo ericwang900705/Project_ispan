@@ -34,8 +34,8 @@ public class PublisherWorkspaceController {
 
         @GetMapping("/games")
         public Object games(Actor a, @RequestParam(defaultValue = "0") int page,
-                        @RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "20") int size) {
-                return service.games(a, page, q, size);
+                        @RequestParam(defaultValue = "") String q, @RequestParam(defaultValue = "20") int size, @RequestParam(defaultValue = "") String status) {
+                return service.games(a, page, q, size, status);
         }
 
         @GetMapping("/games/{id}")

@@ -1,4 +1,5 @@
 <script setup>
+import WorkspaceModal from '../components/WorkspaceModal.vue'
 import DatePicker from '../components/DatePicker.vue'
 import SearchableSelect from '../components/SearchableSelect.vue'
 import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue'
@@ -73,6 +74,8 @@ function remove() { if (confirm('確定刪除這個未使用的標籤？')) muta
 function review() { if (!reason.value.trim()) { error.value = '請填寫處理原因'; return } mutate('/backoffice/reviews/' + selected.value.review_id, 'PATCH', { status: decision.value, reason: reason.value }) }
 function report(remove) { if (!reason.value.trim()) { error.value = '請填寫處理原因'; return } mutate('/backoffice/review-reports/' + selected.value.report_id + '/decision', 'POST', { remove, reason: reason.value }) }
 function clear() { query.value = ''; status.value = commentPage.value && commentView.value === 'pending' ? 'PENDING' : ''; load(true) }
+const modalTitle = computed(() => editing.value ? (selected.value ? '編輯' : '新增') + (area.value === 'tags' ? '標籤' : '優惠券') : ['orders','refunds'].includes(area.value) ? '訂單明細' : area.value === 'reviews' ? '評論詳情與處理' : '檢舉詳情與處理')
+function closePanel() { if (busy.value) return; editing.value = false; selected.value = null; detail.value = null; moderationInfo.value = null; reason.value = ''; error.value = '' }
 const orderLabels = { order_no: '訂單編號', username: '會員', order_status: '狀態', subtotal_amount: '小計', discount_amount: '折扣', total_amount: '總金額', points_earned: '獲得點數', created_at: '下單時間', paid_at: '付款時間', payment_type: '付款方式', ecpay_trade_no: '金流交易編號' }
 </script>
 <template>
@@ -134,6 +137,9 @@ const orderLabels = { order_no: '訂單編號', username: '會員', order_status
                 :disabled="!page || busy || loading" @click="page--; load()">上一頁</button><span>{{ page + 1 }} / {{
                     Math.max(1, Math.ceil(total / 20)) }}</span><button v-if="(page + 1) * 20 < total"
                 :disabled="(page + 1) * 20 >= total || busy || loading" @click="page++; load()">下一頁</button></nav>
+        <WorkspaceModal :open="editing || !!selected" :title="modalTitle" :busy="busy" @close="closePanel">
+          <p v-if="error" class="error" role="alert">{{ error }}</p>
+          <p v-if="busy && !detail && ['orders','refunds'].includes(area)" role="status">正在載入訂單明細…</p>
         <form v-if="editing" class="management-panel" @submit.prevent="save">
             <h2>{{ selected ? '編輯' : '新增' }}{{ area === 'tags' ? '標籤' : '優惠券' }}</h2><label>名稱<input
                     v-model.trim="form.name" :maxlength="area === 'tags' ? 50 : 100" required :disabled="busy"></label>
@@ -184,7 +190,7 @@ const orderLabels = { order_no: '訂單編號', username: '會員', order_status
                 <p>低消與折扣僅計算符合使用規則的遊戲，其餘遊戲維持原價。</p>
             </template>
             <div class="management-actions"><button class="primary" :disabled="busy">儲存</button><button type="button"
-                    :disabled="busy" @click="editing = false; selected = null">取消</button><button class="action-danger"
+                    :disabled="busy" @click="closePanel">取消</button><button class="action-danger"
                     v-if="area === 'tags' && selected" type="button" :disabled="busy || selected.game_count > 0"
                     @click="remove">刪除標籤</button></div>
         </form>
@@ -260,7 +266,8 @@ const orderLabels = { order_no: '訂單編號', username: '會員', order_status
                         @click="report(false)">檢舉不成立</button></div>
             </template>
             <p v-else>處理說明：{{ selected.review_comment }}</p>
-        </section>
+        </section>        </WorkspaceModal>
+
     </section>
 </template>
 <style scoped>

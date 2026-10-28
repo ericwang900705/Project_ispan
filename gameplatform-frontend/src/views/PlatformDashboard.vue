@@ -82,12 +82,14 @@ onMounted(load)
       <p v-else class="platform-chart-empty">{{ loading ? '載入統計中…' : '尚無可用的統計資料' }}</p>
       <footer>僅統計目前為已付款狀態的訂單金額，非平台結算收益。</footer>
     </article>
-    <div class="platform-footer"><small v-if="data?.updatedAt">更新時間：{{ new
-      Date(data.updatedAt).toLocaleString('zh-TW', { hour12: false }) }}</small></div>
+    <footer class="platform-footer dashboard-update-footer"><div class="dashboard-update-card" role="status"><span class="dashboard-update-dot" :class="{ loading }"></span><div><strong>{{ loading ? '正在更新平台資料' : '資料更新時間' }}</strong><time v-if="data?.updatedAt" :datetime="data.updatedAt">{{ new Date(data.updatedAt).toLocaleString('zh-TW', { hour12: false }) }}</time><small v-else>尚未取得更新時間</small></div><UiIcon name="refresh" /></div></footer>
   </section>
 </template>
 
 <style scoped>
+.dashboard-update-footer { display: flex; justify-content: flex-end; margin-top: 24px; }.dashboard-update-card { display: flex; align-items: center; gap: 13px; padding: 15px 20px; border: 1px solid #b7cbdc; border-radius: 13px; background: #f2f7fb; color: #294b65; box-shadow: 0 4px 16px #2446600a; }.dashboard-update-dot { width: 9px; height: 9px; flex-shrink: 0; border-radius: 50%; background: #3d9b76; box-shadow: 0 0 0 4px #3d9b7614; }.dashboard-update-dot.loading { background: #c49a4c; }.dashboard-update-card strong { display: block; font-size: 11px; color: #587287; margin-bottom: 4px; }.dashboard-update-card time,.dashboard-update-card small { font-size: 13px; color: #24465f; font-variant-numeric: tabular-nums; }.dashboard-update-card > .ui-icon { width: 18px; height: 18px; margin-left: 15px; color: #6b8ba3; }
+@media(max-width:600px) { .dashboard-update-footer { justify-content: stretch; }.dashboard-update-card { width: 100%; box-sizing: border-box; } }
+
 .revenue-trend {
   padding-top: 24px;
   display: grid;

@@ -9,6 +9,7 @@ import { useCartStore } from '@/cart/stores/cart'
 import ReviewForm from '@/cart/components/ReviewForm.vue'
 
 const cart = useCartStore()
+const router = useRouter()
 const aiNames = new Set(["暗夜倖存者", "無盡深淵", "失落王國", "星露森林", "荒野生存", "戰場前線", "火柴人射擊", "火柴人紅藍競技場", "三國戰棋", "牛排大師", "火柴人羽毛球", "火柴人賽車"])
 const canPlay = entry => !!miniGameOf(entry?.game) || aiNames.has(entry?.game?.gameName)
 function versionUrl(entry) {
@@ -34,7 +35,7 @@ async function downloadGame(entry) {
   } catch (err) { alert(err.message || '下載失敗') }
 }
 
-const router = useRouter()
+const playError = ref('')
 // 進入頁面時向後端抓最新的遊戲庫
 onMounted(() => cart.fetchLibrary())
 
@@ -67,8 +68,10 @@ function playTime(minutes) {
 }
 
 // 進入遊戲頁後再次檢查本人遊戲庫與可用的網頁版本。
-function play(entry) {
-  router.push(`/play/${entry.game.gameId}`)
+async function play(entry) {
+  playError.value = ''
+  try { await router.push({ name: 'PlayGame', params: { id: entry.game.gameId } }) }
+  catch (e) { playError.value = e.message }
 }
 
 // 正在寫評論的遊戲（null 代表評論視窗沒打開）
@@ -98,6 +101,8 @@ function openReview(entry) {
         </select>
       </div>
     </header>
+
+    <p v-if="playError" class="game-window-error" role="alert">{{ playError }}</p>
 
     <!-- 還沒有遊戲：提示去商店逛逛 -->
     <div v-if="cart.library.length === 0" class="empty">
@@ -148,6 +153,7 @@ function openReview(entry) {
 
 <!-- 遊戲庫頁面樣式（深藍底 + 金色重點色，和遊戲首頁同色系） -->
 <style scoped>
+.game-window-error { color: #ffd6d6; padding: 14px 18px; border: 1px solid #9c5c6b; border-radius: 10px; background: #4b243d; }
 .ai-download { margin: 8px 8px 8px 0; padding: 9px 14px; border-radius:8px; border:1px solid #d4a64a; color:#ffe1a2; background:#233968; cursor:pointer; }
 .ai-download:hover {background:#36548c;}
 /* ===== 配色：和 GamesHome.vue 一樣，要換顏色改這裡就好 ===== */

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, nextTick, onUnmounted } from 'vue'
 import UiIcon from './UiIcon.vue'
-const props = defineProps({ open: Boolean, title: String, description: String, busy: Boolean })
+const props = defineProps({ open: Boolean, title: String, description: String, busy: Boolean, elevated: Boolean })
 const emit = defineEmits(['close'])
 const element = ref(null)
 let previousFocus, previousOverflow
@@ -34,7 +34,7 @@ onUnmounted(cleanup)
 </script>
 <template>
   <Teleport to="body">
-    <div v-if="open" class="publisher-modal-backdrop" @click.self="!busy && emit('close')">
+    <div v-if="open" class="publisher-modal-backdrop" :class="{ 'publisher-dialog-elevated': elevated }" @click.self="!busy && emit('close')">
       <section ref="element" class="publisher-modal" role="dialog" aria-modal="true"
         aria-labelledby="publisher-dialog-title" tabindex="-1">
         <header>
@@ -52,3 +52,7 @@ onUnmounted(cleanup)
     </div>
   </Teleport>
 </template>
+
+<style scoped>
+.publisher-dialog-elevated { z-index: 2200; }
+</style>

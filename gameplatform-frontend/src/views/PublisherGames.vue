@@ -1,6 +1,7 @@
 <script setup>
+import WorkspaceModal from '../components/WorkspaceModal.vue'
 import PublisherBuildLink from '../components/PublisherBuildLink.vue'
-import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter, RouterLink, onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router'
 import { api, session } from '../api'
 import { publisherFunctions, publisherLink, publisherGroups, publisherIcons } from '../publisher-functions'
@@ -19,7 +20,10 @@ const title = computed(() => publisherFunctions.find(x => x.mode === mode.value)
 const items = ref([])
 const total = ref(0)
 const page = ref(0)
-const pageSize = computed(() => ['tags', 'builds'].includes(mode.value) ? 5 : 20)
+const pageSize = computed(() => ['tags', 'builds', 'buyers', 'history', 'publish', 'offShelf', 'preview', 'list'].includes(mode.value) ? 5 : 20)
+const filterable = computed(() => ['history','publish','offShelf','list','preview'].includes(mode.value))
+const statusFilter = ref(''), appliedFilters = ref({ q: '', status: '' })
+const gameEditorOpen = ref(false), detailLoading = ref(false)
 const q = ref('')
 const uploading = ref(false)
 const loading = ref(false)
@@ -136,7 +140,7 @@ async function load() {
   const run = ++listRun
   loading.value = true
   try {
-    const result = await api('/workspace/publisher/games?page=' + page.value + '&size=' + pageSize.value + '&q=' + encodeURIComponent(q.value.trim()))
+    const result = await api('/workspace/publisher/games?' + new URLSearchParams({ page: String(page.value), size: String(pageSize.value), ...appliedFilters.value }))
     if (run !== listRun) return
     items.value = result.items; total.value = result.total
     if (!items.value.length && page.value > 0) { page.value--; return load() }
@@ -148,12 +152,13 @@ async function load() {
 }
 async function choose(id) {
   const run = ++detailRun
+  detailLoading.value = true
   selected.value = null; error.value = ''
   try {
     const game = await api('/workspace/publisher/games/' + id); if (run === detailRun) assign(game)
   } catch (e) {
     if (run === detailRun) error.value = e.message
-  }
+  } finally { if (run === detailRun) detailLoading.value = false }
 }
 async function goTo(next, id = selected.value?.game_id) {
   allowRoute = true
@@ -173,7 +178,24 @@ function select(game) {
     }
   })
 }
-function search() { page.value = 0; load() }
+function search() { page.value = 0; appliedFilters.value = { q: q.value.trim(), status: filterable.value ? statusFilter.value : '' }; load() }
+function clearSearch() { q.value = ''; statusFilter.value = ''; search() }
+function openGameEditor(game) {
+  if (busy.value) return
+  gameEditorOpen.value = true
+  if (String(route.query.game) === String(game.game_id)) choose(game.game_id)
+  else select(game)
+}
+function closeGameEditor() {
+  if (busy.value || uploading.value) return
+  if (dirty.value) { openDialog('closeEditor'); return }
+  gameEditorOpen.value = false; detailRun++; detailLoading.value = false
+}
+async function finishEditor(save) {
+  if (save && !(await saveEditor('',false))) return
+  if (!save && selected.value) assign(selected.value)
+  dialog.value = null; await nextTick(); gameEditorOpen.value = false
+}
 function endpoint(suffix) {
   return '/workspace/publisher/games/' + selected.value.game_id + '/' + suffix
 }
@@ -197,6 +219,7 @@ async function saveEditor(next = '', syncRoute = true) {
   try {
     const game = await api(path, { method, body })
     assign(game); await load()
+    if (current === 'edit' && !dialog.value) gameEditorOpen.value = false
     notifyPublisher(current === 'builds' && liveBuilds.value ? '新版本已儲存，確認後可發布' : ['new', 'builds'].includes(current) ? '草稿已儲存' : current === 'edit' ? '修改已儲存' : '設定已儲存')
     if (syncRoute && (next || current === 'new')) await goTo(next || current, game.game_id)
     return game
@@ -279,7 +302,7 @@ async function releaseBuild() {
   } catch (e) { dialogError.value = e.message }
   finally { busy.value = false }
 }
-watch(mode, () => { page.value = 0; load() })
+watch(mode, () => { page.value = 0; statusFilter.value = ''; appliedFilters.value = { q: q.value.trim(), status: '' }; gameEditorOpen.value = false; load() })
 function beforeUnload(event) { if (dirty.value || busy.value || uploading.value) { event.preventDefault(); event.returnValue = '' } }
 onMounted(() => { clockTimer = setInterval(() => { tick.value = Date.now() }, 1000); window.addEventListener('beforeunload', beforeUnload) })
 onUnmounted(() => { clearInterval(clockTimer); window.removeEventListener('beforeunload', beforeUnload); pendingLeave?.resolve(false) })
@@ -308,20 +331,22 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
       <div class="publisher-management-main">
         <p v-if="error" class="error" role="alert">{{ error }}</p>
         <div class="publisher-work-columns"
-          :class="{ 'publisher-create': mode === 'new', 'publisher-editing': ['new', 'edit'].includes(mode) }">
+          :class="{ 'publisher-create': mode === 'new', 'publisher-editing': mode === 'new', 'publisher-edit-list': mode === 'edit' }">
           <section v-if="mode !== 'new'" class="publisher-panel publisher-list-panel">
             <header class="publisher-panel-heading">
               <h2>遊戲清單</h2>
               <span>{{ total }} 款</span>
             </header>
-            <form class="publisher-game-search" @submit.prevent="search">
-              <input v-model="q" maxlength="100" aria-label="搜尋我的遊戲" placeholder="搜尋遊戲名稱">
-              <button class="primary" :disabled="loading || busy">搜尋</button>
+            <form class="publisher-game-search publisher-search-refined" @submit.prevent="search">
+              <label class="publisher-query-label">搜尋遊戲<input v-model="q" maxlength="100" aria-label="搜尋我的遊戲" placeholder="輸入遊戲名稱" :disabled="loading || busy"></label>
+              <label v-if="filterable" class="publisher-status-filter">遊戲狀態<select v-model="statusFilter" aria-label="遊戲狀態篩選" :disabled="loading || busy" @change="search"><option value="">全部狀態</option><option v-for="(label, key) in labels" :key="key" :value="key">{{ label }}</option></select></label>
+              <div class="publisher-search-actions"><button class="primary" :disabled="loading || busy"><UiIcon name="search" />搜尋</button><button type="button" class="secondary" :disabled="loading || busy" @click="clearSearch">清除篩選</button></div>
             </form>
             <p v-if="loading" role="status">載入中…</p>
             <p v-else-if="!items.length" class="muted">目前沒有符合條件的遊戲。</p>
-            <button v-for="game in items" :key="game.game_id" class="publisher-game-row"
-              :class="{ active: selected?.game_id === game.game_id }" :disabled="busy" @click="select(game)">
+            <div v-for="game in items" :key="game.game_id" class="publisher-game-row"
+              :class="{ active: selected?.game_id === game.game_id }" >
+              <button type="button" class="publisher-game-select" :disabled="busy || detailLoading" @click="select(game)">
               <span class="publisher-game-info">
                 <span class="publisher-game-thumb">
                   <UiIcon name="game" />
@@ -339,7 +364,9 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
                 <b>{{ game.buyer_count }}</b>
                 人購買
               </span>
-            </button>
+              </button>
+              <button v-if="mode === 'edit'" type="button" class="publisher-edit-launch primary" :disabled="busy || !['DRAFT','OFF_SHELF'].includes(game.status)" @click="openGameEditor(game)"><UiIcon name="edit" />修改</button>
+            </div>
             <div class="publisher-pagination unified-pager">
               <button :disabled="page === 0 || loading || busy" @click="page--; load()">上一頁</button>
               <span>
@@ -348,7 +375,7 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
               <button :disabled="(page + 1) * pageSize >= total || loading || busy" @click="page++; load()">下一頁</button>
             </div>
           </section>
-          <section class="publisher-panel publisher-editor">
+          <section v-if="mode !== 'edit'" class="publisher-panel publisher-editor">
             <template v-if="mode === 'new' || selected">
               <p v-if="selected?.off_shelf_source === 'ADMIN'" class="publisher-pending">
                 管理員強制下架原因：{{ selected.off_shelf_reason }}
@@ -372,7 +399,7 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
                   {{ selected.pending_review_type === 'PUBLISH' ? '上架' : '下架' }}申請待審核
                 </p>
               </header>
-              <form v-if="['new', 'edit'].includes(mode)" class="publisher-form" ref="editorForm"
+              <form v-if="mode === 'new'" class="publisher-form" ref="editorForm"
                 @submit.prevent="submitEditor">
                 <PublisherStoreEditor v-model:form="form" v-model:tag-ids="tagIds" v-model:media="media" :tags="allTags"
                   :disabled="!!selected && !editable" :busy="busy" @uploading="uploading = $event" />
@@ -524,9 +551,17 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
       </div>
     </div>
   </section>
-  <PublisherDialog :open="!!dialog" :busy="busy"
-    :title="dialog === 'releaseBuild' ? '確認發布版本 ' + releaseTarget?.version : dialog === 'leave' ? '尚有未儲存的變更' : dialog === 'publish' ? '確認送出上架審核' : dialog === 'offShelf' ? '確認申請下架' : '放棄此版本變更'"
-    :description="dialog === 'releaseBuild' ? '發布後會員可取得此版本；目前版本會停用並保留，遊戲維持上架。確定發布嗎？' : dialog === 'leave' ? '您有尚未儲存的資料，要先儲存再前往嗎？' : dialog === 'publish' ? '送出後在審核完成前將無法修改遊戲資料，確定要送出嗎？' : dialog === 'offShelf' ? '提出申請後 24 小時會自動下架，期限內可以取消下架。遊戲資料與購買紀錄會保留。' : '確定要捨棄此版本尚未儲存的變更嗎？既有版本會還原，新增版本會移除。'"
+  <WorkspaceModal :open="gameEditorOpen && mode === 'edit'" :title="selected ? '修改遊戲：' + selected.game_name : '修改遊戲'" wide publisher :busy="busy || uploading" :suspended="!!dialog" @close="closeGameEditor">
+    <p v-if="error" class="error" role="alert">{{ error }}</p>
+    <p v-if="detailLoading" role="status">正在載入遊戲資料…</p>
+    <template v-else-if="selected">
+      <p v-if="!editable" class="publisher-pending">此遊戲目前不可修改。已上架遊戲可到版本管理新增版本；草稿或可編輯的下架遊戲才可修改商品資料。</p>
+      <form class="publisher-form" ref="editorForm" @submit.prevent="submitEditor"><PublisherStoreEditor v-model:form="form" v-model:tag-ids="tagIds" v-model:media="media" :tags="allTags" :disabled="!editable" :busy="busy" @uploading="uploading = $event" /></form>
+    </template>
+  </WorkspaceModal>
+  <PublisherDialog :open="!!dialog" :busy="busy" :elevated="gameEditorOpen"
+    :title="dialog === 'closeEditor' ? '尚有未儲存的變更' : dialog === 'releaseBuild' ? '確認發布版本 ' + releaseTarget?.version : dialog === 'leave' ? '尚有未儲存的變更' : dialog === 'publish' ? '確認送出上架審核' : dialog === 'offShelf' ? '確認申請下架' : '放棄此版本變更'"
+    :description="dialog === 'closeEditor' ? '要儲存修改再關閉，或放棄這次變更？' : dialog === 'releaseBuild' ? '發布後會員可取得此版本；目前版本會停用並保留，遊戲維持上架。確定發布嗎？' : dialog === 'leave' ? '您有尚未儲存的資料，要先儲存再前往嗎？' : dialog === 'publish' ? '送出後在審核完成前將無法修改遊戲資料，確定要送出嗎？' : dialog === 'offShelf' ? '提出申請後 24 小時會自動下架，期限內可以取消下架。遊戲資料與購買紀錄會保留。' : '確定要捨棄此版本尚未儲存的變更嗎？既有版本會還原，新增版本會移除。'"
     @close="closeDialog">
     <label v-if="dialog === 'offShelf'">下架說明（選填）
       <textarea v-model="reason" maxlength="500" rows="3" :disabled="busy"></textarea>
@@ -534,7 +569,8 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
     <p v-if="dialogError" class="error" role="alert">{{ dialogError }}</p>
     <template #actions>
       <button class="secondary" :disabled="busy" @click="closeDialog">繼續編輯 / 取消</button>
-      <template v-if="dialog === 'leave'">
+      <template v-if="dialog === 'closeEditor'"><button class="secondary" :disabled="busy" @click="finishEditor(false)">放棄變更並關閉</button><button class="primary" :disabled="busy" @click="finishEditor(true)">儲存並關閉</button></template>
+      <template v-else-if="dialog === 'leave'">
         <button class="secondary" :disabled="busy" @click="finishLeave(false)">
           放棄變更
         </button>
@@ -557,6 +593,13 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
 </template>
 
 <style scoped>
+/* 搜尋與篩選採各自欄位及固定間距，按鈕不與輸入框相黏。 */
+.publisher-games .publisher-panel .publisher-search-refined { display: flex; flex-wrap: wrap; align-items: end; gap: 14px; margin: 18px 0 22px; padding: 16px; border: 1px solid #c8d8e6; border-radius: 12px; background: #f1f6fa; }
+.publisher-search-refined label { display: grid; gap: 8px; min-width: 0; font-size: 12px; color: #43627b; font-weight: 650; }.publisher-query-label { flex: 1 1 220px; }.publisher-status-filter { flex: 0 1 180px; }.publisher-games .publisher-search-refined :is(input,select) { width: 100%; min-height: 44px; box-sizing: border-box; padding: 11px 13px; border: 1px solid #9fb6cb; border-radius: 9px; background: #fff; color: #25445f; font-size: 14px; }.publisher-search-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }.publisher-search-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 11px 18px; margin: 0; white-space: nowrap; }.publisher-search-actions .ui-icon { width: 17px; height: 17px; }
+.publisher-games .publisher-game-row { display: flex; align-items: center; gap: 14px; padding: 0; }.publisher-game-select { display: flex; flex: 1; align-items: center; justify-content: space-between; gap: 14px; min-width: 0; width: 100%; padding: 16px; border: 0; border-radius: inherit; background: transparent; text-align: left; color: inherit; cursor: pointer; }.publisher-game-select .publisher-game-info { min-width: 0; }.publisher-game-select strong { overflow-wrap: anywhere; }.publisher-edit-launch { display: inline-flex; align-items: center; gap: 7px; min-height: 42px; padding: 10px 17px; margin-right: 16px; white-space: nowrap; }.publisher-edit-launch .ui-icon { width: 17px; height: 17px; }
+.publisher-games .publisher-edit-list { grid-template-columns: minmax(0,1fr); }.publisher-games .publisher-edit-list .publisher-list-panel { max-height: none; overflow: visible; }
+@media(max-width:650px) { .publisher-games .publisher-panel .publisher-search-refined { padding: 13px; gap: 12px; }.publisher-query-label,.publisher-status-filter { flex-basis: 100%; }.publisher-search-actions { width: 100%; }.publisher-search-actions button { flex: 1; }.publisher-game-select { padding: 13px 10px; }.publisher-edit-launch { margin-right: 9px; padding: 9px 12px; } }
+
 .publisher-version-note { padding: 14px; border: 1px solid #b5ccd9; border-radius: 10px; background: #eef6fa; line-height: 1.8; color: #244157; }
 .publisher-resource-card fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 /* 來源選項保留原生單選尺寸，不套用一般文字欄位的滿寬規則。 */

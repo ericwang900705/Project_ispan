@@ -124,17 +124,23 @@ public class PublisherWorkspaceService {
     }
 
     public Object games(Actor a, int page, String q, int size) {
+        return games(a,page,q,size,"");
+    }
+
+    /** 清單與總筆數套用相同會員歸屬、搜尋及狀態條件，再由資料庫分頁。 */
+    public Object games(Actor a, int page, String q, int size, String status) {
         publisher(a);
-        if (page < 0 || page > 100000 || q.length() > 100 || size < 1 || size > 20)
-            throw new Problem(400, "無效的查詢條件");
-        String where = " FROM games g WHERE g.member_id=? AND g.game_name LIKE ?";
-        var items = db.queryForList(
-                "SELECT g.game_id,g.game_name,g.status," + buyers() + " AS buyer_count" + where
-                        + " ORDER BY g.game_id DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY",
-                a.id(), "%" + q + "%", page * size, size);
-        items.forEach(g -> g.put("pending_review_type", "PENDING_REVIEW".equals(g.get("status")) ? "PUBLISH" : null));
-        return Map.of("items", items, "total",
-                db.queryForObject("SELECT COUNT(*)" + where, Long.class, a.id(), "%" + q + "%"));
+        if (page < 0 || page > 100000 || q == null || q.length() > 100 || size < 1 || size > 20
+                || !Set.of("","DRAFT","PENDING_REVIEW","COMING_SOON","PUBLISHED","PENDING_OFF_SHELF","OFF_SHELF").contains(Objects.toString(status,"")))
+            throw new Problem(400,"無效的查詢條件");
+        String where=" FROM games g WHERE g.member_id=? AND g.game_name LIKE ?";
+        var args=new ArrayList<Object>();args.add(a.id());args.add("%"+q.strip()+"%");
+        if (status!=null && !status.isEmpty()) {where+=" AND g.status=?";args.add(status);}
+        Long total=db.queryForObject("SELECT COUNT(*)"+where,Long.class,args.toArray());
+        args.add(page*size);args.add(size);
+        var items=db.queryForList("SELECT g.game_id,g.game_name,g.status,"+buyers()+" AS buyer_count"+where+" ORDER BY g.game_id DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY",args.toArray());
+        items.forEach(g -> g.put("pending_review_type","PENDING_REVIEW".equals(g.get("status"))?"PUBLISH":null));
+        return Map.of("items",items,"total",total);
     }
 
     private String buyers() {

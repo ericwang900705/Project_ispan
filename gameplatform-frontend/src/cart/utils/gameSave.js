@@ -33,7 +33,9 @@ export function sandboxGameHtml(html, data, channel) {
     Object.defineProperty(window,'localStorage',{value:storage(initial,true),configurable:false});
     Object.defineProperty(window,'sessionStorage',{value:storage({},false),configurable:false});
   })();`
-  const bridge = '<script>' + source + '</script>'
+  // 僅限制既有對話選單高度，不修改任何遊戲背景、角色、地圖或按鈕內容。
+  const viewportStyle = '<style data-hero-game-viewport>#modal > #box,#overlay > .panel,#panel > #card,.overlay > .modal{box-sizing:border-box;max-height:calc(100dvh - 28px)!important;overflow-y:auto!important;overscroll-behavior:contain;scrollbar-width:thin;}</style>'
+  const bridge = viewportStyle + '<script>' + source + '</script>'
   if (/<head\b[^>]*>/i.test(html)) return html.replace(/<head\b[^>]*>/i, tag => tag + bridge)
   if (/<html\b[^>]*>/i.test(html)) return html.replace(/<html\b[^>]*>/i, tag => tag + '<head>' + bridge + '</head>')
   return '<!doctype html><head>' + bridge + '</head>' + html

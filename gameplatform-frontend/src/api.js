@@ -18,6 +18,22 @@ let stream = null
 let expiryTimer = null
 let generation = 0
 
+// 獨立遊戲分頁共用登出通知；不在頻道或網址傳送 JWT。
+const memberLogoutChannel = typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined'
+  ? new BroadcastChannel('hero-member-logout-v1') : null
+if (memberLogoutChannel) memberLogoutChannel.onmessage = event => {
+  if (event.data?.type === 'member-logout' && ['MEMBER', 'PUBLISHER'].includes(session.user?.role)
+      && event.data.memberId === session.user.id) expired()
+}
+
+/** 只複製目前會員憑證至自己剛開的空白分頁，沿用原期限並由新分頁重新驗證身分。 */
+export function prepareMemberGameWindow(popup) {
+  if (!token || !['MEMBER', 'PUBLISHER'].includes(session.user?.role)) throw Error('請先登入會員再開啟遊戲')
+  const expiresAt = expiresAtOf(token)
+  popup.sessionStorage.setItem(SESSION_KEY, JSON.stringify({ accessToken: token, expiresAt }))
+  popup.opener = null
+}
+
 // --- 清除本地驗證與狀態 ---
 function clearLocal(removeStored = true) {
   authGeneration++
@@ -213,7 +229,11 @@ async function finishLogin(area, run) {
 }
 
 // 與組員的無狀態 JWT 行為一致：清除本機憑證與 SSE，不另外維護客服撤銷清單。
-export async function logout() { expired() }
+export async function logout() {
+  if (['MEMBER', 'PUBLISHER'].includes(session.user?.role))
+    memberLogoutChannel?.postMessage({ type: 'member-logout', memberId: session.user.id })
+  expired()
+}
 
 // --- 停止 SSE 事件串流 ---
 export function stopEvents() {

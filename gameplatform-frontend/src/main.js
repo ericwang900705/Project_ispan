@@ -256,5 +256,8 @@ window.addEventListener(
     'auth-expired',
     event => router.push(event.detail?.loginPath || '/member/login')
 )
-createApp(App).use(createPinia()).use(router).mount('#app')
+const app = createApp(App).use(createPinia()).use(router)
+// 等待初次路由權限判斷，避免遊戲分頁先短暫掛載商城與社交視窗。
+await router.isReady()
+app.mount('#app')
 export { router }

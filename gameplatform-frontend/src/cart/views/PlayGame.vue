@@ -1,7 +1,7 @@
 <script setup>
 // 沿用 GitHub cart 分支的遊玩時間算法：可見分頁才計時，每 15 秒檢查，滿分鐘先入帳，離開時四捨五入剩餘秒數。
 // API 保持目前整合專題的 JWT 身分驗證，不使用 CART 舊版固定的 MEMBER_ID。
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { api, accessToken, session } from '../../api'
 import { useCartStore } from '@/cart/stores/cart'
@@ -31,6 +31,8 @@ const error = ref('')
 const screen = ref(null)
 const isFullscreen = ref(false)
 const canFullscreen = document.fullscreenEnabled
+const previousTitle = document.title
+watch(entry, value => { if (value) document.title = value.game.gameName + '・線上遊玩' }, { immediate: true })
 let playedMs = 0
 let resumedAt = null
 let timer = null
@@ -117,6 +119,7 @@ onMounted(async () => {
 })
 onBeforeUnmount(() => {
   alive = false
+  document.title = previousTitle
   clearInterval(timer)
   finish()
   document.removeEventListener('visibilitychange', onVisibility)
@@ -127,168 +130,34 @@ onBeforeUnmount(() => {
 })
 </script>
 <template>
-  <main class="play">
-    <div class="head">
-      <RouterLink to="/member-games" class="back">← 回遊戲庫</RouterLink>
-      <h1 v-if="entry">{{ entry.game.gameName }}</h1>
-      <span v-if="mini" class="how">{{ mini.howTo }}</span>
-      <button v-if="(mini || html) && canFullscreen" class="fs-btn" @click="toggleFullscreen">⛶ 全螢幕</button>
-    </div>
-
-    <p v-if="error" role="alert">{{ error }}</p>
+  <main class="play game-window">
+    <header class="game-toolbar">
+      <div class="game-toolbar-left"><span class="game-brand">HERO</span><RouterLink to="/member-games" class="back">← 返回遊戲庫</RouterLink></div>
+      <div class="game-toolbar-title"><h1>{{ entry?.game.gameName || '線上遊玩' }}</h1><small v-if="mini">{{ mini.howTo }}</small></div>
+      <div class="game-toolbar-right"><button v-if="(mini || html) && canFullscreen" class="fs-btn" @click="toggleFullscreen">⛶ {{ isFullscreen ? '離開全螢幕' : '全螢幕' }}</button></div>
+    </header>
+    <p v-if="error" class="game-error" role="alert">{{ error }}</p>
     <div v-if="loading" class="notice">正在確認遊戲庫…</div>
-    <div v-else-if="!entry" class="notice">
-      <p>你的遊戲庫裡沒有這款遊戲</p>
-      <RouterLink :to="`/games/${gameId}`" class="btn">去看看這款遊戲</RouterLink>
-    </div>
-    <div v-else-if="!mini && !html" class="notice">
-      <p>這款遊戲還沒有可以在網頁上玩的版本</p>
-      <RouterLink to="/member-games" class="btn">回遊戲庫</RouterLink>
-    </div>
-    <section v-else ref="screen" class="screen">
-      <!-- 全螢幕時標題列看不到，所以在右上角另外放一顆離開的按鈕 -->
-      <button v-if="isFullscreen" class="fs-exit" @click="toggleFullscreen">✕ 結束全螢幕</button>
+    <div v-else-if="!entry" class="notice"><h2>目前無法遊玩這款遊戲</h2><p>請確認已登入購買帳號，且遊戲仍在你的有效遊戲庫。</p><RouterLink to="/member-games" class="btn">返回遊戲庫</RouterLink></div>
+    <div v-else-if="!mini && !html" class="notice"><h2>暫時沒有可用的線上版本</h2><p>請稍後再試，或回遊戲庫查看下載版本。</p><RouterLink to="/member-games" class="btn">返回遊戲庫</RouterLink></div>
+    <section v-else ref="screen" class="screen" :class="{ 'mini-screen': !!mini }" aria-label="遊戲畫面">
+      <button v-if="isFullscreen" class="fs-exit" @click="toggleFullscreen">✕ 離開全螢幕</button>
       <component v-if="mini" :is="mini.component" />
-      <iframe ref="gameFrame" v-else-if="html" :srcdoc="html" sandbox="allow-scripts allow-pointer-lock"
-        referrerpolicy="no-referrer" title="網頁遊戲" class="ai-frame" />
+      <iframe ref="gameFrame" v-else-if="html" :srcdoc="html" sandbox="allow-scripts allow-pointer-lock" referrerpolicy="no-referrer" :title="entry.game.gameName + ' 遊戲畫面'" class="ai-frame" />
     </section>
   </main>
 </template>
-
 <style scoped>
-.ai-frame { display:block; width:100%; height:min(76vh,780px); border:0; background:#111b3e; border-radius:10px; }
-.screen:fullscreen .ai-frame { height:calc(100vh - 85px); }
-.play {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 16px;
-  min-height: 70vh;
-  color: #e4e8f8;
-}
-
-.head {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin-bottom: 18px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #2e4a9a;
-}
-
-.head h1 {
-  margin: 0;
-  font-size: 26px;
-  color: #d4a64a;
-}
-
-.back {
-  color: #98a2c8;
-  font-size: 14px;
-}
-
-.back:hover {
-  color: #d4a64a;
-  background: transparent;
-}
-
-.how {
-  font-size: 13px;
-  color: #98a2c8;
-}
-
-.screen {
-  position: relative;
-  padding: 20px 16px;
-  border-radius: 12px;
-  background: rgba(18, 26, 74, .85);
-  border: 1px solid #2e4a9a;
-}
-
-.fs-btn {
-  margin-left: auto;
-  padding: 5px 14px;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  border: 1px solid #d4a64a;
-  background: transparent;
-  color: #d4a64a;
-}
-
-.fs-btn:hover {
-  background: #d4a64a;
-  color: #1b0f0d;
-}
-
-/* ===== 全螢幕：遊戲置中，放大到螢幕裝得下的最大尺寸 ===== */
-.screen:fullscreen {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: auto;
-  padding: 56px 24px 24px;
-  border: none;
-  border-radius: 0;
-  background: #0b0c32;
-}
-
-.fs-exit {
-  position: absolute;
-  top: 12px;
-  right: 16px;
-  z-index: 1;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  border: 1px solid #2e4a9a;
-  background: #121a4a;
-  color: #e4e8f8;
-}
-
-.fs-exit:hover {
-  border-color: #d4a64a;
-  color: #d4a64a;
-}
-
-/* 橫的畫面（格鬥 16:9、打磚塊 4:3）：寬度以「高度放得下」為上限 */
-.screen:fullscreen> :deep(.game) {
-  width: min(100%, calc((100vh - 200px) * 16 / 9));
-}
-
-/* 方的畫面（貪食蛇、2048、踩地雷、記憶翻牌）：原本限制 400px 左右，全螢幕時放大到螢幕高度 */
-.screen:fullscreen :deep(.stage),
-.screen:fullscreen :deep(.board) {
-  max-width: min(calc(100vh - 220px), 92vw) !important;
-}
-
-/* 記憶翻牌的牌是直的（3:4），整個牌桌比寬度高，所以寬度再縮成 3/4 */
-.screen:fullscreen :deep(.board.memory) {
-  max-width: min(calc((100vh - 220px) * 0.75), 92vw) !important;
-}
-
-.notice {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 60px 16px;
-  border: 1px dashed #2e4a9a;
-  border-radius: 10px;
-  color: #98a2c8;
-}
-
-.notice p {
-  margin: 0;
-  font-size: 16px;
-}
-
-.btn {
-  padding: 8px 20px;
-  border-radius: 4px;
-  font-weight: bold;
-  color: #1b0f0d;
-  background: linear-gradient(to bottom, #e8be63, #b8892f);
-}
+.game-window { display: flex; flex-direction: column; width: 100%; height: 100dvh; min-height: 340px; margin: 0; padding: 0; color: #eaf0ff; background: #0b1020; box-sizing: border-box; }
+.game-toolbar { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: center; gap: 18px; flex-shrink: 0; min-height: 64px; padding: 10px 24px; border-bottom: 1px solid #aa874c; background: #0d1223; box-sizing: border-box; }
+.game-toolbar-left { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; }.game-brand { font-family: Georgia,serif; font-size: 23px; font-weight: 750; color: #edc67d; letter-spacing: 1px; }.back { color: #d6c295; text-decoration: none; font-size: 13px; }.back:hover { color: #ffe6ae; }.back:focus-visible,.fs-btn:focus-visible { outline: 2px solid #f2c779; outline-offset: 3px; }
+.game-toolbar-title { text-align: center; min-width: 0; }.game-toolbar-title h1 { margin: 0; font-size: clamp(16px,2vw,21px); color: #efca83; font-weight: 650; letter-spacing: 1px; }.game-toolbar-title small { display: block; max-width: 480px; margin-top: 5px; color: #b5c4df; font-size: 11px; line-height: 1.5; }.game-toolbar-right { display: flex; justify-content: flex-end; }
+.fs-btn,.fs-exit { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 8px 15px; border: 1px solid #d1aa66; border-radius: 7px; font-size: 13px; cursor: pointer; color: #f1d294; background: #10172c; white-space: nowrap; }.fs-btn:hover,.fs-exit:hover { background: #d6b16c; color: #172033; }
+.screen { position: relative; flex: 1; min-height: 0; width: 100%; overflow: hidden; border: 0; box-sizing: border-box; background: #0b1020; }.ai-frame { display: block; width: 100%; height: 100%; border: 0; background: #10182c; }
+.mini-screen { display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: 22px 16px; }.mini-screen > :deep(.game) { width: min(1100px,100%); margin: auto; }
+.screen:fullscreen { width: 100%; height: 100%; min-height: 100%; background: #0b1020; }.mini-screen:fullscreen { align-items: center; padding: 56px 20px 20px; }.mini-screen:fullscreen > :deep(.game) { width: min(1100px,100%,calc((100dvh - 170px)*16/9)); }
+.mini-screen:fullscreen :deep(.stage),.mini-screen:fullscreen :deep(.board) { max-width: min(calc(100dvh - 220px),92vw) !important; }.mini-screen:fullscreen :deep(.board.memory) { max-width: min(calc((100dvh - 220px)*.75),92vw) !important; }
+.fs-exit { position: absolute; top: 12px; right: 15px; z-index: 10; box-shadow: 0 5px 20px #0008; }.game-error { flex-shrink: 0; margin: 0; padding: 10px 20px; color: #ffe1cd; background: #4a2933; font-size: 13px; line-height: 1.5; }
+.notice { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; padding: 35px 20px; text-align: center; color: #c5d2eb; }.notice h2 { margin: 0; font-size: 21px; color: #f0d49d; }.notice p { margin: 0; line-height: 1.8; }.btn { display: inline-flex; align-items: center; min-height: 42px; padding: 10px 20px; border-radius: 8px; text-decoration: none; background: #dbb774; color: #172038; font-weight: 650; }
+@media(max-width:700px) { .game-toolbar { grid-template-columns: 1fr auto; gap: 8px 12px; padding: 10px 14px; }.game-toolbar-title { grid-column: 1 / -1; grid-row: 2; text-align: left; }.game-toolbar-left { gap: 12px; }.game-brand { font-size: 19px; }.game-toolbar-title small { max-width: 100%; }.mini-screen { padding: 16px 10px; } }
 </style>
