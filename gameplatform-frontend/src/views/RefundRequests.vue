@@ -47,7 +47,7 @@ onMounted(load)
 </script>
 
 <template>
-  <section class="refund-requests-page">
+  <section class="refund-requests-page refund-layout-v2">
     <header class="management-heading">
       <div class="management-heading-main"><span class="management-heading-icon"><UiIcon name="wallet" /></span>
         <div><span class="management-eyebrow">REFUND WORKSPACE</span><h1>退款申請管理</h1><p>集中處理會員提出的退款申請，保留原因、處理人員與結果。</p></div>
@@ -62,8 +62,8 @@ onMounted(load)
       <div class="refund-filter-actions"><button class="primary" :disabled="loading">搜尋</button><button type="button" class="secondary" :disabled="loading" @click="clear">清除篩選</button><button type="button" class="secondary" :disabled="loading" @click="load">重新整理</button></div>
     </form>
     <p class="list-scope">{{ loading ? '載入中…' : `共 ${total} 筆退款申請，分頁顯示` }}</p>
-    <div class="management-table-wrap" :aria-busy="loading">
-      <table><thead><tr><th>訂單／會員</th><th>申請原因</th><th>實付金額</th><th>申請時間</th><th>狀態</th><th>處理</th></tr></thead>
+    <div class="management-table-wrap refund-table-panel" :aria-busy="loading">
+      <table class="refund-data-table"><thead><tr><th>訂單／會員</th><th>申請原因</th><th>實付金額</th><th>申請時間</th><th>狀態</th><th>處理</th></tr></thead>
         <tbody><tr v-for="row in rows" :key="row.refund_id">
           <td><strong>{{ row.order_no }}</strong><small>{{ row.username }} · {{ row.ticket_no }}</small><small>{{ row.payment_environment === 'TEST' ? '測試訂單' : row.payment_environment === 'PROD' ? '正式訂單' : '付款來源待核對' }}</small></td>
           <td class="refund-reason-preview">{{ row.reason }}</td><td>NT$ {{ money(row.total_amount) }}</td><td>{{ timeText(row.requested_at) }}</td>
@@ -97,6 +97,147 @@ onMounted(load)
 </template>
 
 <style scoped>
+
+/* Refund workspace: consistent gutters, intentional search and table layout. */
+.refund-layout-v2 {
+  width: min(100%, 1500px);
+  margin-inline: auto;
+  padding: 26px clamp(20px, 2.4vw, 38px) 42px;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.refund-layout-v2 .management-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 4px 8px 24px;
+  margin: 0 0 22px;
+  min-width: 0;
+}
+.refund-layout-v2 .management-heading-main { min-width: 0; }
+.refund-layout-v2 .management-heading-main h1 { margin: 4px 0 8px; line-height: 1.3; }
+.refund-layout-v2 .management-heading-main p { margin: 0; line-height: 1.65; }
+.refund-layout-v2 .management-heading-count { flex: none; min-width: 120px; text-align: center; }
+.refund-layout-v2 .refund-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(220px, .9fr);
+  align-items: end;
+  gap: 18px 22px;
+  margin: 0 0 22px;
+  padding: clamp(20px, 2vw, 30px);
+  border-radius: 16px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+.refund-layout-v2 .refund-search > label {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  line-height: 1.4;
+  margin: 0;
+}
+.refund-layout-v2 .refund-search input,
+.refund-layout-v2 .refund-search select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  padding: 10px 13px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.refund-layout-v2 .refund-filter-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  padding-top: 4px;
+}
+.refund-layout-v2 .refund-filter-actions button {
+  min-width: 88px;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 16px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.refund-layout-v2 .list-scope {
+  margin: 0 0 12px;
+  padding: 0 6px;
+  line-height: 1.6;
+}
+.refund-layout-v2 .refund-table-panel {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: 16px;
+  margin: 0;
+  box-sizing: border-box;
+}
+.refund-layout-v2 .refund-data-table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.refund-layout-v2 .refund-data-table th,
+.refund-layout-v2 .refund-data-table td {
+  box-sizing: border-box;
+  padding: 20px 18px;
+  line-height: 1.7;
+  vertical-align: middle;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.refund-layout-v2 .refund-data-table thead th {
+  padding-block: 15px;
+  white-space: nowrap;
+}
+.refund-layout-v2 .refund-data-table th:nth-child(1) { width: 21%; }
+.refund-layout-v2 .refund-data-table th:nth-child(2) { width: 20%; }
+.refund-layout-v2 .refund-data-table th:nth-child(3) { width: 11%; }
+.refund-layout-v2 .refund-data-table th:nth-child(4) { width: 15%; }
+.refund-layout-v2 .refund-data-table th:nth-child(5) { width: 13%; }
+.refund-layout-v2 .refund-data-table th:nth-child(6) { width: 20%; }
+.refund-layout-v2 .refund-data-table td strong { display: block; margin-bottom: 4px; }
+.refund-layout-v2 .refund-data-table td small { line-height: 1.55; margin-top: 4px; }
+.refund-layout-v2 .refund-data-table .refund-reason-preview { max-width: none; }
+.refund-layout-v2 .refund-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.refund-layout-v2 .refund-row-actions button {
+  min-height: 34px;
+  padding: 6px 10px;
+  margin: 0 !important;
+  border-radius: 7px;
+  line-height: 1.25;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.refund-layout-v2 .management-pagination.unified-pager { margin-top: 26px; }
+@media (max-width: 960px) {
+  .refund-layout-v2 { padding-inline: 18px; }
+  .refund-layout-v2 .refund-search { grid-template-columns: minmax(0, 1fr) minmax(180px, .7fr); }
+}
+@media (max-width: 640px) {
+  .refund-layout-v2 { padding: 18px 12px 32px; }
+  .refund-layout-v2 .management-heading { align-items: flex-start; flex-wrap: wrap; }
+  .refund-layout-v2 .refund-search { grid-template-columns: minmax(0, 1fr); padding: 18px; }
+  .refund-layout-v2 .refund-filter-actions { justify-content: flex-start; }
+  .refund-layout-v2 .refund-data-table { min-width: 820px; }
+}
+
 .refund-search { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(140px, 220px) auto; gap: 18px; align-items: end; }
 .refund-search label, .refund-review-dialog form > label { display: grid; gap: 8px; font-size: 13px; font-weight: 600; }
 .refund-search :is(input, select), .refund-review-dialog :is(input:not([type=checkbox]), textarea) { box-sizing: border-box; width: 100%; }

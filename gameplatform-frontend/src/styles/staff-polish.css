@@ -776,3 +776,134 @@ body.staff-workspace .support-ui .refund-requests-page td { padding: 18px 20px; 
   body.staff-workspace .support-ui .sx-management .sx-search > :is(input,select,button) { flex: 1 1 100%; width: 100%; }
   body.staff-workspace .support-ui .sx-management .sx-resource-card { padding: 18px; }
 }
+
+
+/* ===== 2026-10 Back-office button system (staff only) =====
+   Scoped to the authenticated staff shell. Navigation, icon-only controls,
+   checkboxes, and pagination keep their specialized behavior. */
+body.staff-workspace .support-ui :is(
+  .management-content, .management-page, .admin-page, .support-case-page,
+  .sx-management, .refund-requests-page, .ticket-detail-page,
+  .support-content-page, .staff-panel, .permissions-panel,
+  .overview-page, .platform-page, .page
+) button:not(.sidebar-group-toggle):not(.sidebar-mobile-toggle):not(.icon-btn):not(.icon-button):not(.notification-bell):not(.close-button):not(.close-btn):not(.tab):not(.tab-button) {
+  --staff-btn-text: #245067;
+  --staff-btn-bg: #f8fcff;
+  --staff-btn-border: #c5d9e6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 15px;
+  margin: 0;
+  border: 1px solid var(--staff-btn-border);
+  border-radius: 9px;
+  background: var(--staff-btn-bg);
+  color: var(--staff-btn-text);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: .01em;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(24, 59, 83, .055);
+  transition: background-color .16s ease, border-color .16s ease, color .16s ease,
+    box-shadow .16s ease, transform .16s ease;
+}
+body.staff-workspace .support-ui :is(.management-content, .management-page, .admin-page, .support-case-page, .sx-management, .refund-requests-page, .ticket-detail-page, .staff-panel, .permissions-panel, .page)
+  button:not(:disabled):hover:not(.sidebar-group-toggle):not(.sidebar-mobile-toggle):not(.icon-btn):not(.icon-button) {
+  border-color: #75b9c9;
+  background: #eaf7fb;
+  box-shadow: 0 5px 13px rgba(25, 94, 124, .12);
+  transform: translateY(-1px);
+}
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page)
+  button:focus-visible {
+  outline: 3px solid rgba(27, 137, 168, .30);
+  outline-offset: 2px;
+}
+/* Primary / submit / search actions */
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page)
+  button:is(.primary, .sx-primary, .primary-action, .action-primary, .btn-primary, [type="submit"]):not(.sidebar-group-toggle) {
+  --staff-btn-bg: #087e98;
+  --staff-btn-border: #087e98;
+  --staff-btn-text: #fff;
+  box-shadow: 0 3px 9px rgba(8, 126, 152, .17);
+}
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page)
+  button:is(.primary, .sx-primary, .primary-action, .action-primary, .btn-primary, [type="submit"]):hover:not(:disabled) {
+  background: #096b81;
+  border-color: #096b81;
+  color: #fff;
+}
+/* Positive outcomes: approval, publish, restore */
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page)
+  button:is(.action-success, .btn-success, .approve, .approve-btn, .success) {
+  --staff-btn-bg: #eaf8f0;
+  --staff-btn-border: #b7e1cb;
+  --staff-btn-text: #176a4d;
+}
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page)
+  button:is(.action-success, .btn-success, .approve, .approve-btn, .success):hover:not(:disabled) {
+  background: #d6f0e2;
+  border-color: #80c5a1;
+  color: #10583c;
+}
+/* Destructive actions: rejects, suspensions, deletions */
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page)
+  button:is(.action-danger, .btn-danger, .danger, .reject, .reject-btn, .review-reject-button) {
+  --staff-btn-bg: #fff0f1;
+  --staff-btn-border: #f0c4ca;
+  --staff-btn-text: #aa3543;
+}
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page)
+  button:is(.action-danger, .btn-danger, .danger, .reject, .reject-btn, .review-reject-button):hover:not(:disabled) {
+  background: #ffe0e4;
+  border-color: #e9a0aa;
+  color: #902c38;
+}
+/* Info / view controls */
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page)
+  button:is(.action-info, .btn-info) {
+  --staff-btn-bg: #ebf5ff;
+  --staff-btn-border: #c2dced;
+  --staff-btn-text: #236587;
+}
+/* Uniform row button spacing; no changes to click handlers */
+body.staff-workspace .support-ui :is(.management-actions, .refund-row-actions, .row-actions, .table-actions, .refund-filter-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+}
+body.staff-workspace .support-ui :is(.management-actions, .refund-row-actions, .row-actions, .table-actions) button {
+  min-height: 34px;
+  padding: 6px 11px;
+}
+/* Disabled controls should not pretend to be interactive */
+body.staff-workspace .support-ui button:disabled {
+  opacity: .50;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none !important;
+  box-shadow: none !important;
+}
+/* Preserve quiet pager buttons: first/last page logic belongs to Vue */
+body.staff-workspace .support-ui :is(.management-pagination, .unified-pager, .pager) button {
+  min-width: 70px;
+  min-height: 37px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  background: #fff;
+  color: #42637a;
+  border: 1px solid #d7e4ec;
+}
+@media (max-width: 640px) {
+  body.staff-workspace .support-ui :is(.management-actions, .refund-row-actions, .row-actions, .table-actions, .refund-filter-actions) { gap: 8px; }
+  body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.staff-workspace .support-ui button { transition: none !important; transform: none !important; }
+}
