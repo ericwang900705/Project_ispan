@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#3a1f4f"/>
+  <g transform="rotate(-8 170 190)">
+    <rect x="60" y="80" width="120" height="170" rx="14" fill="#f8f1dc"/>
+    <text x="120" y="190" text-anchor="middle" font-size="72">🍓</text>
+  </g>
+  <g transform="rotate(6 280 190)">
+    <rect x="200" y="90" width="120" height="170" rx="14" fill="#f8f1dc"/>
+    <text x="260" y="200" text-anchor="middle" font-size="72">🍓</text>
+  </g>
+  <g transform="rotate(14 400 200)">
+    <rect x="340" y="100" width="120" height="170" rx="14" fill="#d4a64a"/>
+    <rect x="352" y="112" width="96" height="146" rx="10" fill="none" stroke="#3a1f4f" stroke-width="4"/>
+    <text x="400" y="205" text-anchor="middle" font-family="Arial, sans-serif" font-size="56" font-weight="900" fill="#3a1f4f">?</text>
+  </g>
+  <text x="608" y="320" text-anchor="end" font-family="Arial, sans-serif" font-size="60" font-weight="900" fill="#f3e6ff">記憶翻牌</text>
+</svg>
+
