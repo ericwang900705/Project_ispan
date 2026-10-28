@@ -11,5 +11,9 @@ public class RefundController {
     public RefundController(RefundService service){this.service=service;}
     @GetMapping public Object list(Actor actor,@RequestParam(defaultValue="") String q,@RequestParam(defaultValue="") String status,@RequestParam(defaultValue="0") int page){return service.list(actor,q,status,page);}
     @GetMapping("/{id}") public Object detail(Actor actor,@PathVariable int id){return service.detail(actor,id);}
+    public record SupportCaseRequest(String note) {}
+    @PostMapping("/{id}/support-case") public Object openSupportCase(Actor actor,@PathVariable int id,@RequestBody SupportCaseRequest request) {
+        return service.openSupportCase(actor,id,request==null?null:request.note());
+    }
     @PostMapping("/{id}/decision") public Object decide(Actor actor,@PathVariable int id,@RequestBody RefundService.Decision input){return service.decide(actor,id,input);}
 }

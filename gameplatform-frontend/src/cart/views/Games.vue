@@ -11,6 +11,7 @@ import AddToCartButton from '@/cart/components/AddToCartButton.vue'
 import { useCartStore } from '@/cart/stores/cart'
 // 共用的遊戲 store 和價格小工具
 import { useGamesStore, hasDiscount, discountPercent } from '@/cart/stores/games'
+import { genreIcon } from '@/cart/utils/genreIcons'
 
 const route = useRoute()
 const router = useRouter()
@@ -57,9 +58,9 @@ onMounted(() => {
     </div>
     <!-- 分類按鈕：全部 + 資料庫裡出現過的每種分類，選中的會亮起來 -->
     <div class="genre-bar">
-      <button :class="{ active: selectedGenre === '' }" @click="selectGenre('')">全部</button>
+      <button :class="{ active: selectedGenre === '' }" @click="selectGenre('')"><span class="genre-icon" aria-hidden="true">🎮</span><span>全部</span></button>
       <button v-for="genre in genres" :key="genre" :class="{ active: selectedGenre === genre }"
-        @click="selectGenre(genre)">{{ genre }}</button>
+        @click="selectGenre(genre)"><span class="genre-icon" aria-hidden="true">{{ genreIcon(genre) }}</span><span>{{ genre }}</span></button>
     </div>
     <!-- 金色外框區塊，裡面放遊戲卡片 -->
     <div class="panel">
@@ -314,4 +315,12 @@ onMounted(() => {
   font-size: 11px;
   font-weight: normal;
 }
+</style>
+
+<style scoped>
+/* 類型選單：上方圖示，下方名稱，保持深藍色主題 */
+.genre-bar { gap: 12px; }
+.genre-bar button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 86px; min-height: 78px; padding: 10px 12px; line-height: 1.25; border-radius: 8px; white-space: normal; }
+.genre-icon { display: block; font-size: 27px; line-height: 1.2; }
+@media (max-width: 600px) { .genre-bar { gap: 8px; } .genre-bar button { min-width: 76px; min-height: 72px; padding: 8px; font-size: 12px; } }
 </style>

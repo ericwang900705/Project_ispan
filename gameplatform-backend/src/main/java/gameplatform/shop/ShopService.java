@@ -360,9 +360,10 @@ public class ShopService {
                 : paid instanceof java.time.LocalDateTime local ? local : null;
         m.put("refundDeadline", "PAID".equals(r.get("order_status")) && paidTime != null
                 ? paidTime.plusDays(14).toString() : null);
-        var requests = db.queryForList("SELECT status,ticket_id FROM refund_requests WHERE order_id=?", id);
+        var requests = db.queryForList("SELECT status,ticket_id,decision_reason FROM refund_requests WHERE order_id=?", id);
         m.put("refundStatus", requests.isEmpty() ? null : requests.getFirst().get("status"));
         m.put("refundTicketId", requests.isEmpty() ? null : requests.getFirst().get("ticket_id"));
+        m.put("refundDecisionReason", requests.isEmpty() ? null : requests.getFirst().get("decision_reason"));
         var info = new LinkedHashMap<String, Object>();
         info.put("bankCode", r.get("bank_code"));
         info.put("virtualAccount", r.get("virtual_account"));

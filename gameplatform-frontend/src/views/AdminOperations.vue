@@ -128,8 +128,8 @@ const orderLabels = { order_no: '訂單編號', username: '會員', order_status
                 </tbody>
             </table>
         </div>
-        <nav class="management-pagination" aria-label="列表分頁"><button :disabled="!page || busy || loading"
-                @click="page--; load()">上一頁</button><span>{{ page + 1 }} / {{ Math.max(1, Math.ceil(total / 20)) }}</span><button
+        <nav class="management-pagination unified-pager" aria-label="列表分頁"><button v-if="page > 0" :disabled="!page || busy || loading"
+                @click="page--; load()">上一頁</button><span>{{ page + 1 }} / {{ Math.max(1, Math.ceil(total / 20)) }}</span><button v-if="(page + 1) * 20 < total"
                 :disabled="(page + 1) * 20 >= total || busy || loading" @click="page++; load()">下一頁</button></nav>
         <form v-if="editing" class="management-panel" @submit.prevent="save">
             <h2>{{ selected ? '編輯' : '新增' }}{{ area === 'tags' ? '標籤' : '優惠券' }}</h2><label>名稱<input v-model.trim="form.name"
@@ -305,4 +305,46 @@ const orderLabels = { order_no: '訂單編號', username: '會員', order_status
 
 <style scoped>
 .comment-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; margin-bottom: 24px; }.comment-tabs button { border: 0; border-radius: 8px; padding: 10px 18px; font-weight: 600; color: #36566b; background: transparent; }.comment-tabs button.active { background: #fff; color: #075f76; box-shadow: 0 2px 7px #214b6315; }
+</style>
+
+<style>
+/* 後台與發行商分頁統一樣式：僅渲染可翻頁的方向，第一頁不顯示上一頁、末頁不顯示下一頁。 */
+:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 24px auto 12px;
+  padding: 8px 12px;
+  min-height: 56px;
+}
+:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button {
+  appearance: none;
+  min-height: 38px;
+  min-width: 76px;
+  padding: 8px 16px;
+  border: 1px solid #c6dcec;
+  border-radius: 9px;
+  background: rgba(255,255,255,.96);
+  color: #305674;
+  font-weight: 500;
+  box-shadow: none;
+  line-height: 1.3;
+  cursor: pointer;
+}
+:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button:hover:not(:disabled) {
+  background: #f0f7ff;
+  border-color: #8eb8d3;
+}
+:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > span {
+  color: #355673;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
 </style>

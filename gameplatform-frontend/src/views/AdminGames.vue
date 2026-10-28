@@ -214,9 +214,51 @@ onBeforeUnmount(() => { alive = false; run++; detailRun++ })
         <p>從左側清單選擇遊戲，查看介紹、版本與宣傳素材。</p>
       </article>
     </div>
-    <nav class="management-pagination" aria-label="遊戲列表分頁"><button :disabled="!page || loading || busy"
+    <nav class="management-pagination unified-pager" aria-label="遊戲列表分頁"><button v-if="page > 0" :disabled="!page || loading || busy"
         @click="page--; clearDetail(); load()">上一頁</button><span>{{ page + 1 }} / {{ Math.max(1, Math.ceil(total / 10))
-        }}</span><button :disabled="(page + 1) * 10 >= total || loading || busy"
+        }}</span><button v-if="(page + 1) * 10 < total" :disabled="(page + 1) * 10 >= total || loading || busy"
         @click="page++; clearDetail(); load()">下一頁</button></nav>
   </section>
 </template>
+
+<style>
+/* 後台與發行商分頁統一樣式：僅渲染可翻頁的方向，第一頁不顯示上一頁、末頁不顯示下一頁。 */
+:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 24px auto 12px;
+  padding: 8px 12px;
+  min-height: 56px;
+}
+:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button {
+  appearance: none;
+  min-height: 38px;
+  min-width: 76px;
+  padding: 8px 16px;
+  border: 1px solid #c6dcec;
+  border-radius: 9px;
+  background: rgba(255,255,255,.96);
+  color: #305674;
+  font-weight: 500;
+  box-shadow: none;
+  line-height: 1.3;
+  cursor: pointer;
+}
+:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button:hover:not(:disabled) {
+  background: #f0f7ff;
+  border-color: #8eb8d3;
+}
+:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > span {
+  color: #355673;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+</style>

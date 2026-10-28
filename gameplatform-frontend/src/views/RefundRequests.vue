@@ -72,7 +72,7 @@ onMounted(load)
         </tr><tr v-if="!loading && !rows.length"><td colspan="6" class="refund-empty">目前沒有符合條件的退款申請。</td></tr></tbody>
       </table>
     </div>
-    <nav class="management-pagination" aria-label="退款申請分頁"><button :disabled="loading || page === 0" @click="paginate(-1)">上一頁</button><span>{{ page + 1 }} / {{ Math.max(1, Math.ceil(total / 20)) }}</span><button :disabled="loading || (page + 1) * 20 >= total" @click="paginate(1)">下一頁</button></nav>
+    <nav class="management-pagination unified-pager" aria-label="退款申請分頁"><button v-if="page > 0" :disabled="loading || page === 0" @click="paginate(-1)">上一頁</button><span>{{ page + 1 }} / {{ Math.max(1, Math.ceil(total / 20)) }}</span><button v-if="(page + 1) * 20 < total" :disabled="loading || (page + 1) * 20 >= total" @click="paginate(1)">下一頁</button></nav>
     <Teleport to="body"><div v-if="selected" class="refund-dialog-backdrop support-ui" @click.self="close" @keydown.esc="close">
       <section class="refund-review-dialog" role="dialog" aria-modal="true" aria-labelledby="refund-review-title" tabindex="-1">
         <header><div><span class="management-eyebrow">REFUND REVIEW</span><h2 id="refund-review-title">{{ action === 'REFUND' ? '確認退款' : action === 'REJECT' ? '無法退款' : '退款申請明細' }}</h2></div><button type="button" class="secondary" :disabled="busy" aria-label="關閉退款視窗" @click="close">✕</button></header>
@@ -119,4 +119,46 @@ td small { display: block; color: #688195; font-size: 11px; margin-top: 5px; }
 .refund-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 14px; }.refund-final-result { padding: 12px; background: #edf6fa; border-radius: 10px; }
 @media(max-width:850px) { .refund-search { grid-template-columns: 1fr 1fr; }.refund-filter-actions { grid-column: 1 / -1; } }
 @media(max-width:520px) { .refund-search { grid-template-columns: 1fr; }.refund-dialog-backdrop { padding: 12px; }.refund-review-dialog { padding: 20px; max-height: calc(100dvh - 24px); }.refund-summary { grid-template-columns: 1fr; }.refund-review-dialog h2 { font-size: 21px; } }
+</style>
+
+<style>
+/* 後台與發行商分頁統一樣式：僅渲染可翻頁的方向，第一頁不顯示上一頁、末頁不顯示下一頁。 */
+:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 24px auto 12px;
+  padding: 8px 12px;
+  min-height: 56px;
+}
+:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button {
+  appearance: none;
+  min-height: 38px;
+  min-width: 76px;
+  padding: 8px 16px;
+  border: 1px solid #c6dcec;
+  border-radius: 9px;
+  background: rgba(255,255,255,.96);
+  color: #305674;
+  font-weight: 500;
+  box-shadow: none;
+  line-height: 1.3;
+  cursor: pointer;
+}
+:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button:hover:not(:disabled) {
+  background: #f0f7ff;
+  border-color: #8eb8d3;
+}
+:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > span {
+  color: #355673;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
 </style>

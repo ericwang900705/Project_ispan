@@ -661,3 +661,118 @@ body.staff-workspace .site-header .header-actions > span { color: #f0f7fb; font-
 
 /* 比背景更明確的卡片邊界與陰影。 */
 body.staff-workspace.staff-background-active .support-ui :is(.management-search,.management-panel,.management-table-wrap,.platform-stat,.platform-trend,.staff-panel,.permissions-panel,.overview-card,.work-stat,.work-queue) { border-color: #abc0d0; box-shadow: 0 8px 24px #1a394f1a, 0 1px 3px #173d550d; }
+
+
+/* 2026-10-28: 客服內容、案件與退款工作區的留白和響應式佈局。
+   限定後台路由，避免污染會員商城樣式。 */
+body.staff-workspace .support-ui .sx-management {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: clamp(20px, 2.4vw, 34px);
+}
+body.staff-workspace .support-ui .sx-management .sx-content-grid,
+body.staff-workspace .support-ui .sx-management .sx-content-grid.sx-editing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 24px;
+}
+body.staff-workspace .support-ui .sx-management .sx-content-grid > div {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+}
+body.staff-workspace .support-ui .sx-management .sx-resource-card {
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: 20px 24px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+body.staff-workspace .support-ui .sx-management .sx-resource-card .sx-section-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin-bottom: 12px;
+}
+body.staff-workspace .support-ui .sx-management .sx-content-editor {
+  position: static;
+  min-width: 0;
+  width: 100%;
+  padding: clamp(20px, 2.3vw, 30px);
+  border-radius: 16px;
+}
+body.staff-workspace .support-ui .sx-management .sx-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 14px 18px;
+  margin: 24px 0 28px;
+  padding: 20px 22px;
+}
+body.staff-workspace .support-ui .sx-management .sx-search > input {
+  flex: 2 1 260px;
+  width: auto;
+  min-width: 0;
+}
+body.staff-workspace .support-ui .sx-management .sx-search > select { flex: 1 1 160px; width: auto; }
+body.staff-workspace .support-ui .sx-management .sx-search > button { flex: 0 0 auto; margin: 0; }
+body.staff-workspace .support-ui .support-case-page .case-toolbar,
+body.staff-workspace .support-ui .support-case-page .admin-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px 22px;
+  align-items: end;
+  padding: 22px 26px;
+  margin: 0 0 24px;
+}
+body.staff-workspace .support-ui .support-case-page .case-toolbar .toolbar-search { grid-column: span 2; }
+body.staff-workspace .support-ui .support-case-page .case-toolbar > *,
+body.staff-workspace .support-ui .support-case-page .admin-filters > * { min-width: 0; width: 100%; margin: 0; }
+body.staff-workspace .support-ui .support-case-page :is(.toolbar-search,.case-status-filter,.admin-filters label) {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  align-self: stretch;
+}
+body.staff-workspace .support-ui .support-case-page .admin-filters :is(input,select),
+body.staff-workspace .support-ui .support-case-page .case-toolbar select { width: 100%; min-width: 0; }
+body.staff-workspace .support-ui .refund-requests-page { width: 100%; min-width: 0; }
+body.staff-workspace .support-ui .refund-requests-page > :is(.management-heading,.management-search,.management-table-wrap,.management-pagination) {
+  margin-bottom: 24px;
+}
+body.staff-workspace .support-ui .refund-requests-page .refund-search {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(170px, 1fr) auto;
+  align-items: end;
+  gap: 18px 24px;
+  padding: 24px 26px;
+}
+body.staff-workspace .support-ui .refund-requests-page .refund-search > * { min-width: 0; margin: 0; }
+body.staff-workspace .support-ui .refund-requests-page .refund-search label { display: grid; gap: 10px; }
+body.staff-workspace .support-ui .refund-requests-page .refund-filter-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+body.staff-workspace .support-ui .refund-requests-page .management-table-wrap { width: 100%; overflow-x: auto; }
+body.staff-workspace .support-ui .refund-requests-page td { padding: 18px 20px; }
+@media (min-width: 1550px) {
+  body.staff-workspace .support-ui .sx-management .sx-content-grid.sx-editing {
+    grid-template-columns: minmax(0, 1.2fr) minmax(370px, 0.8fr);
+    gap: 32px;
+  }
+}
+@media (max-width: 1100px) {
+  body.staff-workspace .support-ui .refund-requests-page .refund-search { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  body.staff-workspace .support-ui .refund-requests-page .refund-filter-actions { grid-column: 1 / -1; }
+  body.staff-workspace .support-ui .support-case-page .admin-filters { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 700px) {
+  body.staff-workspace .support-ui .support-case-page :is(.case-toolbar,.admin-filters),
+  body.staff-workspace .support-ui .refund-requests-page .refund-search { grid-template-columns: minmax(0,1fr); padding: 18px; }
+  body.staff-workspace .support-ui .support-case-page .case-toolbar .toolbar-search,
+  body.staff-workspace .support-ui .refund-requests-page .refund-filter-actions { grid-column: auto; }
+  body.staff-workspace .support-ui .sx-management .sx-search > :is(input,select,button) { flex: 1 1 100%; width: 100%; }
+  body.staff-workspace .support-ui .sx-management .sx-resource-card { padding: 18px; }
+}

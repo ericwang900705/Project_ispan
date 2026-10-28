@@ -106,37 +106,21 @@ public class SupportService {
                 : "SELECT order_status,paid_at FROM orders WHERE order_id=? AND member_id=? FOR UPDATE";
         var orders = db.queryForList(query, orderId, actor.id());
         if (orders.isEmpty()) throw Problem.missing();
-        var previous = db.queryForList("SELECT r.ticket_id,t.ticket_no,r.status FROM refund_requests r JOIN customer_service_tickets t ON t.ticket_id=r.ticket_id WHERE r.order_id=? AND r.member_id=?", orderId, actor.id());
-        if (!previous.isEmpty()) return Map.of("ticketId", previous.getFirst().get("ticket_id"), "ticketNo", previous.getFirst().get("ticket_no"), "message", "此訂單已有退款申請，請查看案件處理結果");
+        var previous = db.queryForList("SELECT refund_id,status,ticket_id FROM refund_requests WHERE order_id=? AND member_id=?", orderId, actor.id());
+        if (!previous.isEmpty()) return Map.of("refundId", previous.getFirst().get("refund_id"), "message", "此訂單已有退款申請，請在我的訂單查看處理結果");
         var order = orders.getFirst();
         Timestamp paidAt = (Timestamp) order.get("paid_at");
         if (!"PAID".equals(order.get("order_status")) || paidAt == null
                 || !paidAt.toLocalDateTime().plusDays(14).isAfter(java.time.LocalDateTime.now()))
             throw new Problem(409, "此訂單不在付款後 14 天的申請期限內，請聯絡客服核對");
-        var categories = db.queryForList("SELECT category_id FROM customer_service_categories WHERE category_name=?", Integer.class, "退款問題");
-        if (categories.isEmpty()) throw new Problem(409, "退款客服分類尚未初始化，請聯絡客服");
-        int category = categories.getFirst();
-        var existing = db.queryForList("SELECT t.ticket_id,t.ticket_no FROM support_order_links l JOIN customer_service_tickets t ON t.ticket_id=l.ticket_id WHERE l.order_id=? AND l.member_id=? AND l.removed_at IS NULL AND t.member_id=? AND t.category_id=? AND t.status IN ('OPEN','IN_PROGRESS') AND NOT EXISTS(SELECT 1 FROM support_order_links x WHERE x.ticket_id=t.ticket_id AND x.removed_at IS NULL AND x.order_id<>l.order_id) ORDER BY t.ticket_id", orderId, actor.id(), actor.id(), category);
-        if (!existing.isEmpty()) {
-            var prior = existing.getFirst();
-            db.update("INSERT INTO refund_requests(order_id,member_id,ticket_id,reason) VALUES(?,?,?,?)", orderId, actor.id(), prior.get("ticket_id"), reason.strip());
-            events.changed(actor.id());
-            return Map.of("ticketId", prior.get("ticket_id"), "ticketNo", prior.get("ticket_no"), "message", "此訂單已有退款案件，已加入退款申請管理");
-        }
-        Long serial = db.queryForObject("SELECT NEXT VALUE FOR customer_service_ticket_no_seq", Long.class);
-        String ticketNo = String.format(Locale.ROOT, "CS%010d", serial);
-        String content = "訂單 #" + orderId + " 退款申請\n" + reason.strip() + "\n客服將核對付款與遊戲權益；送出申請不代表退款完成。";
-        int ticketId = insert("ticket_id", "INSERT INTO customer_service_tickets(ticket_no,member_id,category_id,subject,content,status,priority,created_at,updated_at) VALUES(?,?,?,?,?,'OPEN','NORMAL',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)", ticketNo, actor.id(), category, "退款申請｜訂單 #" + orderId, content);
-        db.update("INSERT INTO support_order_links(ticket_id,member_id,order_id,linked_by_member_id) VALUES(?,?,?,?)", ticketId, actor.id(), orderId, actor.id());
-        db.update("INSERT INTO refund_requests(order_id,member_id,ticket_id,reason) VALUES(?,?,?,?)", orderId, actor.id(), ticketId, reason.strip());
-        db.update("INSERT INTO customer_service_messages(ticket_id,sender_type,sender_member_id,message_content,sent_at) VALUES(?,'MEMBER',?,?,CURRENT_TIMESTAMP)", ticketId, actor.id(), content);
-        if (extension != null) extension.record(actor, "tickets", ticketId, "REFUND_REQUESTED", "會員提出訂單 #" + orderId + " 退款申請", false);
+        // 正常退款直接加入退款申請表；客服案件僅在後續需要補件/諮詢時建立。
+        int refundId = insert("refund_id", "INSERT INTO refund_requests(order_id,member_id,reason) VALUES(?,?,?)",
+                orderId, actor.id(), reason.strip());
         events.changed(actor.id());
         if (notifications != null) {
-            notifications.supportQueue("TICKET_CREATED", "新的退款申請", ticketNo, "/tickets/" + ticketId);
-            notifications.member(actor.id(), "TICKET_CREATED", "退款申請已建立", ticketNo, "/member/support/" + ticketId);
+            notifications.member(actor.id(), "REFUND_REQUESTED", "退款申請已送出", "訂單 #" + orderId, "/orders");
         }
-        return Map.of("ticketId", ticketId, "ticketNo", ticketNo, "message", "退款申請已建立，客服將核對處理");
+        return Map.of("refundId", refundId, "message", "退款申請已送出，請在我的訂單查看進度");
     }
 
     private void admin(Actor a) {

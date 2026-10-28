@@ -310,6 +310,19 @@ CREATE TABLE dbo.tags (
 );
 GO
 
+-- CART 原始五種遊戲類型：只新增尚未存在者（不覆蓋既有標籤）
+INSERT INTO dbo.tags (tag_name)
+SELECT v.tag_name
+FROM (VALUES
+    (N'動作冒險'),
+    (N'角色扮演'),
+    (N'競速遊戲'),
+    (N'射擊'),
+    (N'策略')
+) AS v(tag_name)
+WHERE NOT EXISTS (SELECT 1 FROM dbo.tags AS t WHERE t.tag_name = v.tag_name);
+GO
+
 -- 遊戲主表(1006新增狀態欄位,上下架,草稿狀態,更改release_date型別)
 CREATE TABLE dbo.games (
     game_id             INT IDENTITY(1,1) NOT NULL,

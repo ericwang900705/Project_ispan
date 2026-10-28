@@ -31,9 +31,9 @@ async function submitRefund() {
   if (!refundReason.value.trim() || store.loading) return
   refundError.value = ''
   try {
-    const result = await store.requestRefund(refundTarget.value.orderId, refundReason.value.trim())
+    await store.requestRefund(refundTarget.value.orderId, refundReason.value.trim())
     refundTarget.value = null
-    await router.push(`/member/support/${result.ticketId}`)
+    await store.fetchOrders()
   } catch (e) { refundError.value = e.message }
 }
 
@@ -178,7 +178,7 @@ async function cancel(order) {
           </div>
           <div v-if="canRefund(order)" class="refund-entry">
             <button class="cancel" :disabled="store.loading" @click="openRefund(order)">申請退款</button>
-            <span class="hint">付款後 14 天內可提出申請，由客服核對處理。</span>
+            <span class="hint">付款後 14 天內可提出申請，由具有退款權限的人員審核。</span>
           </div>
           <!-- 訂單項目 -->
           <ul class="items">

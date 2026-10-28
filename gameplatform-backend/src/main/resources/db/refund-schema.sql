@@ -17,7 +17,7 @@ BEGIN TRY
             refund_id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_refund_requests PRIMARY KEY,
             order_id INT NOT NULL CONSTRAINT UQ_refund_request_order UNIQUE REFERENCES dbo.orders(order_id),
             member_id INT NOT NULL REFERENCES dbo.members(member_id),
-            ticket_id INT NOT NULL CONSTRAINT UQ_refund_request_ticket UNIQUE REFERENCES dbo.customer_service_tickets(ticket_id),
+            ticket_id INT NULL REFERENCES dbo.customer_service_tickets(ticket_id),
             reason NVARCHAR(2000) NOT NULL,
             status VARCHAR(12) NOT NULL DEFAULT('PENDING') CHECK(status IN('PENDING','REFUNDED','REJECTED')),
             requested_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
@@ -34,6 +34,13 @@ BEGIN TRY
         );
         CREATE INDEX IX_refund_requests_status_time ON dbo.refund_requests(status,requested_at DESC,refund_id DESC);
     END;
+    -- 退款申請不必立即開客服案件；保留舊案關聯，僅對非 NULL 的關聯維持唯一性。
+    IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id=OBJECT_ID(N'dbo.refund_requests') AND name=N'UQ_refund_request_ticket')
+        ALTER TABLE dbo.refund_requests DROP CONSTRAINT UQ_refund_request_ticket;
+    IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.refund_requests') AND name=N'ticket_id' AND is_nullable=0)
+        ALTER TABLE dbo.refund_requests ALTER COLUMN ticket_id INT NULL;
+    IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.refund_requests') AND name=N'UX_refund_ticket_not_null')
+        CREATE UNIQUE INDEX UX_refund_ticket_not_null ON dbo.refund_requests(ticket_id) WHERE ticket_id IS NOT NULL;
     IF OBJECT_ID(N'dbo.payment_attempts',N'U') IS NULL
     BEGIN
         CREATE TABLE dbo.payment_attempts(

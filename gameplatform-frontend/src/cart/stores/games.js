@@ -1,64 +1,161 @@
+
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-// axios：發送 HTTP 請求到後端 API
 import axios from '../../http.js'
 
-// 定義遊戲清單的 Pinia store（id 為 'games'），導覽列下拉選單、遊戲首頁、所有遊戲頁共用同一份資料
+// ========================================
+// 遊戲分類與上架狀態
+// ========================================
+
+// 只保留 CART 原本的五種分類
+const CART_GENRES = [
+  '動作冒險',
+  '角色扮演',
+  '競速遊戲',
+  '射擊',
+  '策略',
+]
+
+// 前台允許顯示的遊戲狀態
+const VISIBLE_STATUSES = [
+  'PUBLISHED',
+  'PENDING_OFF_SHELF',
+]
+
+function isVisibleGame(game) {
+  return VISIBLE_STATUSES.includes(game?.status)
+}
+
+// ========================================
+// 遊戲 Store
+// ========================================
+
 export const useGamesStore = defineStore('games', () => {
-  // 全部遊戲，格式與後端 GET /api/games 回傳的相同
-  // [{ gameId, gameName, price, originalPrice, description, coverUrl, status, genre }]
+  // 從 API 取得的全部遊戲
   const games = ref([])
 
-  // 所有出現過的分類（去掉重複和沒填分類的），用來產生分類按鈕 / 選單
-  const genres = computed(() => [...new Set(games.value.map((g) => g.genre).filter(Boolean))])
+  // 前台可顯示的遊戲
+  const onSaleGames = computed(() =>
+    games.value.filter(isVisibleGame)
+  )
 
-  // 有打折的遊戲（原價比售價高）
-  const discountedGames = computed(() => games.value.filter(hasDiscount))
+  // 前台分類：
+  // 只顯示 CART 五種中有上架遊戲的分類
+  const genres = computed(() =>
+    CART_GENRES.filter((genre) =>
+      onSaleGames.value.some((game) =>
+        game.genre === genre
+      )
+    )
+  )
 
-  // 取得全部遊戲
+  // 有折扣且可在前台顯示的遊戲
+  const discountedGames = computed(() =>
+    onSaleGames.value.filter(hasDiscount)
+  )
+
+  // ========================================
+  // 取得遊戲資料
+  // ========================================
+
   async function fetchGames() {
-    // GET /api/games：向後端取得全部遊戲
     const { data } = await axios.get('/api/games')
     games.value = Array.isArray(data) ? data : []
   }
 
-  // 每款遊戲的統計，用 gameId 查：{ 1: { avgRating, reviewCount, soldCount }, ... }
+  // ========================================
+  // 遊戲統計
+  // ========================================
+
   const stats = ref({})
 
-  // 取得統計（首頁「評價排行」「暢銷商品」用）
   async function fetchStats() {
-    // GET /api/games/stats：[{ gameId, avgRating, reviewCount, soldCount }]
     const { data } = await axios.get('/api/games/stats')
-    stats.value = Object.fromEntries(data.map((s) => [s.gameId, s]))
+
+    stats.value = Object.fromEntries(
+      (Array.isArray(data) ? data : [])
+        .filter((item) => item?.gameId != null)
+        .map((item) => [item.gameId, item])
+    )
   }
 
-  // 活動開始或結束後，重新讀取後端權威價格；切回分頁時也立即更新。
+  // ========================================
+  // 定期更新活動價格
+  // ========================================
+
   let refreshTimer = null
+
   function refreshOnVisible() {
-    if (document.visibilityState === 'visible') fetchGames().catch(console.error)
+    if (document.visibilityState === 'visible') {
+      fetchGames().catch(console.error)
+    }
   }
+
   function startPriceRefresh() {
-    if (refreshTimer || typeof window === 'undefined') return
-    refreshTimer = window.setInterval(refreshOnVisible, 30000)
-    document.addEventListener('visibilitychange', refreshOnVisible)
+    if (refreshTimer || typeof window === 'undefined') {
+      return
+    }
+
+    refreshTimer = window.setInterval(
+      refreshOnVisible,
+      30000
+    )
+
+    document.addEventListener(
+      'visibilitychange',
+      refreshOnVisible
+    )
   }
+
   startPriceRefresh()
-  return { games, genres, discountedGames, stats, fetchGames, fetchStats }
+
+  return {
+    games,
+    onSaleGames,
+    genres,
+    discountedGames,
+    stats,
+    fetchGames,
+    fetchStats,
+  }
 })
 
-// 有原價且原價比售價高，才算有打折
+// ========================================
+// 折扣相關
+// ========================================
+
+// 判斷遊戲是否有折扣
 export function hasDiscount(game) {
-  return Number(game?.originalPrice) > Number(game?.price) && Number(game?.discountPercent ?? discountPercent(game)) > 0
+  return (
+    Number(game?.originalPrice) > Number(game?.price) &&
+    Number(
+      game?.discountPercent ?? discountPercent(game)
+    ) > 0
+  )
 }
 
-// 折扣百分比，例如原價 1590、售價 318 → 80
+// 計算折扣百分比
 export function discountPercent(game) {
-  if (Number.isInteger(Number(game?.discountPercent)) && game?.discountPercent != null) return Number(game.discountPercent)
-  if (!(Number(game?.originalPrice) > 0)) return 0
-  return Math.round((1 - Number(game.price) / Number(game.originalPrice)) * 100)
+  if (
+    game?.discountPercent != null &&
+    Number.isInteger(Number(game.discountPercent))
+  ) {
+    return Number(game.discountPercent)
+  }
+
+  if (!(Number(game?.originalPrice) > 0)) {
+    return 0
+  }
+
+  return Math.round(
+    (1 - Number(game.price) / Number(game.originalPrice)) * 100
+  )
 }
 
-// 每個分類的圖示：要換圖示改這裡就好；沒列到的分類用 🎮
+// ========================================
+// CART 五種分類圖示
+// ========================================
+
 const GENRE_ICONS = {
   '動作冒險': '⚔️',
   '角色扮演': '🧙',
@@ -66,27 +163,51 @@ const GENRE_ICONS = {
   '射擊': '🎯',
   '策略': '♟️',
 }
+
 export function genreIcon(genre) {
   return GENRE_ICONS[genre] ?? '🎮'
 }
 
-// ===== 最近瀏覽 =====
-// 存在瀏覽器 localStorage，只記 gameId，最新的在前面，最多 10 款
+// ========================================
+// 最近瀏覽紀錄
+// ========================================
+
 const RECENT_KEY = 'recentGames'
+
+// 讀取最近瀏覽的遊戲 ID
 export function getRecentIds() {
   try {
-    return JSON.parse(localStorage.getItem(RECENT_KEY)) ?? []
+    const ids = JSON.parse(
+      localStorage.getItem(RECENT_KEY)
+    )
+
+    return Array.isArray(ids) ? ids : []
   } catch {
     return []
   }
 }
-// 看過某款遊戲時呼叫（遊戲詳情頁）
+
+// 記錄最近瀏覽的遊戲
 export function addRecent(gameId) {
-  const ids = [Number(gameId), ...getRecentIds().filter((id) => id !== Number(gameId))].slice(0, 10)
+  const id = Number(gameId)
+
+  if (!Number.isFinite(id)) {
+    return
+  }
+
+  const ids = [
+    id,
+    ...getRecentIds().filter(
+      (item) => Number(item) !== id
+    ),
+  ].slice(0, 10)
+
   try {
-    localStorage.setItem(RECENT_KEY, JSON.stringify(ids))
+    localStorage.setItem(
+      RECENT_KEY,
+      JSON.stringify(ids)
+    )
   } catch {
-    // 無痕模式等情況存不進去就算了
+    // 無痕模式或儲存空間限制時忽略
   }
 }
-
