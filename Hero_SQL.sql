@@ -1,8 +1,4 @@
-﻿-- 全新 GamePlatformDB 完整建庫（2026-10-27）。
--- 已有資料庫請使用 Support_Update_20261027.sql，不要執行本檔的 CREATE DATABASE。
--- 包含基礎資料表、原第 10／11 段、優惠券、客服擴充及八種案件分類。
--- 使用 SSMS／sqlcmd 執行（含 GO）；不會自動匯入 Test_Data.sql 的示範資料。
--- 下方第 10 段保留目前 ADMIN 權限初始化；既有資料庫的欄位整合請看第 11 段。
+﻿-- 下方第 10 段保留目前 ADMIN 權限初始化；既有資料庫的欄位整合請看第 11 段。
 -- 權限模型：ADMIN 最高、STAFF 個別授權、REVIEWER/SUPPORT 固定角色。
 
 SET ANSI_NULLS ON;
@@ -1266,246 +1262,71 @@ BEGIN CATCH
 END CATCH;
 GO
 
-GO
--- 本批次自行管理實體 SQL Server 交易，不依賴 JPA 的延後交易啟動。
-BEGIN TRY
- BEGIN TRANSACTION;
--- 優惠券領取紀錄及適用範圍；不刪除、不覆寫既有資料。
-DECLARE @couponLock INT;
-EXEC @couponLock=sys.sp_getapplock @Resource='HERO_COUPON_SCHEMA',@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;
-IF @couponLock < 0
-BEGIN
- DECLARE @couponLockMessage NVARCHAR(2048)=CONCAT(N'優惠券結構初始化取鎖失敗（sp_getapplock=',@couponLock,N'）：',
-  CASE @couponLock WHEN -1 THEN N'等待逾時' WHEN -2 THEN N'要求已取消'
-   WHEN -3 THEN N'交易發生死結' ELSE N'請檢查交易狀態與資料庫權限' END);
- THROW 51120,@couponLockMessage,1;
-END;
-IF OBJECT_ID(N'dbo.coupons',N'U') IS NULL OR OBJECT_ID(N'dbo.members',N'U') IS NULL
- OR OBJECT_ID(N'dbo.tags',N'U') IS NULL OR OBJECT_ID(N'dbo.orders',N'U') IS NULL
- THROW 51121,N'請先建立 GamePlatformDB 基礎資料表。',1;
-IF OBJECT_ID(N'dbo.coupon_rules',N'U') IS NULL
-BEGIN
- CREATE TABLE dbo.coupon_rules (
-  coupon_id INT NOT NULL PRIMARY KEY REFERENCES dbo.coupons(coupon_id),
-  scope_type VARCHAR(20) NOT NULL,
-  publisher_member_id INT NULL REFERENCES dbo.members(member_id),
-  tag_id INT NULL REFERENCES dbo.tags(tag_id),
-  CONSTRAINT CK_coupon_rules_scope CHECK (
-   (scope_type='ALL' AND publisher_member_id IS NULL AND tag_id IS NULL) OR
-   (scope_type='PUBLISHER' AND publisher_member_id IS NOT NULL AND tag_id IS NULL) OR
-   (scope_type='TAG' AND publisher_member_id IS NULL AND tag_id IS NOT NULL))
- );
-END;
--- 整合 SQL 舊版遺漏的既有後端必要欄位；已存在時略過。
-IF COL_LENGTH(N'dbo.orders',N'payment_status') IS NULL
- ALTER TABLE dbo.orders ADD payment_status VARCHAR(20) NULL;
-IF COL_LENGTH(N'dbo.orders',N'bank_code') IS NULL
- ALTER TABLE dbo.orders ADD bank_code VARCHAR(20) NULL;
-IF COL_LENGTH(N'dbo.orders',N'virtual_account') IS NULL
- ALTER TABLE dbo.orders ADD virtual_account VARCHAR(100) NULL;
-IF COL_LENGTH(N'dbo.orders',N'payment_no') IS NULL
- ALTER TABLE dbo.orders ADD payment_no VARCHAR(100) NULL;
-IF COL_LENGTH(N'dbo.orders',N'payment_expire_date') IS NULL
- ALTER TABLE dbo.orders ADD payment_expire_date VARCHAR(50) NULL;
-IF OBJECT_ID(N'dbo.admin_operation_logs',N'U') IS NULL
-BEGIN
- CREATE TABLE dbo.admin_operation_logs (
-  operation_id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-  admin_id INT NOT NULL REFERENCES dbo.admin(admin_id),
-  action_code VARCHAR(100) NOT NULL,
-  target_id INT NOT NULL,
-  detail NVARCHAR(1000) NOT NULL,
-  created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME()
- );
-END;
-IF OBJECT_ID(N'dbo.member_coupon_claims',N'U') IS NULL
-BEGIN
- CREATE TABLE dbo.member_coupon_claims (
-  member_id INT NOT NULL REFERENCES dbo.members(member_id),
-  coupon_id INT NOT NULL REFERENCES dbo.coupons(coupon_id),
-  received_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
-  CONSTRAINT PK_member_coupon_claims PRIMARY KEY(member_id,coupon_id)
- );
-END;
+-- =============================================================================
+-- 12. 發行商遊戲折扣管理模組（2026-10-27 新增）
+-- 既有資料庫升級：只新增 game_discounts，不重建或修改其他資料表。
+-- 折扣百分比限定 1～99 的整數；每次折扣固定 7 天。
+-- 折扣結束後 30 天內不可再次設定，由 Spring Boot 後端驗證。
+-- 折扣後實際成交價由後端四捨五入至整數元，訂單保留成交金額。
+-- 執行前請先備份 GamePlatformDB；此段可重複執行。
+-- =============================================================================
 
- COMMIT TRANSACTION;
-END TRY
-BEGIN CATCH
- IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
- THROW;
-END CATCH;
-
+USE [GamePlatformDB];
 GO
--- 客服功能增量遷移；可重跑，不刪除既有資料。由後端啟動器於同一連線執行。
+
 SET ANSI_NULLS ON;
 SET QUOTED_IDENTIFIER ON;
-SET ANSI_PADDING ON;
-SET ANSI_WARNINGS ON;
-SET CONCAT_NULL_YIELDS_NULL ON;
-SET ARITHABORT ON;
-SET NUMERIC_ROUNDABORT OFF;
-SET NOCOUNT ON;
 SET XACT_ABORT ON;
-BEGIN TRY
- BEGIN TRANSACTION;
- DECLARE @SupportLock INT;
- EXEC @SupportLock=sys.sp_getapplock @Resource='HERO_SUPPORT_SCHEMA',@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;
- IF @SupportLock<0
- BEGIN
-  DECLARE @SupportLockMessage NVARCHAR(2048)=CONCAT(N'客服結構初始化無法取得交易鎖，sp_getapplock=',@SupportLock,N'，本次變更已回滾。');
-  THROW 51060,@SupportLockMessage,1;
- END;
- IF OBJECT_ID(N'dbo.chat_rooms',N'U') IS NULL OR OBJECT_ID(N'dbo.member_coupon_claims',N'U') IS NULL
-  THROW 51061,N'請先建立基礎資料表及優惠券結構。',1;
- IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.orders') AND name='UQ_support_order_owner')
-  CREATE UNIQUE INDEX UQ_support_order_owner ON dbo.orders(order_id,member_id);
- IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.chat_rooms') AND name='UQ_support_room_owner')
-  CREATE UNIQUE INDEX UQ_support_room_owner ON dbo.chat_rooms(support_room_id,member_id);
- IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.customer_service_tickets') AND name='UQ_support_ticket_owner')
-  CREATE UNIQUE INDEX UQ_support_ticket_owner ON dbo.customer_service_tickets(ticket_id,member_id);
- IF OBJECT_ID(N'dbo.support_order_links',N'U') IS NULL
- BEGIN
-  CREATE TABLE dbo.support_order_links(
-   link_id BIGINT IDENTITY PRIMARY KEY,support_room_id INT NULL,ticket_id INT NULL,member_id INT NOT NULL,order_id INT NOT NULL,
-   linked_by_member_id INT NULL REFERENCES dbo.members(member_id),linked_by_admin_id INT NULL REFERENCES dbo.admin(admin_id),
-   created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),removed_at DATETIME2 NULL,
-   CHECK((support_room_id IS NOT NULL AND ticket_id IS NULL) OR (support_room_id IS NULL AND ticket_id IS NOT NULL)),
-   CHECK((linked_by_member_id=member_id AND linked_by_admin_id IS NULL AND linked_by_member_id IS NOT NULL) OR (linked_by_member_id IS NULL AND linked_by_admin_id IS NOT NULL)),
-   FOREIGN KEY(support_room_id,member_id) REFERENCES dbo.chat_rooms(support_room_id,member_id),
-   FOREIGN KEY(ticket_id,member_id) REFERENCES dbo.customer_service_tickets(ticket_id,member_id),
-   FOREIGN KEY(order_id,member_id) REFERENCES dbo.orders(order_id,member_id));
-  CREATE UNIQUE INDEX UX_support_room_order ON dbo.support_order_links(support_room_id,order_id) WHERE support_room_id IS NOT NULL AND removed_at IS NULL;
-  CREATE UNIQUE INDEX UX_support_ticket_order ON dbo.support_order_links(ticket_id,order_id) WHERE ticket_id IS NOT NULL AND removed_at IS NULL;
- END;
- IF OBJECT_ID(N'dbo.support_coupon_links',N'U') IS NULL
- BEGIN
-  CREATE TABLE dbo.support_coupon_links(
-   link_id BIGINT IDENTITY PRIMARY KEY,support_room_id INT NULL,ticket_id INT NULL,member_id INT NOT NULL,coupon_id INT NOT NULL,
-   linked_by_member_id INT NULL REFERENCES dbo.members(member_id),linked_by_admin_id INT NULL REFERENCES dbo.admin(admin_id),
-   created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),removed_at DATETIME2 NULL,
-   CHECK((support_room_id IS NOT NULL AND ticket_id IS NULL) OR (support_room_id IS NULL AND ticket_id IS NOT NULL)),
-   CHECK((linked_by_member_id=member_id AND linked_by_admin_id IS NULL AND linked_by_member_id IS NOT NULL) OR (linked_by_member_id IS NULL AND linked_by_admin_id IS NOT NULL)),
-   FOREIGN KEY(support_room_id,member_id) REFERENCES dbo.chat_rooms(support_room_id,member_id),
-   FOREIGN KEY(ticket_id,member_id) REFERENCES dbo.customer_service_tickets(ticket_id,member_id),
-   FOREIGN KEY(member_id,coupon_id) REFERENCES dbo.member_coupon_claims(member_id,coupon_id));
-  CREATE UNIQUE INDEX UX_support_room_coupon ON dbo.support_coupon_links(support_room_id,coupon_id) WHERE support_room_id IS NOT NULL AND removed_at IS NULL;
-  CREATE UNIQUE INDEX UX_support_ticket_coupon ON dbo.support_coupon_links(ticket_id,coupon_id) WHERE ticket_id IS NOT NULL AND removed_at IS NULL;
- END;
- IF OBJECT_ID(N'dbo.support_reply_templates',N'U') IS NULL
- BEGIN
-  CREATE TABLE dbo.support_reply_templates(template_id BIGINT IDENTITY PRIMARY KEY,category_id INT NULL REFERENCES dbo.customer_service_categories(category_id),
-   title NVARCHAR(100) NOT NULL,content NVARCHAR(4000) NOT NULL,status VARCHAR(10) NOT NULL DEFAULT 'INACTIVE' CHECK(status IN('ACTIVE','INACTIVE')),
-   sort_order INT NOT NULL DEFAULT 0 CHECK(sort_order>=0),version INT NOT NULL DEFAULT 0,
-   created_by_admin_id INT NULL REFERENCES dbo.admin(admin_id),updated_by_admin_id INT NULL REFERENCES dbo.admin(admin_id),
-   created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),updated_at DATETIME2 NOT NULL DEFAULT SYSDATETIME());
-  CREATE INDEX IX_support_templates ON dbo.support_reply_templates(status,sort_order,template_id);
-  INSERT dbo.support_reply_templates(title,content,status,sort_order) VALUES
-   (N'優惠券適用範圍',N'您好，優惠券須符合指定發行商或遊戲類型、有效期限與低消，我會先協助您核對適用商品。','ACTIVE',10),
-   (N'付款尚未入帳',N'您好，我會先確認訂單的付款狀態；為避免重複扣款，請先不要再次付款。','ACTIVE',20),
-   (N'請提供錯誤畫面',N'請提供錯誤訊息或畫面，並遮蔽付款代碼、密碼及其他敏感資料，方便我們查核。','ACTIVE',30);
- END;
- IF OBJECT_ID(N'dbo.support_internal_notes',N'U') IS NULL
- BEGIN
-  CREATE TABLE dbo.support_internal_notes(note_id BIGINT IDENTITY PRIMARY KEY,support_room_id INT NULL REFERENCES dbo.chat_rooms(support_room_id),
-   ticket_id INT NULL REFERENCES dbo.customer_service_tickets(ticket_id),author_admin_id INT NOT NULL REFERENCES dbo.admin(admin_id),content NVARCHAR(2000) NOT NULL,
-   created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
-   CHECK((support_room_id IS NOT NULL AND ticket_id IS NULL) OR (support_room_id IS NULL AND ticket_id IS NOT NULL)));
-  CREATE INDEX IX_support_room_notes ON dbo.support_internal_notes(support_room_id,note_id DESC);
-  CREATE INDEX IX_support_ticket_notes ON dbo.support_internal_notes(ticket_id,note_id DESC);
- END;
- IF OBJECT_ID(N'dbo.support_faqs',N'U') IS NULL
- BEGIN
-  CREATE TABLE dbo.support_faqs(faq_id BIGINT IDENTITY PRIMARY KEY,category_id INT NULL REFERENCES dbo.customer_service_categories(category_id),
-   question NVARCHAR(200) NOT NULL,answer NVARCHAR(MAX) NOT NULL CHECK(LEN(answer)<=8000),status VARCHAR(12) NOT NULL DEFAULT 'DRAFT' CHECK(status IN('DRAFT','PUBLISHED','ARCHIVED')),
-   sort_order INT NOT NULL DEFAULT 0 CHECK(sort_order>=0),version INT NOT NULL DEFAULT 0,published_at DATETIME2 NULL,
-   created_by_admin_id INT NULL REFERENCES dbo.admin(admin_id),updated_by_admin_id INT NULL REFERENCES dbo.admin(admin_id),
-   created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),updated_at DATETIME2 NOT NULL DEFAULT SYSDATETIME());
-  CREATE INDEX IX_support_faq ON dbo.support_faqs(status,sort_order,faq_id);
-  INSERT dbo.support_faqs(question,answer,status,sort_order,published_at) VALUES
-   (N'優惠券領取後需要馬上使用嗎？',N'不用。領取後可在有效期限內，於符合適用商品、低消與額度的購物車選擇使用。','PUBLISHED',10,SYSDATETIME()),
-   (N'付款尚未入帳怎麼辦？',N'請先查看我的訂單中的付款狀態，避免重複付款；如需查核，可從該筆訂單聯絡客服。','PUBLISHED',20,SYSDATETIME()),
-   (N'如何綁定 Google 帳號？',N'請先使用原帳號登入，到會員個人資料的 Google 綁定區進行連接。','PUBLISHED',30,SYSDATETIME());
- END;
- IF OBJECT_ID(N'dbo.support_audit_logs',N'U') IS NULL
- BEGIN
-  CREATE TABLE dbo.support_audit_logs(audit_id BIGINT IDENTITY PRIMARY KEY,support_room_id INT NULL REFERENCES dbo.chat_rooms(support_room_id),
-   ticket_id INT NULL REFERENCES dbo.customer_service_tickets(ticket_id),action_code VARCHAR(40) NOT NULL,visibility VARCHAR(10) NOT NULL CHECK(visibility IN('MEMBER','INTERNAL')),
-   actor_member_id INT NULL REFERENCES dbo.members(member_id),actor_admin_id INT NULL REFERENCES dbo.admin(admin_id),summary NVARCHAR(500) NOT NULL,
-   created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
-   CHECK((support_room_id IS NOT NULL AND ticket_id IS NULL) OR (support_room_id IS NULL AND ticket_id IS NOT NULL)));
-  CREATE INDEX IX_support_room_audit ON dbo.support_audit_logs(support_room_id,audit_id DESC);
-  CREATE INDEX IX_support_ticket_audit ON dbo.support_audit_logs(ticket_id,audit_id DESC);
- END;
- COMMIT TRANSACTION;
-END TRY
-BEGIN CATCH
- IF @@TRANCOUNT>0 ROLLBACK TRANSACTION;
- THROW;
-END CATCH;
-
 GO
--- 2026-10-27：補齊客服問題分類；保留既有分類主鍵、案件及自訂分類，可重跑。
-SET NOCOUNT ON;
-SET XACT_ABORT ON;
-BEGIN TRY
- BEGIN TRANSACTION;
- DECLARE @CategoryLock INT;
- EXEC @CategoryLock=sys.sp_getapplock @Resource='HERO_SUPPORT_SCHEMA',@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000;
- IF @CategoryLock<0
- BEGIN
-  DECLARE @CategoryLockMessage NVARCHAR(2048)=CONCAT(N'客服分類初始化取鎖失敗，sp_getapplock=',@CategoryLock,N'。');
-  THROW 51062,@CategoryLockMessage,1;
- END;
- IF OBJECT_ID(N'dbo.customer_service_categories',N'U') IS NULL
-  THROW 51063,N'缺少客服分類表，請先建立專題基礎資料表。',1;
 
--- BEGIN CATEGORY DATA
--- 沿用原分類 ID；已有新名稱時保留舊分類供歷史案件使用，不刪除任何關聯。
-UPDATE dbo.customer_service_categories SET category_name=N'帳號與登入'
-WHERE category_id=(SELECT MIN(category_id) FROM dbo.customer_service_categories WHERE LTRIM(RTRIM(category_name)) IN(N'帳號問題',N'帳號'))
-AND NOT EXISTS(SELECT 1 FROM dbo.customer_service_categories WHERE LTRIM(RTRIM(category_name))=N'帳號與登入');
-UPDATE dbo.customer_service_categories SET category_name=N'訂單問題'
-WHERE category_id=(SELECT MIN(category_id) FROM dbo.customer_service_categories WHERE LTRIM(RTRIM(category_name)) IN(N'購買問題',N'訂單'))
-AND NOT EXISTS(SELECT 1 FROM dbo.customer_service_categories WHERE LTRIM(RTRIM(category_name))=N'訂單問題');
-UPDATE dbo.customer_service_categories SET category_name=N'遊戲問題'
-WHERE category_id=(SELECT MIN(category_id) FROM dbo.customer_service_categories WHERE LTRIM(RTRIM(category_name))=N'遊戲')
-AND NOT EXISTS(SELECT 1 FROM dbo.customer_service_categories WHERE LTRIM(RTRIM(category_name))=N'遊戲問題');
-UPDATE dbo.customer_service_categories SET category_name=N'優惠券問題'
-WHERE category_id=(SELECT MIN(category_id) FROM dbo.customer_service_categories WHERE LTRIM(RTRIM(category_name)) IN(N'優惠卷問題',N'優惠卷',N'優惠券'))
-AND NOT EXISTS(SELECT 1 FROM dbo.customer_service_categories WHERE LTRIM(RTRIM(category_name))=N'優惠券問題');
+-- 遊戲折扣紀錄表：保留歷史紀錄，供 30 天冷卻期判斷。
+IF OBJECT_ID(N'dbo.game_discounts', N'U') IS NULL
+BEGIN
+    IF OBJECT_ID(N'dbo.games', N'U') IS NULL
+        THROW 51021, N'缺少 games 資料表，請先建立遊戲主表。', 1;
 
-INSERT INTO dbo.customer_service_categories(category_name,description)
-SELECT v.name,v.description FROM (VALUES
- (N'帳號與登入',N'登入失敗、Google 綁定、信箱驗證及會員資料問題'),
- (N'遊戲問題',N'遊戲資訊、下載、版本或啟動異常'),
- (N'訂單問題',N'訂單查詢、內容錯誤及訂單狀態異常'),
- (N'付款問題',N'付款失敗、付款後未更新及重複付款'),
- (N'退款問題',N'退款申請、退款資格及處理進度'),
- (N'優惠券問題',N'無法領取、無法使用、折扣及適用範圍疑問'),
- (N'網站操作異常',N'頁面錯誤、按鈕無反應及購物車異常'),
- (N'其他問題',N'其他詢問與建議')
-) v(name,description)
-WHERE NOT EXISTS(SELECT 1 FROM dbo.customer_service_categories c WHERE LTRIM(RTRIM(c.category_name))=v.name);
+    CREATE TABLE dbo.game_discounts (
+        discount_id        INT IDENTITY(1,1) NOT NULL,
+        game_id            INT               NOT NULL,
+        discount_percent   INT               NOT NULL,
+        start_at           DATETIME2         NOT NULL,
+        end_at             DATETIME2         NOT NULL,
+        created_at         DATETIME2         NOT NULL DEFAULT (SYSDATETIME()),
 
--- 僅補空白說明，不覆蓋既有自訂說明。
-UPDATE dbo.customer_service_categories SET description=CASE category_name
- WHEN N'帳號與登入' THEN N'登入失敗、Google 綁定、信箱驗證及會員資料問題'
- WHEN N'遊戲問題' THEN N'遊戲資訊、下載、版本或啟動異常'
- WHEN N'訂單問題' THEN N'訂單查詢、內容錯誤及訂單狀態異常'
- WHEN N'付款問題' THEN N'付款失敗、付款後未更新及重複付款'
- WHEN N'退款問題' THEN N'退款申請、退款資格及處理進度'
- WHEN N'優惠券問題' THEN N'無法領取、無法使用、折扣及適用範圍疑問'
- WHEN N'網站操作異常' THEN N'頁面錯誤、按鈕無反應及購物車異常'
- WHEN N'其他問題' THEN N'其他詢問與建議'
- ELSE description END
-WHERE description IS NULL OR LTRIM(RTRIM(description))='';
--- END CATEGORY DATA
+        CONSTRAINT PK_game_discounts
+            PRIMARY KEY CLUSTERED (discount_id),
 
- COMMIT TRANSACTION;
-END TRY
-BEGIN CATCH
- IF @@TRANCOUNT>0 ROLLBACK TRANSACTION;
- THROW;
-END CATCH;
+        CONSTRAINT FK_game_discounts_game
+            FOREIGN KEY (game_id) REFERENCES dbo.games(game_id),
 
+        CONSTRAINT CK_game_discounts_percent
+            CHECK (discount_percent BETWEEN 1 AND 99),
+
+        CONSTRAINT CK_game_discounts_duration
+            CHECK (end_at = DATEADD(DAY, 7, start_at))
+    );
+END;
+GO
+
+-- 依遊戲查詢最新折扣紀錄及冷卻期。
+IF OBJECT_ID(N'dbo.game_discounts', N'U') IS NOT NULL
+   AND NOT EXISTS (
+       SELECT 1 FROM sys.indexes
+       WHERE object_id = OBJECT_ID(N'dbo.game_discounts')
+         AND name = N'IX_game_discounts_game_end'
+   )
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_game_discounts_game_end
+        ON dbo.game_discounts (game_id, end_at DESC);
+END;
+GO
+
+-- 檢查折扣資料表結構。
+SELECT
+    c.name AS column_name,
+    TYPE_NAME(c.user_type_id) AS data_type,
+    c.is_nullable
+FROM sys.columns c
+WHERE c.object_id = OBJECT_ID(N'dbo.game_discounts')
+ORDER BY c.column_id;
 GO
