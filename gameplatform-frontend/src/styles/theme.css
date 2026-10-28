@@ -1,0 +1,283 @@
+/* HERO theme.css — 整合後共用樣式。單一畫面 CSS 請在對應 Vue 的 scoped style 修改。 */
+
+/* ===== global/hero-polish.css ===== */
+/* HERO visual enhancement — presentation only; all existing flows and data stay intact. */
+.support-ui {
+  --hero-card-radius: 19px;
+  --hero-border: rgba(91, 137, 157, .22);
+  --hero-elevation: 0 8px 26px rgba(19, 64, 88, .075);
+  --hero-focus: #1b8197;
+}
+
+.support-ui :is(button, a, input, select, textarea):focus-visible {
+  outline: 3px solid rgba(34, 149, 175, .44);
+  outline-offset: 2px;
+}
+
+.support-ui button:not(:disabled) {
+  cursor: pointer;
+}
+
+.support-ui button:disabled {
+  cursor: not-allowed;
+  opacity: .58;
+}
+
+.support-ui :is(input, select, textarea) {
+  accent-color: #167c95;
+}
+
+.support-ui :is(input, select, textarea):focus {
+  border-color: #3199a9;
+}
+
+.support-ui .management-module:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(16, 75, 105, .12);
+}
+
+/* Review-specific clarity and consistent status semantics. */
+@media (prefers-reduced-motion: reduce) {
+  .support-ui .management-module:hover {
+    transform: none;
+  }
+}
+
+
+/* ===== global/hero-background.css ===== */
+/* HERO GLOBAL DESIGN TOKENS — change the shared palette here only.
+ * Vertical gradient is a SINGLE canvas, never restarted on cards or sections.
+ * Surface alpha keeps some blue visible while providing readable dark text.
+ */
+:root {
+  --hero-gradient-top: #eaf6ff;
+  --hero-gradient-mid-light: #c5e0f7;
+  --hero-gradient-mid: #7eadd8;
+  --hero-gradient-bottom: #194771;
+  --hero-page-background: linear-gradient(to bottom,
+      var(--hero-gradient-top) 0%,
+      var(--hero-gradient-mid-light) 32%,
+      var(--hero-gradient-mid) 67%,
+      var(--hero-gradient-bottom) 100%);
+  --hero-page-surface: rgba(247, 252, 255, .90);
+  --hero-page-surface-soft: rgba(231, 244, 255, .89);
+  --hero-page-surface-strong: rgba(250, 253, 255, .96);
+  --hero-page-ink: #17364e;
+  --hero-page-muted: #45637b;
+  --hero-page-dim: #4c677a;
+  --hero-page-border: rgba(126, 170, 204, .56);
+  --hero-page-accent: #086d8b;
+  --hero-page-shadow: 0 12px 30px rgba(10, 41, 73, .16);
+  --hero-card-blur: blur(10px);
+  --workspace-background: var(--hero-page-background);
+}
+
+html {
+  min-height: 100%;
+  background: var(--hero-gradient-bottom);
+}
+
+body,
+body.support-portal,
+body.support-portal.staff-workspace {
+  min-height: 100dvh;
+  background-image: var(--hero-page-background);
+  background-color: var(--hero-gradient-bottom);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
+  color: var(--hero-page-ink);
+}
+
+#app {
+  min-height: 100dvh;
+}
+
+body.support-portal .support-ui.support-page,
+.hero-store-layout,
+.hero-store-layout .home,
+.hero-store-layout .store,
+.hero-store-layout .shopping-cart {
+  background: transparent;
+}
+
+.hero-store-layout {
+  --color-background: var(--hero-page-surface-soft);
+  --color-background-soft: var(--hero-page-surface);
+  --color-background-mute: var(--hero-page-surface-soft);
+  --color-text: var(--hero-page-ink);
+  --color-heading: var(--hero-page-ink);
+  color: var(--hero-page-ink);
+}
+
+
+/* ===== global/hero-page-heading.css ===== */
+/* Shared HERO page headings — visually matched to /tickets (CASE TRACKING).
+   Keep text directly on the shared blue gradient; no rounded white title box. */
+.hero-store-layout .hero-page-heading.hero-case-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 0;
+  /* Same centered content column as product filters/cards */
+  width: 100%;
+  max-width: 1200px;
+  box-sizing: border-box;
+  margin: 0 auto 26px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  color: var(--hero-page-ink);
+}
+
+.hero-store-layout .hero-case-heading__eyebrow {
+  display: block;
+  color: #155c80;
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 2.4px;
+  font-weight: 650;
+}
+
+.hero-store-layout .hero-case-heading__main {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.hero-store-layout .hero-case-heading .hero-page-heading__content {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.hero-store-layout .hero-case-heading .hero-page-heading__title {
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: #123b57;
+  font-size: clamp(27px, 2.5vw, 34px);
+  line-height: 1.36;
+  font-weight: 790;
+  letter-spacing: .2px;
+}
+
+.hero-store-layout .hero-case-heading .hero-page-heading__caption {
+  padding: 0;
+  margin: 0;
+  color: #456880;
+  font-size: 15px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 650px) {
+  .hero-store-layout .hero-case-heading .hero-page-heading__title {
+    font-size: 28px;
+  }
+
+  .hero-store-layout .hero-case-heading .hero-page-heading__caption {
+    font-size: 14px;
+  }
+
+  .hero-store-layout .hero-case-heading__main {
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+
+
+/* ===== global/hero-glass-contrast.css ===== */
+/* HERO global GLASS + ACCESSIBILITY rules.
+ * All regular cards use an opaque-enough pale-blue surface and dark typography.
+ * Only buttons, image overlays and status badges may use white on dark.
+ * Intentionally scoped to HERO content so modals/status severity retain meaning.
+ */
+/* Small text on feature shortcuts must reach readable contrast too. */
+.support-ui :is(.member-support-hero p, .member-support-options p, .member-support-tip) {
+  color: var(--hero-page-muted);
+}
+
+.hero-store-layout .prices s,
+.hero-store-layout .meta,
+.hero-store-layout .stats {
+  color: var(--hero-page-muted);
+}
+
+/* Keep inputs opaque, even over a deep-blue gradient. */
+.support-ui :is(input:not([type='checkbox']):not([type='radio']), textarea, select),
+.hero-store-layout :is(input, textarea, select) {
+  background-color: var(--hero-page-surface-strong);
+  color: var(--hero-page-ink);
+  border-color: var(--hero-page-border);
+}
+
+.support-ui :is(input, textarea, select)::placeholder,
+.hero-store-layout :is(input, textarea)::placeholder {
+  color: var(--hero-page-muted);
+  opacity: 1;
+}
+
+.support-ui :is(input, textarea, select):focus-visible,
+.hero-store-layout :is(input, textarea, select):focus-visible {
+  outline: 3px solid #085a84;
+  outline-offset: 2px;
+}
+
+body.staff-workspace .management-sidebar {
+  background: var(--hero-page-surface-strong);
+  border-color: var(--hero-page-border);
+  backdrop-filter: var(--hero-card-blur);
+}
+
+body.support-portal .support-ui.member-ui.site-header-shell>.site-header {
+  background: rgba(250, 253, 255, .97);
+  border-bottom: 1px solid var(--hero-page-border);
+  backdrop-filter: blur(12px);
+  color: var(--hero-page-ink);
+}
+
+/* Store listings and content: shared translucent palette, dark readable text. */
+.hero-store-layout {
+  color: var(--hero-page-ink);
+}
+
+.hero-store-layout :is(.panel, .main-cap, .review, .empty, .item, .summary, .result, .card) {
+  border-color: var(--hero-page-border);
+}
+
+/* Price and descriptive text must remain visible. */
+.hero-store-layout :is(.detail, .library, .shopping-cart, .home, .store) {
+  --text: var(--hero-page-ink);
+  --text-muted: var(--hero-page-muted);
+  --text-dim: var(--hero-page-dim);
+  --surface: var(--hero-page-surface);
+  --surface-2: var(--hero-page-surface-soft);
+  --bg: var(--hero-page-surface-soft);
+}
+
+/* Buttons with bright or dark backgrounds retain their own semantic colors. */
+/* Older page components don't all share the same HTML, so only the warning is styled here. */
+.hero-store-layout .store-api-warning {
+  background: rgba(255, 247, 226, .95);
+  color: #694216;
+  border-color: #c49e65;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --hero-page-surface: #eff7ff;
+    --hero-page-surface-soft: #e5f1fb;
+    --hero-page-surface-strong: #fafcff;
+    --hero-card-blur: none;
+  }
+}
