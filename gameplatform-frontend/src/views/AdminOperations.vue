@@ -77,8 +77,9 @@ const orderLabels = { order_no: '訂單編號', username: '會員', order_status
 </script>
 <template>
     <section class="page admin-management-page operations-page">
-        <AdminPageHeader :title="commentPage ? '評論與檢舉' : config.title" eyebrow="ADMIN WORKSPACE" :icon="config.icon" :description="commentPage ? '預設處理待辦檢舉，也可查看全部評論；不必等會員檢舉才看得到評論。' : config.note"
-            :count="total" count-label="符合條件的紀錄" />
+        <AdminPageHeader :title="commentPage ? '評論與檢舉' : config.title" eyebrow="ADMIN WORKSPACE" :icon="config.icon"
+            :description="commentPage ? '預設處理待辦檢舉，也可查看全部評論；不必等會員檢舉才看得到評論。' : config.note" :count="total"
+            count-label="符合條件的紀錄" />
         <nav v-if="logPage" class="management-tabs" aria-label="系統紀錄分類">
             <RouterLink v-if="hasPermission(session.user, 'OPERATION_LOG_VIEW')" to="/admin/operations"
                 :class="{ active: area === 'operations' }">操作紀錄</RouterLink>
@@ -122,18 +123,20 @@ const orderLabels = { order_no: '訂單編號', username: '會員', order_status
                                 @click="open(row)">{{ editable ? '編輯' : '查看' }}</button></td>
                     </tr>
                     <tr v-if="!loading && !error && !rows.length">
-                        <td :colspan="config.columns.length + (readOnlyList ? 0 : 1)" class="management-empty">{{ emptyMessage }}
+                        <td :colspan="config.columns.length + (readOnlyList ? 0 : 1)" class="management-empty">{{
+                            emptyMessage }}
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
-        <nav class="management-pagination unified-pager" aria-label="列表分頁"><button v-if="page > 0" :disabled="!page || busy || loading"
-                @click="page--; load()">上一頁</button><span>{{ page + 1 }} / {{ Math.max(1, Math.ceil(total / 20)) }}</span><button v-if="(page + 1) * 20 < total"
+        <nav class="management-pagination unified-pager" aria-label="列表分頁"><button v-if="page > 0"
+                :disabled="!page || busy || loading" @click="page--; load()">上一頁</button><span>{{ page + 1 }} / {{
+                    Math.max(1, Math.ceil(total / 20)) }}</span><button v-if="(page + 1) * 20 < total"
                 :disabled="(page + 1) * 20 >= total || busy || loading" @click="page++; load()">下一頁</button></nav>
         <form v-if="editing" class="management-panel" @submit.prevent="save">
-            <h2>{{ selected ? '編輯' : '新增' }}{{ area === 'tags' ? '標籤' : '優惠券' }}</h2><label>名稱<input v-model.trim="form.name"
-                    :maxlength="area === 'tags' ? 50 : 100" required :disabled="busy"></label>
+            <h2>{{ selected ? '編輯' : '新增' }}{{ area === 'tags' ? '標籤' : '優惠券' }}</h2><label>名稱<input
+                    v-model.trim="form.name" :maxlength="area === 'tags' ? 50 : 100" required :disabled="busy"></label>
             <template v-if="area === 'coupons'">
                 <p v-if="optionsError" role="alert">{{ optionsError }} <button type="button" :disabled="busy"
                         @click="loadCouponOptions">重試載入選單</button></p>
@@ -143,9 +146,10 @@ const orderLabels = { order_no: '訂單編號', username: '會員', order_status
                             <option value="RATE">打幾折</option>
                             <option value="AMOUNT">折抵金額</option>
                         </select></label>
-                    <label>{{ form.type === 'RATE' ? '折數（例：8 代表八折）' : '折抵金額（NT$）' }}<input v-model="form.value" type="number"
-                            :min="form.type === 'RATE' ? 0.1 : 0.01" :max="form.type === 'RATE' ? 9.9 : 99999999.99"
-                            :step="form.type === 'RATE' ? 0.1 : 0.01" required :disabled="busy"></label>
+                    <label>{{ form.type === 'RATE' ? '折數（例：8 代表八折）' : '折抵金額（NT$）' }}<input v-model="form.value"
+                            type="number" :min="form.type === 'RATE' ? 0.1 : 0.01"
+                            :max="form.type === 'RATE' ? 9.9 : 99999999.99" :step="form.type === 'RATE' ? 0.1 : 0.01"
+                            required :disabled="busy"></label>
                     <label>低消條件<select aria-label="低消條件" v-model="form.hasMinimum" :disabled="busy">
                             <option :value="false">無低消</option>
                             <option :value="true">有低消</option>
@@ -172,7 +176,8 @@ const orderLabels = { order_no: '訂單編號', username: '會員', order_status
                     <label>每位會員額度<input v-model="form.memberLimit" type="number" min="1" step="1" required
                             :disabled="busy"></label>
                     <label>狀態<select v-model="form.status" :disabled="busy">
-                            <option v-for="value in config.states" :key="value" :value="value">{{ text(value) }}</option>
+                            <option v-for="value in config.states" :key="value" :value="value">{{ text(value) }}
+                            </option>
                         </select></label>
                 </div>
                 <p v-if="selected">已使用 {{ selected.used_count }} 次；總額度不得低於此數。</p>
@@ -185,8 +190,14 @@ const orderLabels = { order_no: '訂單編號', username: '會員', order_status
         </form>
         <section v-if="detail" class="management-panel">
             <h2>訂單明細</h2>
-            <div v-if="detail.paymentAttempts?.length" class="payment-attempt-log"><h3>付款交易紀錄</h3><p v-for="attempt in detail.paymentAttempts" :key="attempt.merchant_trade_no">{{ attempt.merchant_trade_no }} · {{ attempt.payment_method }} · {{ attempt.status === 'REVIEW' ? '額外付款／需人工核對' : attempt.status }}<span v-if="attempt.ecpay_trade_no"> · {{ attempt.ecpay_trade_no }}</span></p></div>
-                <dl class="coupon-grid">
+            <div v-if="detail.paymentAttempts?.length" class="payment-attempt-log">
+                <h3>付款交易紀錄</h3>
+                <p v-for="attempt in detail.paymentAttempts" :key="attempt.merchant_trade_no">{{
+                    attempt.merchant_trade_no }} ·
+                    {{ attempt.payment_method }} · {{ attempt.status === 'REVIEW' ? '額外付款／需人工核對' : attempt.status
+                    }}<span v-if="attempt.ecpay_trade_no"> · {{ attempt.ecpay_trade_no }}</span></p>
+            </div>
+            <dl class="coupon-grid">
                 <div v-for="(label, key) in orderLabels" :key="key">
                     <dt>{{ label }}</dt>
                     <dd>{{ cell(detail.order, key) }}</dd>
@@ -304,47 +315,71 @@ const orderLabels = { order_no: '訂單編號', username: '會員', order_status
 </style>
 
 <style scoped>
-.comment-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; margin-bottom: 24px; }.comment-tabs button { border: 0; border-radius: 8px; padding: 10px 18px; font-weight: 600; color: #36566b; background: transparent; }.comment-tabs button.active { background: #fff; color: #075f76; box-shadow: 0 2px 7px #214b6315; }
+.comment-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px;
+    margin-bottom: 24px;
+}
+
+.comment-tabs button {
+    border: 0;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-weight: 600;
+    color: #36566b;
+    background: transparent;
+}
+
+.comment-tabs button.active {
+    background: #fff;
+    color: #075f76;
+    box-shadow: 0 2px 7px #214b6315;
+}
 </style>
 
 <style>
 /* 後台與發行商分頁統一樣式：僅渲染可翻頁的方向，第一頁不顯示上一頁、末頁不顯示下一頁。 */
-:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin: 24px auto 12px;
-  padding: 8px 12px;
-  min-height: 56px;
-}
-:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button {
-  appearance: none;
-  min-height: 38px;
-  min-width: 76px;
-  padding: 8px 16px;
-  border: 1px solid #c6dcec;
-  border-radius: 9px;
-  background: rgba(255,255,255,.96);
-  color: #305674;
-  font-weight: 500;
-  box-shadow: none;
-  line-height: 1.3;
-  cursor: pointer;
-}
-:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button:hover:not(:disabled) {
-  background: #f0f7ff;
-  border-color: #8eb8d3;
-}
-:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button:disabled {
-  opacity: .5;
-  cursor: not-allowed;
-}
-:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > span {
-  color: #355673;
-  font-size: 14px;
-  white-space: nowrap;
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: 24px auto 12px;
+    padding: 8px 12px;
+    min-height: 56px;
 }
 
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager>button {
+    appearance: none;
+    min-height: 38px;
+    min-width: 76px;
+    padding: 8px 16px;
+    border: 1px solid #c6dcec;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, .96);
+    color: #305674;
+    font-weight: 500;
+    box-shadow: none;
+    line-height: 1.3;
+    cursor: pointer;
+}
+
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager>button:hover:not(:disabled) {
+    background: #f0f7ff;
+    border-color: #8eb8d3;
+}
+
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager>button:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager>span {
+    color: #355673;
+    font-size: 14px;
+    white-space: nowrap;
+}
 </style>

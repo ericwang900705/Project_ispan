@@ -87,13 +87,72 @@ async function keydown(event) {
 </template>
 
 <style scoped>
-.searchable-select{position:relative;min-width:0;display:grid;gap:8px;align-content:start}
-.searchable-select label{margin:0;color:#587586;font-size:13px}
-.searchable-select input{width:100%;margin:0}
-.searchable-select ul{position:absolute;top:72px;left:0;right:0;z-index:20;list-style:none;padding:5px;margin:0;max-height:250px;overflow:auto;border:1px solid #b7d0dc;border-radius:10px;background:#fff;box-shadow:0 10px 25px #1d455326;color:#234456}
-.searchable-select li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;border-radius:6px;cursor:pointer;overflow-wrap:anywhere}
-.searchable-select li:hover,.searchable-select li.highlighted{background:#e9f6fa;color:#17647d}
-.searchable-select li[aria-selected=true]{font-weight:700}
-.searchable-select li small,.selection{color:#61798c;font-size:12px}
-.searchable-select li.empty{cursor:default;color:#61798c}
+.searchable-select {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  align-content: start
+}
+
+.searchable-select label {
+  margin: 0;
+  color: #587586;
+  font-size: 13px
+}
+
+.searchable-select input {
+  width: 100%;
+  margin: 0
+}
+
+.searchable-select ul {
+  position: absolute;
+  top: 72px;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  list-style: none;
+  padding: 5px;
+  margin: 0;
+  max-height: 250px;
+  overflow: auto;
+  border: 1px solid #b7d0dc;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 25px #1d455326;
+  color: #234456
+}
+
+.searchable-select li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow-wrap: anywhere
+}
+
+.searchable-select li:hover,
+.searchable-select li.highlighted {
+  background: #e9f6fa;
+  color: #17647d
+}
+
+.searchable-select li[aria-selected=true] {
+  font-weight: 700
+}
+
+.searchable-select li small,
+.selection {
+  color: #61798c;
+  font-size: 12px
+}
+
+.searchable-select li.empty {
+  cursor: default;
+  color: #61798c
+}
 </style>

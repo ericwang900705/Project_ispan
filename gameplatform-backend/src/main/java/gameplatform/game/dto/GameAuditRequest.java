@@ -8,5 +8,6 @@ import lombok.Setter;
 public class GameAuditRequest {
 
     private Integer adminId;
+
     private String comment;
 }

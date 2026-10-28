@@ -12,7 +12,7 @@ const canOffShelf = computed(() => !props.game.pending_review_type && ['PUBLISHE
     <h3>{{ mode === 'list' ? '遊戲營運與數據' : mode === 'buyers' ? '購買人數' : mode === 'history' ? '審核歷史與拒絕原因' : '下架與取消下架' }}
     </h3>
     <div v-if="['list', 'buyers'].includes(mode)" class="publisher-buyer-total"><strong>{{ game.buyer_count
-    }}</strong><span>人購買此遊戲</span>
+        }}</strong><span>人購買此遊戲</span>
       <UiIcon name="users" />
     </div>
     <p v-if="['list', 'buyers'].includes(mode)" class="publisher-count-note">僅計算已付款的不重複買家，排除取消與退款；送禮計入付款的會員。</p>

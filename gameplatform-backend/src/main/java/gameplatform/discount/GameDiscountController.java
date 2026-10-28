@@ -9,9 +9,21 @@ import java.util.*;
 @RequestMapping("/api/workspace/publisher/discounts")
 public class GameDiscountController {
     private final GameDiscountService service;
-    public GameDiscountController(GameDiscountService service) { this.service = service; }
-    @GetMapping public Object list(Actor actor) { return service.list(actor); }
-    @PostMapping public Object create(Actor actor, @RequestBody CreateRequest request) { return service.create(actor, request); }
-    public record CreateRequest(Integer gameId, Number percent, String startAt) {}
-}
 
+    public GameDiscountController(GameDiscountService service) {
+        this.service = service;
+    }
+
+    @GetMapping
+    public Object list(Actor actor) {
+        return service.list(actor);
+    }
+
+    @PostMapping
+    public Object create(Actor actor, @RequestBody CreateRequest request) {
+        return service.create(actor, request);
+    }
+
+    public record CreateRequest(Integer gameId, Number percent, String startAt) {
+    }
+}

@@ -13,17 +13,28 @@ import org.springframework.stereotype.Component;
 @Order(-60)
 public class RefundSchemaInitializer implements ApplicationRunner {
     private final DataSource dataSource;
-    public RefundSchemaInitializer(DataSource dataSource) { this.dataSource = dataSource; }
-    @Override public void run(ApplicationArguments args) throws Exception {
+
+    public RefundSchemaInitializer(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    @Override
+    public void run(ApplicationArguments args) throws Exception {
         try (var connection = dataSource.getConnection()) {
-            if (!"Microsoft SQL Server".equals(connection.getMetaData().getDatabaseProductName())) return;
+            if (!"Microsoft SQL Server".equals(connection.getMetaData().getDatabaseProductName()))
+                return;
             boolean auto = connection.getAutoCommit();
             try {
-                if (!auto) connection.setAutoCommit(true);
+                if (!auto)
+                    connection.setAutoCommit(true);
                 try (var statement = connection.createStatement()) {
-                    statement.execute(new ClassPathResource("db/refund-schema.sql").getContentAsString(StandardCharsets.UTF_8));
+                    statement.execute(
+                            new ClassPathResource("db/refund-schema.sql").getContentAsString(StandardCharsets.UTF_8));
                 }
-            } finally { if (!auto) connection.setAutoCommit(false); }
+            } finally {
+                if (!auto)
+                    connection.setAutoCommit(false);
+            }
         }
     }
 }

@@ -439,15 +439,24 @@ public class MemberService {
     }
 
     /** 只讀取登入會員自己的申請狀態，不回傳銀行帳號。 */
-    @Transactional(readOnly=true)
-    public java.util.Map<String,Object> publisherApplicationStatus(String username) {
-        var members=db.queryForList("SELECT member_id,is_publisher,company_name FROM dbo.members WHERE username=?",username);
-        if(members.isEmpty())throw new gameplatform.support.model.Problem(404,"找不到會員");
-        var member=members.getFirst();Object publisher=member.get("is_publisher");
-        if(Boolean.TRUE.equals(publisher)||(publisher instanceof Number n&&n.intValue()!=0))return java.util.Map.of("status","APPROVED","reviewComment","");
-        var rows=db.queryForList("SELECT TOP 1 approval_status,review_comment FROM dbo.publisher_applications WHERE member_id=? ORDER BY application_id DESC",member.get("member_id"));
-        if(rows.isEmpty())return java.util.Map.of("status",member.get("company_name")==null?"NONE":"PENDING","reviewComment","");
-        return java.util.Map.of("status",rows.getFirst().get("approval_status"),"reviewComment",java.util.Objects.toString(rows.getFirst().get("review_comment"),""));
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Object> publisherApplicationStatus(String username) {
+        var members = db.queryForList("SELECT member_id,is_publisher,company_name FROM dbo.members WHERE username=?",
+                username);
+        if (members.isEmpty())
+            throw new gameplatform.support.model.Problem(404, "找不到會員");
+        var member = members.getFirst();
+        Object publisher = member.get("is_publisher");
+        if (Boolean.TRUE.equals(publisher) || (publisher instanceof Number n && n.intValue() != 0))
+            return java.util.Map.of("status", "APPROVED", "reviewComment", "");
+        var rows = db.queryForList(
+                "SELECT TOP 1 approval_status,review_comment FROM dbo.publisher_applications WHERE member_id=? ORDER BY application_id DESC",
+                member.get("member_id"));
+        if (rows.isEmpty())
+            return java.util.Map.of("status", member.get("company_name") == null ? "NONE" : "PENDING", "reviewComment",
+                    "");
+        return java.util.Map.of("status", rows.getFirst().get("approval_status"), "reviewComment",
+                java.util.Objects.toString(rows.getFirst().get("review_comment"), ""));
     }
 
     // ---11.申請成為發行商

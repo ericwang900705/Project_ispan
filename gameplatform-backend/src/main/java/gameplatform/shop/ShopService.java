@@ -302,8 +302,10 @@ public class ShopService {
         if (minutes == null || minutes < 1 || minutes > 1440)
             throw bad("遊玩分鐘數必須介於 1 與 1440");
         var game = row("SELECT g.game_name FROM member_games l JOIN games g ON g.game_id=l.game_id "
-                + "WHERE l.member_id=? AND l.game_id=? AND l.is_active=1", member, gameId);
-        if (!Set.of("貪食蛇", "數字合成 2048", "踩地雷", "打磚塊", "記憶翻牌", "火柴人格鬥：霓虹對決")
+                + "WHERE l.member_id=? AND l.game_id=? AND l.is_active=1 AND g.status IN ('PUBLISHED','PENDING_OFF_SHELF')", member, gameId);
+        if (!Set.of("貪食蛇", "數字合成 2048", "踩地雷", "打磚塊", "記憶翻牌", "火柴人格鬥：霓虹對決",
+                "暗夜倖存者", "無盡深淵", "失落王國", "星露森林", "荒野生存", "戰場前線",
+                "火柴人射擊", "火柴人紅藍競技場", "三國戰棋", "牛排大師", "火柴人羽毛球", "火柴人賽車")
                 .contains(game.get("game_name")))
             throw new Problem(409, "這款遊戲尚無網頁遊玩版本");
         int changed = db.update("UPDATE member_games SET total_play_minutes=COALESCE(total_play_minutes,0)+?, "
@@ -325,6 +327,8 @@ public class ShopService {
                     for (var p : Map.of("obtainedSource", "obtained_source", "obtainedAt", "obtained_at",
                             "totalPlayMinutes", "total_play_minutes", "lastPlayedAt", "last_played_at").entrySet())
                         m.put(p.getKey(), time(r.get(p.getValue())));
+                    var builds=db.queryForList("SELECT TOP 1 build_id,version,file_url FROM game_builds WHERE game_id=? AND status='ACTIVE' ORDER BY build_id DESC",r.get("game_id"));
+                    m.put("latestBuild",builds.isEmpty()?null:builds.getFirst());
                     m.put("isActive", true);
                     return (Map<String, Object>) m;
                 }).toList();
@@ -360,10 +364,15 @@ public class ShopService {
                 : paid instanceof java.time.LocalDateTime local ? local : null;
         m.put("refundDeadline", "PAID".equals(r.get("order_status")) && paidTime != null
                 ? paidTime.plusDays(14).toString() : null);
-        var requests = db.queryForList("SELECT status,ticket_id,decision_reason FROM refund_requests WHERE order_id=?", id);
+        var requests = db.queryForList("SELECT status,ticket_id,reason,requested_at,processed_at,decision_reason,refund_mode FROM refund_requests WHERE order_id=?", id);
         m.put("refundStatus", requests.isEmpty() ? null : requests.getFirst().get("status"));
         m.put("refundTicketId", requests.isEmpty() ? null : requests.getFirst().get("ticket_id"));
         m.put("refundDecisionReason", requests.isEmpty() ? null : requests.getFirst().get("decision_reason"));
+        var refund = requests.isEmpty() ? Map.<String,Object>of() : requests.getFirst();
+        m.put("refundReason", refund.get("reason"));
+        m.put("refundRequestedAt", time(refund.get("requested_at")));
+        m.put("refundProcessedAt", time(refund.get("processed_at")));
+        m.put("refundMode", refund.get("refund_mode"));
         var info = new LinkedHashMap<String, Object>();
         info.put("bankCode", r.get("bank_code"));
         info.put("virtualAccount", r.get("virtual_account"));

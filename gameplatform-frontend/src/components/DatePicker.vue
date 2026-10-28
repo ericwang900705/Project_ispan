@@ -95,7 +95,8 @@ function escape(event) { event.preventDefault(); close() }
         </select>
         <button type="button" aria-label="下個月" @click="move(1)">›</button>
       </div>
-      <div class="calendar-week" aria-hidden="true"><span v-for="day in ['日', '一', '二', '三', '四', '五', '六']" :key="day">{{ day
+      <div class="calendar-week" aria-hidden="true"><span v-for="day in ['日', '一', '二', '三', '四', '五', '六']"
+          :key="day">{{ day
           }}</span></div>
       <div class="calendar-days">
         <button v-for="day in days" :key="day.value" type="button" class="calendar-day"

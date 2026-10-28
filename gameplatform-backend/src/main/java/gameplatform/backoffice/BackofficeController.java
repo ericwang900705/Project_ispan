@@ -46,7 +46,9 @@ public class BackofficeController {
     }
 
     @GetMapping("/coupon-options")
-    public Object couponOptions(Actor a) { return service.couponOptions(a); }
+    public Object couponOptions(Actor a) {
+        return service.couponOptions(a);
+    }
 
     @PostMapping("/coupons")
     public Object coupon(Actor a, @RequestBody BackofficeService.CouponInput input) {
@@ -61,7 +63,9 @@ public class BackofficeController {
     }
 
     @GetMapping("/reviews/{id}/moderation")
-    public Object reviewModeration(Actor a,@PathVariable int id){return service.reviewModeration(a,id);}
+    public Object reviewModeration(Actor a, @PathVariable int id) {
+        return service.reviewModeration(a, id);
+    }
 
     @PatchMapping("/reviews/{id}")
     public Object review(Actor a, @PathVariable int id, @RequestBody BackofficeService.ReviewInput input) {

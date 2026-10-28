@@ -19,6 +19,7 @@ const title = computed(() => publisherFunctions.find(x => x.mode === mode.value)
 const items = ref([])
 const total = ref(0)
 const page = ref(0)
+const pageSize = computed(() => ['tags', 'builds'].includes(mode.value) ? 5 : 20)
 const q = ref('')
 const uploading = ref(false)
 const loading = ref(false)
@@ -62,6 +63,8 @@ const remaining = computed(() => {
   return Math.floor(seconds / 3600) + ' 小時 ' + Math.floor(seconds % 3600 / 60) + ' 分 ' + seconds % 60 + ' 秒'
 })
 const editable = computed(() => selected.value && !selected.value.pending_review_type && selected.value.off_shelf_source !== 'ADMIN' && !canRestore.value && ['DRAFT', 'OFF_SHELF'].includes(selected.value.status))
+const liveBuilds = computed(() => mode.value === 'builds' && selected.value?.status === 'PUBLISHED')
+const buildsEditable = computed(() => editable.value || liveBuilds.value)
 const checks = computed(() => selected.value?.publish_checks || [])
 const publishable = computed(() => editable.value && checks.value.length === 4 && checks.value.every(x => x.complete))
 const date = value => value ? new Date(value).toLocaleString('zh-TW', { hour12: false }) : '—'
@@ -101,7 +104,7 @@ function snapshot() {
     return JSON.stringify(media.value)
   return ''
 }
-const dirty = computed(() => (mode.value === 'new' ? !selected.value || editable.value : editable.value) && baseline.value !== snapshot())
+const dirty = computed(() => (mode.value === 'new' ? !selected.value || editable.value : mode.value === 'builds' ? buildsEditable.value : editable.value) && baseline.value !== snapshot())
 function assign(game) {
   selected.value = game
   clockOffset.value = game.server_time - Date.now()
@@ -133,7 +136,7 @@ async function load() {
   const run = ++listRun
   loading.value = true
   try {
-    const result = await api('/workspace/publisher/games?page=' + page.value + '&q=' + encodeURIComponent(q.value.trim()))
+    const result = await api('/workspace/publisher/games?page=' + page.value + '&size=' + pageSize.value + '&q=' + encodeURIComponent(q.value.trim()))
     if (run !== listRun) return
     items.value = result.items; total.value = result.total
     if (!items.value.length && page.value > 0) { page.value--; return load() }
@@ -194,7 +197,7 @@ async function saveEditor(next = '', syncRoute = true) {
   try {
     const game = await api(path, { method, body })
     assign(game); await load()
-    notifyPublisher(['new', 'builds'].includes(current) ? '草稿已儲存' : current === 'edit' ? '修改已儲存' : '設定已儲存')
+    notifyPublisher(current === 'builds' && liveBuilds.value ? '新版本已儲存，確認後可發布' : ['new', 'builds'].includes(current) ? '草稿已儲存' : current === 'edit' ? '修改已儲存' : '設定已儲存')
     if (syncRoute && (next || current === 'new')) await goTo(next || current, game.game_id)
     return game
   } catch (e) { error.value = e.message; dialogError.value = e.message; return null }
@@ -249,7 +252,7 @@ function changeBuildSource(build) { build.fileUrl = ''; build.fileSize = null }
 async function uploadBuild(event, build) {
   const file = event.target.files?.[0]
   event.target.value = ''
-  if (!file || busy.value || uploading.value || !editable.value) return
+  if (!file || busy.value || uploading.value || !buildsEditable.value || (liveBuilds.value && build.id)) return
   if (!/\.zip$/i.test(file.name) || !file.size || file.size > 100 * 1024 * 1024) {
     error.value = '請選擇 ZIP 檔案，每個最多 100 MB。'; return
   }
@@ -262,6 +265,21 @@ async function uploadBuild(event, build) {
   } catch (e) { error.value = e.message }
   finally { uploading.value = false }
 }
+const releaseTarget = ref(null)
+function confirmRelease(build) {
+  if (dirty.value) { error.value = '請先儲存或放棄版本變更，再發布已儲存的版本。'; return }
+  releaseTarget.value = build; openDialog('releaseBuild')
+}
+async function releaseBuild() {
+  if (!releaseTarget.value || busy.value || dirty.value) return
+  busy.value = true; dialogError.value = ''; error.value = ''
+  try {
+    const game = await api(endpoint(`builds/${releaseTarget.value.id}/release`), { method: 'POST' })
+    assign(game); dialog.value = null; notifyPublisher('版本已發布，舊版本已保留為停用')
+  } catch (e) { dialogError.value = e.message }
+  finally { busy.value = false }
+}
+watch(mode, () => { page.value = 0; load() })
 function beforeUnload(event) { if (dirty.value || busy.value || uploading.value) { event.preventDefault(); event.returnValue = '' } }
 onMounted(() => { clockTimer = setInterval(() => { tick.value = Date.now() }, 1000); window.addEventListener('beforeunload', beforeUnload) })
 onUnmounted(() => { clearInterval(clockTimer); window.removeEventListener('beforeunload', beforeUnload); pendingLeave?.resolve(false) })
@@ -323,11 +341,11 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
               </span>
             </button>
             <div class="publisher-pagination unified-pager">
-              <button v-if="page > 0" :disabled="page === 0 || loading || busy" @click="page--; load()">上一頁</button>
+              <button :disabled="page === 0 || loading || busy" @click="page--; load()">上一頁</button>
               <span>
-                {{ page + 1 }} / {{ Math.max(1, Math.ceil(total / 20)) }}
+                第 {{ page + 1 }} / {{ Math.max(1, Math.ceil(total / pageSize)) }} 頁 · 每頁 {{ pageSize }} 款
               </span>
-              <button v-if="(page + 1) * 20 < total" :disabled="(page + 1) * 20 >= total || loading || busy" @click="page++; load()">下一頁</button>
+              <button :disabled="(page + 1) * pageSize >= total || loading || busy" @click="page++; load()">下一頁</button>
             </div>
           </section>
           <section class="publisher-panel publisher-editor">
@@ -390,9 +408,10 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
               </template>
               <form v-else-if="mode === 'builds'" class="publisher-form" ref="editorForm"
                 @submit.prevent="submitEditor">
-                <fieldset :disabled="busy || uploading || !editable">
+                <fieldset :disabled="busy || uploading || !buildsEditable">
                   <div v-for="(build, index) in builds" :key="index" class="publisher-resource-card">
-                    <h3>版本 {{ index + 1 }}</h3>
+                    <h3>{{ build.id ? build.version : '新增版本' }} <small v-if="liveBuilds">{{ build.status === 'ACTIVE' ? '目前啟用' : '待發布／已停用' }}</small></h3>
+                    <fieldset :disabled="liveBuilds && !!build.id">
                     <label>版本號
                       <input v-model="build.version" maxlength="30" required>
                     </label>
@@ -403,7 +422,7 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
                     <template v-if="build.source === 'upload'">
                       <label>選擇 ZIP 檔案（最多 100 MB）<input type="file" accept=".zip,application/zip" :disabled="uploading" @change="uploadBuild($event, build)"></label>
                       <label>已上傳版本<input v-model="build.fileUrl" type="text" readonly required placeholder="請先上傳 ZIP"></label>
-                      <PublisherBuildLink v-if="build.fileUrl" :url="build.fileUrl" /><p v-if="uploading" role="status">ZIP 上傳中，請稍候…</p>
+<p v-if="uploading" role="status">ZIP 上傳中，請稍候…</p>
                     </template>
                     <label v-else>版本檔案網址<input v-model="build.fileUrl" type="url" maxlength="500" required placeholder="https://…"></label>
                     <div class="publisher-form-pair">
@@ -412,18 +431,21 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
                           @change="build.fileSize = build.fileSize === '' ? null : Number(build.fileSize)">
                       </label>
                       <label>狀態
-                        <select v-model="build.status">
+                        <select v-model="build.status" :disabled="liveBuilds">
                           <option value="ACTIVE">啟用</option>
                           <option value="INACTIVE">停用</option>
                         </select>
                       </label>
                     </div>
-                    <button type="button" class="text-button" @click="openDialog('discardBuild', index)">
+                    </fieldset>
+                    <PublisherBuildLink v-if="build.fileUrl" :url="build.fileUrl" />
+                    <button v-if="liveBuilds && build.id && build.status !== 'ACTIVE'" type="button" class="primary" :disabled="dirty || busy" @click="confirmRelease(build)">發布此版本</button>
+                    <button v-if="!liveBuilds || !build.id" type="button" class="text-button" @click="openDialog('discardBuild', index)">
                       放棄此版本變更
                     </button>
                   </div>
                   <div class="publisher-button-row"><button type="button" :disabled="builds.length >= 50"
-                      @click="builds.push({ id: null, version: '', fileUrl: '', fileSize: null, status: 'ACTIVE', source: 'upload' })">
+                      @click="builds.push({ id: null, version: '', fileUrl: '', fileSize: null, status: liveBuilds ? 'INACTIVE' : 'ACTIVE', source: 'upload' })">
                       新增下一個版本
                     </button>
                   </div>
@@ -434,8 +456,10 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
                     <button v-else type="button" disabled>前往下載空間複製</button>
                     <small v-if="!downloadSpace">尚未設定團隊下載空間網址。</small>
                   </div>
-                  <PublisherSaveActions secondary="儲存草稿" primary="儲存並前往：上架檢核" next="publish" :busy="busy" />
+                  <button v-if="liveBuilds" class="primary" type="submit" :disabled="busy || !dirty">儲存新版本</button>
+                  <PublisherSaveActions v-else secondary="儲存草稿" primary="儲存並前往：上架檢核" next="publish" :busy="busy" />
                 </fieldset>
+                <p v-if="liveBuilds" class="publisher-version-note">已上架更新：先新增版本並儲存，再按「發布此版本」。發布前沿用目前版本，發布後只保留一個啟用版本；歷史版本不刪除，可再次發布回復。網頁內建小遊戲的程式更新仍需部署新版網站。</p>
                 <p class="muted">每個版本可選擇上傳 ZIP 或填寫 HTTP／HTTPS 網址，擇一即可。上傳後請儲存；既有版本可停用，不直接刪除。</p>
               </form>
               <form v-else-if="mode === 'tags'" class="publisher-form" ref="editorForm" @submit.prevent="submitEditor">
@@ -484,7 +508,7 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
                 :remaining="remaining" :editable="!!editable" :busy="busy"
                 @off-shelf="reason = ''; openDialog('offShelf')" @restore="action('restore', '已取消下架申請')"
                 @navigate="goTo" />
-              <p v-if="!editable && ['edit', 'builds', 'tags', 'media'].includes(mode)" class="publisher-pending">
+              <p v-if="!editable && !(mode === 'builds' && liveBuilds) && ['edit', 'builds', 'tags', 'media'].includes(mode)" class="publisher-pending">
                 已上架、待審核及預定下架期間保留原資料，不可修改。
               </p>
             </template>
@@ -501,8 +525,8 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
     </div>
   </section>
   <PublisherDialog :open="!!dialog" :busy="busy"
-    :title="dialog === 'leave' ? '尚有未儲存的變更' : dialog === 'publish' ? '確認送出上架審核' : dialog === 'offShelf' ? '確認申請下架' : '放棄此版本變更'"
-    :description="dialog === 'leave' ? '您有尚未儲存的資料，要先儲存再前往嗎？' : dialog === 'publish' ? '送出後在審核完成前將無法修改遊戲資料，確定要送出嗎？' : dialog === 'offShelf' ? '提出申請後 24 小時會自動下架，期限內可以取消下架。遊戲資料與購買紀錄會保留。' : '確定要捨棄此版本尚未儲存的變更嗎？既有版本會還原，新增版本會移除。'"
+    :title="dialog === 'releaseBuild' ? '確認發布版本 ' + releaseTarget?.version : dialog === 'leave' ? '尚有未儲存的變更' : dialog === 'publish' ? '確認送出上架審核' : dialog === 'offShelf' ? '確認申請下架' : '放棄此版本變更'"
+    :description="dialog === 'releaseBuild' ? '發布後會員可取得此版本；目前版本會停用並保留，遊戲維持上架。確定發布嗎？' : dialog === 'leave' ? '您有尚未儲存的資料，要先儲存再前往嗎？' : dialog === 'publish' ? '送出後在審核完成前將無法修改遊戲資料，確定要送出嗎？' : dialog === 'offShelf' ? '提出申請後 24 小時會自動下架，期限內可以取消下架。遊戲資料與購買紀錄會保留。' : '確定要捨棄此版本尚未儲存的變更嗎？既有版本會還原，新增版本會移除。'"
     @close="closeDialog">
     <label v-if="dialog === 'offShelf'">下架說明（選填）
       <textarea v-model="reason" maxlength="500" rows="3" :disabled="busy"></textarea>
@@ -518,6 +542,7 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
           儲存並前往
         </button>
       </template>
+      <button v-else-if="dialog === 'releaseBuild'" class="primary" :disabled="busy || dirty" @click="releaseBuild">確認發布版本</button>
       <button v-else-if="dialog === 'publish'" class="primary" :disabled="busy || !publishable"
         @click="action('publish', '已送出上架審核', 'history')">
         確認送出審核
@@ -532,6 +557,8 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
 </template>
 
 <style scoped>
+.publisher-version-note { padding: 14px; border: 1px solid #b5ccd9; border-radius: 10px; background: #eef6fa; line-height: 1.8; color: #244157; }
+.publisher-resource-card fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 /* 來源選項保留原生單選尺寸，不套用一般文字欄位的滿寬規則。 */
 .publisher-build-source { display: flex; flex-wrap: wrap; gap: 18px; margin: 12px 0; }
 .publisher-build-source label { display: flex; align-items: center; gap: 8px; }

@@ -5,6 +5,7 @@ import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { api, accessToken, session } from '../../api'
 import { useCartStore } from '@/cart/stores/cart'
+import { readGameSave, writeGameSave, sandboxGameHtml, gameSaveMessage } from '@/cart/utils/gameSave'
 import { miniGameOf } from '@/cart/minigames'
 
 const route = useRoute()
@@ -14,6 +15,17 @@ const member = session.user?.id
 const token = accessToken()
 const entry = computed(() => cart.library.find(e => e.game.gameId === gameId && e.isActive !== false) ?? null)
 const mini = computed(() => miniGameOf(entry.value?.game))
+const aiNames = new Set(["暗夜倖存者", "無盡深淵", "失落王國", "星露森林", "荒野生存", "戰場前線", "火柴人射擊", "火柴人紅藍競技場", "三國戰棋", "牛排大師", "火柴人羽毛球", "火柴人賽車"])
+const isAi = computed(() => aiNames.has(entry.value?.game?.gameName))
+const html = ref('')
+const gameFrame = ref(null)
+const saveChannel = crypto.randomUUID()
+const saveKey = `hero-game-save:${member}:${gameId}`
+function onGameSave(event) {
+  if (!validIdentity() || !gameFrame.value) return
+  const data = gameSaveMessage(event, gameFrame.value.contentWindow, saveChannel)
+  if (data && !writeGameSave(saveKey, data)) error.value = '目前無法保存遊戲進度，請確認瀏覽器儲存空間。'
+}
 const loading = ref(true)
 const error = ref('')
 const screen = ref(null)
@@ -25,7 +37,7 @@ let timer = null
 let alive = true
 
 function resume() {
-  if (entry.value && mini.value && resumedAt === null && document.visibilityState === 'visible') resumedAt = Date.now()
+  if (entry.value && (mini.value || (isAi.value && html.value)) && resumedAt === null && document.visibilityState === 'visible') resumedAt = Date.now()
 }
 function pause() {
   if (resumedAt !== null) {
@@ -39,7 +51,7 @@ function validIdentity() {
 
 // CART 的 POST /api/member-games/{memberId}/{gameId}/play，body 為 { minutes }。
 function send(minutes, keepalive = false) {
-  if (!mini.value || !entry.value || !validIdentity() || minutes < 1) return
+  if (!(mini.value || (isAi.value && html.value)) || !entry.value || !validIdentity() || minutes < 1) return
   const path = `/member-games/${member}/${gameId}/play`
   if (keepalive) {
     // 原 CART 使用 sendBeacon，但目前專題採 Bearer JWT：使用可帶 Authorization 的 keepalive fetch。
@@ -86,9 +98,16 @@ async function toggleFullscreen() {
 
 onMounted(async () => {
   document.addEventListener('fullscreenchange', onFullscreenChange)
+  window.addEventListener('message', onGameSave)
   try {
     await cart.fetchLibrary()
-    if (!alive || !entry.value || !mini.value) return
+    if (!alive || !entry.value) return
+    if (isAi.value) {
+      const data = await api(`/member-games/${member}/${gameId}/ai-html`)
+      if (!alive) return
+      html.value = data.html ? sandboxGameHtml(data.html, readGameSave(saveKey), saveChannel) : ''
+    }
+    if (!mini.value && !html.value) return
     resume()
     timer = setInterval(tick, 15000)
     document.addEventListener('visibilitychange', onVisibility)
@@ -102,6 +121,7 @@ onBeforeUnmount(() => {
   finish()
   document.removeEventListener('visibilitychange', onVisibility)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
+  window.removeEventListener('message', onGameSave)
   window.removeEventListener('pagehide', onPageHide)
   if (document.fullscreenElement === screen.value) document.exitFullscreen().catch(() => { })
 })
@@ -112,7 +132,7 @@ onBeforeUnmount(() => {
       <RouterLink to="/member-games" class="back">← 回遊戲庫</RouterLink>
       <h1 v-if="entry">{{ entry.game.gameName }}</h1>
       <span v-if="mini" class="how">{{ mini.howTo }}</span>
-      <button v-if="mini && canFullscreen" class="fs-btn" @click="toggleFullscreen">⛶ 全螢幕</button>
+      <button v-if="(mini || html) && canFullscreen" class="fs-btn" @click="toggleFullscreen">⛶ 全螢幕</button>
     </div>
 
     <p v-if="error" role="alert">{{ error }}</p>
@@ -121,19 +141,23 @@ onBeforeUnmount(() => {
       <p>你的遊戲庫裡沒有這款遊戲</p>
       <RouterLink :to="`/games/${gameId}`" class="btn">去看看這款遊戲</RouterLink>
     </div>
-    <div v-else-if="!mini" class="notice">
+    <div v-else-if="!mini && !html" class="notice">
       <p>這款遊戲還沒有可以在網頁上玩的版本</p>
       <RouterLink to="/member-games" class="btn">回遊戲庫</RouterLink>
     </div>
     <section v-else ref="screen" class="screen">
       <!-- 全螢幕時標題列看不到，所以在右上角另外放一顆離開的按鈕 -->
       <button v-if="isFullscreen" class="fs-exit" @click="toggleFullscreen">✕ 結束全螢幕</button>
-      <component :is="mini.component" />
+      <component v-if="mini" :is="mini.component" />
+      <iframe ref="gameFrame" v-else-if="html" :srcdoc="html" sandbox="allow-scripts allow-pointer-lock"
+        referrerpolicy="no-referrer" title="網頁遊戲" class="ai-frame" />
     </section>
   </main>
 </template>
 
 <style scoped>
+.ai-frame { display:block; width:100%; height:min(76vh,780px); border:0; background:#111b3e; border-radius:10px; }
+.screen:fullscreen .ai-frame { height:calc(100vh - 85px); }
 .play {
   max-width: 760px;
   margin: 0 auto;

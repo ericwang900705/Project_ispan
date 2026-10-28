@@ -115,8 +115,8 @@ onUnmounted(() => { run++; clearInterval(timer) })
         <span>
           {{ page + 1 }} / {{ Math.max(1, Math.ceil((data?.total || 0) / 20)) }}
         </span>
-        <button v-if="data && (page + 1) * 20 < data.total" :disabled="!data || (page + 1) * 20 >= data.total || loading || busy"
-          @click="changePage(1)">下一頁</button>
+        <button v-if="data && (page + 1) * 20 < data.total"
+          :disabled="!data || (page + 1) * 20 >= data.total || loading || busy" @click="changePage(1)">下一頁</button>
       </div>
     </section>
   </section>
@@ -124,7 +124,7 @@ onUnmounted(() => { run++; clearInterval(timer) })
 
 <style>
 /* 後台與發行商分頁統一樣式：僅渲染可翻頁的方向，第一頁不顯示上一頁、末頁不顯示下一頁。 */
-:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager {
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -134,32 +134,35 @@ onUnmounted(() => { run++; clearInterval(timer) })
   padding: 8px 12px;
   min-height: 56px;
 }
-:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button {
+
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager>button {
   appearance: none;
   min-height: 38px;
   min-width: 76px;
   padding: 8px 16px;
   border: 1px solid #c6dcec;
   border-radius: 9px;
-  background: rgba(255,255,255,.96);
+  background: rgba(255, 255, 255, .96);
   color: #305674;
   font-weight: 500;
   box-shadow: none;
   line-height: 1.3;
   cursor: pointer;
 }
-:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button:hover:not(:disabled) {
+
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager>button:hover:not(:disabled) {
   background: #f0f7ff;
   border-color: #8eb8d3;
 }
-:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button:disabled {
+
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager>button:disabled {
   opacity: .5;
   cursor: not-allowed;
 }
-:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > span {
+
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager>span {
   color: #355673;
   font-size: 14px;
   white-space: nowrap;
 }
-
 </style>

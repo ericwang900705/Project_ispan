@@ -19,7 +19,7 @@ const selected = computed(() => publishedGames.value.find(g => String(g.gameId) 
 const price = computed(() => selected.value ? Math.round(Number(selected.value.originalPrice) * (100 - Number(percent.value)) / 100) : 0)
 const money = n => `NT$${Number(n || 0).toLocaleString('zh-TW')}`
 const date = s => s ? String(s).replace('T', ' ').slice(0, 16) : '—'
-const endDate = computed(() => { if (!startAt.value) return '選擇開始時間後自動計算'; const d = new Date(startAt.value); d.setDate(d.getDate() + 7); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` })
+const endDate = computed(() => { if (!startAt.value) return '選擇開始時間後自動計算'; const d = new Date(startAt.value); d.setDate(d.getDate() + 7); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` })
 const locked = computed(() => !selected.value || selected.value.status !== 'PUBLISHED' || (selected.value.nextAllowedAt && new Date(selected.value.nextAllowedAt).getTime() > now.value))
 async function load() { try { games.value = await api('/workspace/publisher/discounts') } catch (e) { error.value = e.message } }
 async function save() {
@@ -40,22 +40,37 @@ onUnmounted(() => window.clearInterval(clockTimer))
 </script>
 <template>
   <section class="publisher-insights platform-dashboard">
-    <header class="publisher-page-heading"><div><span class="eyebrow">PUBLISHER CENTER / DISCOUNTS</span><h1>遊戲折扣管理</h1><p class="muted">僅已上架遊戲可設定，固定 7 天，活動結束後 30 天內不可再次折扣。</p></div></header>
+    <header class="publisher-page-heading">
+      <div><span class="eyebrow">PUBLISHER CENTER / DISCOUNTS</span>
+        <h1>遊戲折扣管理</h1>
+        <p class="muted">僅已上架遊戲可設定，固定 7 天，活動結束後 30 天內不可再次折扣。</p>
+      </div>
+    </header>
     <div class="publisher-panel" style="padding:24px;max-width:760px">
-      <p v-if="!selected" class="published-only-notice" role="note"><span class="notice-icon" aria-hidden="true">!</span><strong>只有已上架遊戲可以設定折扣。</strong></p>
-      <div class="discount-game-field"><label for="discount-game-select">選擇遊戲</label><select id="discount-game-select" v-model="gameId"><option value="">請選擇已上架遊戲</option><option v-for="g in publishedGames" :key="g.gameId" :value="String(g.gameId)">{{ g.gameName }}</option></select></div>
+      <p v-if="!selected" class="published-only-notice" role="note"><span class="notice-icon"
+          aria-hidden="true">!</span><strong>只有已上架遊戲可以設定折扣。</strong></p>
+      <div class="discount-game-field"><label for="discount-game-select">選擇遊戲</label><select id="discount-game-select"
+          v-model="gameId">
+          <option value="">請選擇已上架遊戲</option>
+          <option v-for="g in publishedGames" :key="g.gameId" :value="String(g.gameId)">{{ g.gameName }}</option>
+        </select></div>
       <p v-if="!publishedGames.length" class="muted">目前沒有已上架的遊戲可設定折扣。</p>
       <template v-if="selected">
         <p>原價：<strong>{{ money(selected.originalPrice) }}</strong></p>
         <p v-if="selected.nextAllowedAt">下次可開始折扣：{{ date(selected.nextAllowedAt) }}</p>
-        <label class="discount-setting-field">折扣百分比（1～99 整數）<input v-model.number="percent" type="number" min="1" max="99" step="1" :disabled="locked || busy" /></label>
-        <label class="discount-setting-field">開始時間<input v-model="startAt" type="datetime-local" :min="minStartAt" step="60" :disabled="locked || busy" /></label>
+        <label class="discount-setting-field">折扣百分比（1～99 整數）<input v-model.number="percent" type="number" min="1"
+            max="99" step="1" :disabled="locked || busy" /></label>
+        <label class="discount-setting-field">開始時間<input v-model="startAt" type="datetime-local" :min="minStartAt"
+            step="60" :disabled="locked || busy" /></label>
         <p v-if="startTimeExpired" class="discount-time-error" role="alert">開始時間已經過去，請選擇目前時間之後的時段。</p>
         <p>結束時間：{{ endDate }}（固定 7 天）</p>
-        <p>預估折扣價：<strong>{{ money(price) }}</strong> <span v-if="percent >= 1 && percent <= 99" style="background:#a4d542;color:#101827;padding:6px;font-weight:bold">-{{ percent }}%</span></p>
-        <button class="primary" :disabled="locked || busy || !startAt || startTimeExpired" @click="save">{{ busy ? '儲存中…' : '建立折扣活動' }}</button>
+        <p>預估折扣價：<strong>{{ money(price) }}</strong> <span v-if="percent >= 1 && percent <= 99"
+            style="background:#a4d542;color:#101827;padding:6px;font-weight:bold">-{{ percent }}%</span></p>
+        <button class="primary" :disabled="locked || busy || !startAt || startTimeExpired" @click="save">{{ busy ?
+          '儲存中…' : '建立折扣活動' }}</button>
       </template>
-      <p v-if="error" role="alert" class="error">{{ error }}</p><p v-if="notice">{{ notice }}</p>
+      <p v-if="error" role="alert" class="error">{{ error }}</p>
+      <p v-if="notice">{{ notice }}</p>
     </div>
   </section>
 </template>
@@ -76,6 +91,7 @@ onUnmounted(() => window.clearInterval(clockTimer))
   font-size: 16px;
   line-height: 1.5;
 }
+
 .notice-icon {
   display: inline-flex;
   align-items: center;
@@ -96,15 +112,18 @@ onUnmounted(() => window.clearInterval(clockTimer))
   gap: 14px;
   margin-bottom: 14px;
 }
-.discount-game-field > label {
+
+.discount-game-field>label {
   flex: 0 0 auto;
 }
-.discount-game-field > select {
+
+.discount-game-field>select {
   width: min(100%, 340px);
   min-width: 220px;
   padding: 10px 14px;
   box-sizing: border-box;
 }
+
 /* 折扣百分比與開始時間：標籤、輸入框文字統一大小 */
 .discount-setting-field {
   display: inline-flex;
@@ -115,18 +134,25 @@ onUnmounted(() => window.clearInterval(clockTimer))
   font-size: 16px;
   line-height: 1.5;
 }
-.discount-setting-field > input {
+
+.discount-setting-field>input {
   font-size: 16px;
   line-height: 1.5;
   padding: 10px 12px;
   box-sizing: border-box;
 }
-.discount-setting-field > input[type="number"] {
+
+.discount-setting-field>input[type="number"] {
   width: 76px;
 }
-.discount-setting-field > input[type="datetime-local"] {
+
+.discount-setting-field>input[type="datetime-local"] {
   min-width: 230px;
 }
-.discount-time-error { color: #ffd071; font-weight: 700; margin: 0 0 12px; }
-</style>
 
+.discount-time-error {
+  color: #ffd071;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+</style>

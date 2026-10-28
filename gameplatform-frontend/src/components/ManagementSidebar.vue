@@ -44,12 +44,12 @@ const groups = computed(() => {
     if (canManageStaff(session.user)) list.push({ id: 'staff', name: '管理員權限管理', icon: 'shield', children: [{ name: '人員與權限管理', to: '/admin/staff' }] })
     if (can('MEMBER_SUSPEND')) list.push({ id: 'members', name: '會員管理', icon: 'users', children: [{ name: '會員列表', to: '/admin/members' }] })
     if (can('PUBLISHER_REVIEW')) list.push({ id: 'publishers', name: '發行商管理', icon: 'building', children: [{ name: '發行商申請與審核', to: '/admin/publishers' }] })
-    if (can('ORDER_VIEW') || can('REFUND_MANAGE')) list.push({ id: 'orders', name: '訂單管理', icon: 'cart', children: [can('ORDER_VIEW') && { name:'訂單列表',to:'/admin/orders' }, can('REFUND_MANAGE') && { name:'退款申請管理',to:'/admin/refund-requests' }, can('REFUND_MANAGE') && { name:'退款訂單查詢',to:'/admin/refunds' }].filter(Boolean) })
-    if (can('GAME_REVIEW') || can('TAG_MANAGE')) list.push({ id: 'games', name: '遊戲管理', icon: 'game', children: [...(can('GAME_REVIEW') ? [{ name: '遊戲搜尋', to: '/admin/games' }, { name: '上架審核', to: '/admin/games?mode=pending' }, { name: '審核紀錄', to: '/admin/games?mode=history' }] : []), ...(can('TAG_MANAGE') ? [{ name:'平台標籤維護',to:'/admin/tags' }] : [])] })
-    if (can('TICKET_HANDLE')) list.push({ id: 'support', name: '客服', icon: 'headset', children: [...(homeFor(session.user?.role) === '/admin/support' ? [] : [{ name: '工作總覽', to: '/admin/support' }]), { name: '即時客服', to: '/admin/chats' }, { name: '客服案件', to: '/tickets' }, ...(admin.value ? [{name:'常用回覆',to:'/admin/support/reply-templates'},{name:'FAQ 管理',to:'/admin/support/faqs'}] : [])] })
-    if (can('COMMENT_REVIEW')) list.push({ id: 'comments', name: '評論', icon: 'chat', children: [{ name:'評論與檢舉',to:'/admin/comments' }] })
-    if (can('PROMOTION_MANAGE') || can('COUPON_MANAGE')) list.push({ id: 'offers', name: '優惠活動', icon: 'tag', children: [can('PROMOTION_MANAGE') && { name:'優惠活動列表',to:'/admin/promotions' }, can('COUPON_MANAGE') && { name:'優惠券管理',to:'/admin/coupons' }].filter(Boolean) })
-    if (can('OPERATION_LOG_VIEW') || can('LOGIN_LOG_VIEW')) list.push({ id: 'logs', name: '系統紀錄管理', icon: 'file', children: [can('OPERATION_LOG_VIEW') && { name:'操作紀錄',to:'/admin/operations' }, can('LOGIN_LOG_VIEW') && { name:'會員登入紀錄',to:'/admin/login-logs' }].filter(Boolean) })
+    if (can('ORDER_VIEW') || can('REFUND_MANAGE')) list.push({ id: 'orders', name: '訂單管理', icon: 'cart', children: [can('ORDER_VIEW') && { name: '訂單列表', to: '/admin/orders' }, can('REFUND_MANAGE') && { name: '退款申請管理', to: '/admin/refund-requests' }, can('REFUND_MANAGE') && { name: '退款訂單查詢', to: '/admin/refunds' }].filter(Boolean) })
+    if (can('GAME_REVIEW') || can('TAG_MANAGE')) list.push({ id: 'games', name: '遊戲管理', icon: 'game', children: [...(can('GAME_REVIEW') ? [{ name: '遊戲搜尋', to: '/admin/games' }, { name: '上架審核', to: '/admin/games?mode=pending' }, { name: '審核紀錄', to: '/admin/games?mode=history' }] : []), ...(can('TAG_MANAGE') ? [{ name: '平台標籤維護', to: '/admin/tags' }] : [])] })
+    if (can('TICKET_HANDLE')) list.push({ id: 'support', name: '客服', icon: 'headset', children: [...(homeFor(session.user?.role) === '/admin/support' ? [] : [{ name: '工作總覽', to: '/admin/support' }]), { name: '即時客服', to: '/admin/chats' }, { name: '客服案件', to: '/tickets' }, ...(admin.value ? [{ name: '常用回覆', to: '/admin/support/reply-templates' }, { name: 'FAQ 管理', to: '/admin/support/faqs' }] : [])] })
+    if (can('COMMENT_REVIEW')) list.push({ id: 'comments', name: '評論', icon: 'chat', children: [{ name: '評論與檢舉', to: '/admin/comments' }] })
+    if (can('PROMOTION_MANAGE') || can('COUPON_MANAGE')) list.push({ id: 'offers', name: '優惠活動', icon: 'tag', children: [can('PROMOTION_MANAGE') && { name: '優惠活動列表', to: '/admin/promotions' }, can('COUPON_MANAGE') && { name: '優惠券管理', to: '/admin/coupons' }].filter(Boolean) })
+    if (can('OPERATION_LOG_VIEW') || can('LOGIN_LOG_VIEW')) list.push({ id: 'logs', name: '系統紀錄管理', icon: 'file', children: [can('OPERATION_LOG_VIEW') && { name: '操作紀錄', to: '/admin/operations' }, can('LOGIN_LOG_VIEW') && { name: '會員登入紀錄', to: '/admin/login-logs' }].filter(Boolean) })
     return list
 })
 watch(() => route.fullPath,
@@ -87,7 +87,8 @@ watch(() => route.fullPath,
                     <div v-show="expanded[group.id]" :id="'menu-' + group.id" class="sidebar-children">
                         <template v-for="item in group.children" :key="item.name">
                             <RouterLink v-if="item.to" :to="item.to" active-class="" exact-active-class=""
-                                :class="{ 'sidebar-active': route.fullPath === item.to || (item.to === '/admin/comments' && route.path === item.to) }" @click="emit('close')">
+                                :class="{ 'sidebar-active': route.fullPath === item.to || (item.to === '/admin/comments' && route.path === item.to) }"
+                                @click="emit('close')">
                                 {{ item.name }}
                             </RouterLink>
                             <button v-else class="sidebar-pending" disabled

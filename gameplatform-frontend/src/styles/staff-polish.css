@@ -588,8 +588,9 @@ body.support-portal.staff-workspace .support-ui.support-page.auth-page {
     linear-gradient(125deg, #0d2339, #0c192b 60%, #0c2c3c);
   background-attachment: fixed;
 }
-body.staff-workspace .auth-page > .staff-login .staff-login-brand,
-body.staff-workspace .auth-page > .staff-register-page .register-brand {
+
+body.staff-workspace .auth-page>.staff-login .staff-login-brand,
+body.staff-workspace .auth-page>.staff-register-page .register-brand {
   color: #dff6fb;
 }
 
@@ -599,10 +600,12 @@ body.staff-workspace.staff-background-active .support-ui.support-page.staff-cont
   z-index: auto;
   background: transparent !important;
 }
-body.staff-workspace.staff-background-active .support-ui :is(.management-heading,.page-heading,.platform-heading,.page > .page-title) {
+
+body.staff-workspace.staff-background-active .support-ui :is(.management-heading, .page-heading, .platform-heading, .page > .page-title) {
   border-bottom-color: #91b2cb;
 }
-body.staff-workspace.staff-background-active .support-ui :is(.management-search,.management-panel,.management-table-wrap,.platform-stat,.platform-trend,.work-stat,.work-queue,.overview-card) {
+
+body.staff-workspace.staff-background-active .support-ui :is(.management-search, .management-panel, .management-table-wrap, .platform-stat, .platform-trend, .work-stat, .work-queue, .overview-card) {
   box-shadow: 0 8px 26px #2049630d;
 }
 
@@ -612,55 +615,226 @@ body.staff-workspace {
   --staff-muted: #476074;
   color: #1c354b;
 }
-body.staff-workspace .support-ui.support-page { font-size: 14px; line-height: 1.75; color: #213c52; }
-body.staff-workspace .support-ui :is(.management-heading,.page-heading,.platform-heading,.page-title) h1 { font-size: 28px; font-weight: 750; color: #15364f; letter-spacing: .2px; }
-body.staff-workspace .support-ui :is(.management-heading,.page-heading,.platform-heading,.page-title) p,
-body.staff-workspace .support-ui :is(.management-eyebrow,.eyebrow,.list-scope,.muted) { color: #344f65; opacity: 1; }
-body.staff-workspace .support-ui :is(.management-search,.management-panel,.platform-stat,.platform-trend,.staff-panel,.permissions-panel,.staff-card,.overview-card,.work-stat,.work-queue,.sx-management,.sx-resource-card,.support-context,.case-toolbar,.admin-filters,.queue-table-wrap,.discussion-heading,.chat-list,.chat-main) {
+
+body.staff-workspace .support-ui.support-page {
+  font-size: 14px;
+  line-height: 1.75;
+  color: #213c52;
+}
+
+body.staff-workspace .support-ui :is(.management-heading, .page-heading, .platform-heading, .page-title) h1 {
+  font-size: 28px;
+  font-weight: 750;
+  color: #15364f;
+  letter-spacing: .2px;
+}
+
+body.staff-workspace .support-ui :is(.management-heading, .page-heading, .platform-heading, .page-title) p,
+body.staff-workspace .support-ui :is(.management-eyebrow, .eyebrow, .list-scope, .muted) {
+  color: #344f65;
+  opacity: 1;
+}
+
+body.staff-workspace .support-ui :is(.management-search, .management-panel, .platform-stat, .platform-trend, .staff-panel, .permissions-panel, .staff-card, .overview-card, .work-stat, .work-queue, .sx-management, .sx-resource-card, .support-context, .case-toolbar, .admin-filters, .queue-table-wrap, .discussion-heading, .chat-list, .chat-main) {
   background: #fff;
   color: #213c52;
   border: 1px solid #b7cad8;
   border-radius: 15px;
   box-shadow: 0 8px 24px #1a394f12, 0 1px 3px #173d5508;
 }
-body.staff-workspace .support-ui :is(.management-panel,.staff-panel,.work-stat,.work-queue,.platform-trend,.sx-resource-card) :is(h2,h3) { color: #1b3c54; font-weight: 700; }
-body.staff-workspace .support-ui :is(.management-search,.management-panel,.staff-panel,.permissions-panel,.create-form,.sx-management,.sx-resource-card,.refund-review-dialog) label { color: #2f4b61; font-size: 13px; font-weight: 650; }
-body.staff-workspace .support-ui :is(.platform-stat,.work-stat,.overview-card,.summary-card) :is(small,p),
-body.staff-workspace .support-ui :is(.platform-stat > div span,.platform-trend footer,.platform-footer,.queue-description,.register-footer) { color: #526b7e; opacity: 1; font-size: 12px; }
-body.staff-workspace .support-ui :is(.platform-stat,.work-stat) strong { color: #123e56; font-size: 32px; font-weight: 750; }
-body.staff-workspace .support-ui .management-table-wrap { background: #fff; border: 1px solid #b3c9d8; border-radius: 15px; box-shadow: 0 8px 24px #1a394f12; }
-body.staff-workspace .support-ui :is(.management-table-wrap,.queue-table-wrap) th { color: #2d4b60; background: #eaf2f8; font-size: 13px; font-weight: 700; border-bottom: 1px solid #bfd0dd; padding: 16px 18px; }
-body.staff-workspace .support-ui :is(.management-table-wrap,.queue-table-wrap) td { color: #213d53; font-size: 14px; line-height: 1.75; border-bottom-color: #dce6ee; padding: 17px 18px; }
-body.staff-workspace .support-ui :is(.management-table-wrap,.queue-table-wrap) td small { color: #526b7e; font-size: 12px; }
-body.staff-workspace .support-ui .management-table-wrap tbody tr:hover { background: #edf7fb; }
-body.staff-workspace .support-ui .management-pagination { color: #36556a; font-size: 13px; }
-body.staff-workspace .support-ui .management-pagination button { border-color: #b8ccd9; color: #2c4c61; }
-body.staff-workspace .support-ui :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { background: #fff; border-color: #abc2d2; color: #1c3b51; font-size: 14px; }
-body.staff-workspace .support-ui :is(input,textarea)::placeholder { color: #647b8c; opacity: 1; }
-body.staff-workspace .support-ui select option { background: #fff; color: #1c3b51; }
-body.staff-workspace .support-ui :is(button.primary,.sx-primary,.primary-action) { background: #087b91; border-color: #087b91; color: #fff; font-weight: 650; }
-body.staff-workspace .support-ui button.secondary { background: #f7fbfd; color: #2d526a; border: 1px solid #b9cddc; }
-body.staff-workspace .support-ui :is(.management-actions,.refund-row-actions,.refund-filter-actions) button { min-height: 38px; font-size: 13px; font-weight: 600; }
-body.staff-workspace .support-ui button.action-success { background: #e6f4ed; color: #1d6748; border-color: #a9d2bd; }
-body.staff-workspace .support-ui button.action-danger { background: #fff0f2; color: #a02f43; border-color: #e4b5c0; }
-body.staff-workspace .support-ui button.action-info { background: #e6f3fa; color: #115d7c; border-color: #aecfdf; }
-body.staff-workspace .support-ui .management-notice { color: #205f48; background: #e8f6ed; border-color: #b3d5c2; font-weight: 500; }
-body.staff-workspace .support-ui :is(.error,.sx-error) { color: #a1263d; }
-body.staff-workspace .management-sidebar { border-right-color: #b8ccdb; box-shadow: 3px 0 16px #23445908; }
-body.staff-workspace .management-sidebar :is(.sidebar-dashboard,.sidebar-group-toggle) { color: #2e4b62; font-size: 14px; font-weight: 650; }
-body.staff-workspace .management-sidebar .sidebar-children a { color: #3a596f; font-size: 13px; }
-body.staff-workspace .management-sidebar .sidebar-children a.sidebar-active { color: #075f76; background: #dfeff6; box-shadow: inset 3px 0 #0c8195; font-weight: 700; }
-body.staff-workspace .management-sidebar :is(.sidebar-note,.sidebar-heading small) { color: #597185; font-size: 11px; }
-body.staff-workspace .site-header .brand span { color: #edf8fc; font-size: 18px; font-weight: 700; letter-spacing: .5px; }
-body.staff-workspace .site-header .header-workspace-title { color: #d3e5ef; font-size: 13px; }
-body.staff-workspace .site-header .header-actions > span { color: #f0f7fb; font-size: 13px; }
+
+body.staff-workspace .support-ui :is(.management-panel, .staff-panel, .work-stat, .work-queue, .platform-trend, .sx-resource-card) :is(h2, h3) {
+  color: #1b3c54;
+  font-weight: 700;
+}
+
+body.staff-workspace .support-ui :is(.management-search, .management-panel, .staff-panel, .permissions-panel, .create-form, .sx-management, .sx-resource-card, .refund-review-dialog) label {
+  color: #2f4b61;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+body.staff-workspace .support-ui :is(.platform-stat, .work-stat, .overview-card, .summary-card) :is(small, p),
+body.staff-workspace .support-ui :is(.platform-stat > div span, .platform-trend footer, .platform-footer, .queue-description, .register-footer) {
+  color: #526b7e;
+  opacity: 1;
+  font-size: 12px;
+}
+
+body.staff-workspace .support-ui :is(.platform-stat, .work-stat) strong {
+  color: #123e56;
+  font-size: 32px;
+  font-weight: 750;
+}
+
+body.staff-workspace .support-ui .management-table-wrap {
+  background: #fff;
+  border: 1px solid #b3c9d8;
+  border-radius: 15px;
+  box-shadow: 0 8px 24px #1a394f12;
+}
+
+body.staff-workspace .support-ui :is(.management-table-wrap, .queue-table-wrap) th {
+  color: #2d4b60;
+  background: #eaf2f8;
+  font-size: 13px;
+  font-weight: 700;
+  border-bottom: 1px solid #bfd0dd;
+  padding: 16px 18px;
+}
+
+body.staff-workspace .support-ui :is(.management-table-wrap, .queue-table-wrap) td {
+  color: #213d53;
+  font-size: 14px;
+  line-height: 1.75;
+  border-bottom-color: #dce6ee;
+  padding: 17px 18px;
+}
+
+body.staff-workspace .support-ui :is(.management-table-wrap, .queue-table-wrap) td small {
+  color: #526b7e;
+  font-size: 12px;
+}
+
+body.staff-workspace .support-ui .management-table-wrap tbody tr:hover {
+  background: #edf7fb;
+}
+
+body.staff-workspace .support-ui .management-pagination {
+  color: #36556a;
+  font-size: 13px;
+}
+
+body.staff-workspace .support-ui .management-pagination button {
+  border-color: #b8ccd9;
+  color: #2c4c61;
+}
+
+body.staff-workspace .support-ui :is(input:not([type=checkbox]):not([type=radio]), select, textarea) {
+  background: #fff;
+  border-color: #abc2d2;
+  color: #1c3b51;
+  font-size: 14px;
+}
+
+body.staff-workspace .support-ui :is(input, textarea)::placeholder {
+  color: #647b8c;
+  opacity: 1;
+}
+
+body.staff-workspace .support-ui select option {
+  background: #fff;
+  color: #1c3b51;
+}
+
+body.staff-workspace .support-ui :is(button.primary, .sx-primary, .primary-action) {
+  background: #087b91;
+  border-color: #087b91;
+  color: #fff;
+  font-weight: 650;
+}
+
+body.staff-workspace .support-ui button.secondary {
+  background: #f7fbfd;
+  color: #2d526a;
+  border: 1px solid #b9cddc;
+}
+
+body.staff-workspace .support-ui :is(.management-actions, .refund-row-actions, .refund-filter-actions) button {
+  min-height: 38px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+body.staff-workspace .support-ui button.action-success {
+  background: #e6f4ed;
+  color: #1d6748;
+  border-color: #a9d2bd;
+}
+
+body.staff-workspace .support-ui button.action-danger {
+  background: #fff0f2;
+  color: #a02f43;
+  border-color: #e4b5c0;
+}
+
+body.staff-workspace .support-ui button.action-info {
+  background: #e6f3fa;
+  color: #115d7c;
+  border-color: #aecfdf;
+}
+
+body.staff-workspace .support-ui .management-notice {
+  color: #205f48;
+  background: #e8f6ed;
+  border-color: #b3d5c2;
+  font-weight: 500;
+}
+
+body.staff-workspace .support-ui :is(.error, .sx-error) {
+  color: #a1263d;
+}
+
+body.staff-workspace .management-sidebar {
+  border-right-color: #b8ccdb;
+  box-shadow: 3px 0 16px #23445908;
+}
+
+body.staff-workspace .management-sidebar :is(.sidebar-dashboard, .sidebar-group-toggle) {
+  color: #2e4b62;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+body.staff-workspace .management-sidebar .sidebar-children a {
+  color: #3a596f;
+  font-size: 13px;
+}
+
+body.staff-workspace .management-sidebar .sidebar-children a.sidebar-active {
+  color: #075f76;
+  background: #dfeff6;
+  box-shadow: inset 3px 0 #0c8195;
+  font-weight: 700;
+}
+
+body.staff-workspace .management-sidebar :is(.sidebar-note, .sidebar-heading small) {
+  color: #597185;
+  font-size: 11px;
+}
+
+body.staff-workspace .site-header .brand span {
+  color: #edf8fc;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: .5px;
+}
+
+body.staff-workspace .site-header .header-workspace-title {
+  color: #d3e5ef;
+  font-size: 13px;
+}
+
+body.staff-workspace .site-header .header-actions>span {
+  color: #f0f7fb;
+  font-size: 13px;
+}
+
 @media(max-width:700px) {
-  body.staff-workspace .support-ui :is(.management-heading,.page-heading,.platform-heading,.page-title) h1 { font-size: 24px; }
-  body.staff-workspace .support-ui :is(.management-table-wrap,.queue-table-wrap) :is(th,td) { padding: 13px 14px; }
+  body.staff-workspace .support-ui :is(.management-heading, .page-heading, .platform-heading, .page-title) h1 {
+    font-size: 24px;
+  }
+
+  body.staff-workspace .support-ui :is(.management-table-wrap, .queue-table-wrap) :is(th, td) {
+    padding: 13px 14px;
+  }
 }
 
 /* 比背景更明確的卡片邊界與陰影。 */
-body.staff-workspace.staff-background-active .support-ui :is(.management-search,.management-panel,.management-table-wrap,.platform-stat,.platform-trend,.staff-panel,.permissions-panel,.overview-card,.work-stat,.work-queue) { border-color: #abc0d0; box-shadow: 0 8px 24px #1a394f1a, 0 1px 3px #173d550d; }
+body.staff-workspace.staff-background-active .support-ui :is(.management-search, .management-panel, .management-table-wrap, .platform-stat, .platform-trend, .staff-panel, .permissions-panel, .overview-card, .work-stat, .work-queue) {
+  border-color: #abc0d0;
+  box-shadow: 0 8px 24px #1a394f1a, 0 1px 3px #173d550d;
+}
 
 
 /* 2026-10-28: 客服內容、案件與退款工作區的留白和響應式佈局。
@@ -671,6 +845,7 @@ body.staff-workspace .support-ui .sx-management {
   min-width: 0;
   padding: clamp(20px, 2.4vw, 34px);
 }
+
 body.staff-workspace .support-ui .sx-management .sx-content-grid,
 body.staff-workspace .support-ui .sx-management .sx-content-grid.sx-editing {
   display: grid;
@@ -679,12 +854,14 @@ body.staff-workspace .support-ui .sx-management .sx-content-grid.sx-editing {
   align-items: start;
   margin-top: 24px;
 }
-body.staff-workspace .support-ui .sx-management .sx-content-grid > div {
+
+body.staff-workspace .support-ui .sx-management .sx-content-grid>div {
   min-width: 0;
   display: grid;
   align-content: start;
   gap: 18px;
 }
+
 body.staff-workspace .support-ui .sx-management .sx-resource-card {
   min-width: 0;
   width: 100%;
@@ -693,12 +870,14 @@ body.staff-workspace .support-ui .sx-management .sx-resource-card {
   line-height: 1.75;
   overflow-wrap: anywhere;
 }
+
 body.staff-workspace .support-ui .sx-management .sx-resource-card .sx-section-line {
   display: flex;
   flex-wrap: wrap;
   gap: 12px 18px;
   margin-bottom: 12px;
 }
+
 body.staff-workspace .support-ui .sx-management .sx-content-editor {
   position: static;
   min-width: 0;
@@ -706,6 +885,7 @@ body.staff-workspace .support-ui .sx-management .sx-content-editor {
   padding: clamp(20px, 2.3vw, 30px);
   border-radius: 16px;
 }
+
 body.staff-workspace .support-ui .sx-management .sx-search {
   display: flex;
   flex-wrap: wrap;
@@ -714,13 +894,23 @@ body.staff-workspace .support-ui .sx-management .sx-search {
   margin: 24px 0 28px;
   padding: 20px 22px;
 }
-body.staff-workspace .support-ui .sx-management .sx-search > input {
+
+body.staff-workspace .support-ui .sx-management .sx-search>input {
   flex: 2 1 260px;
   width: auto;
   min-width: 0;
 }
-body.staff-workspace .support-ui .sx-management .sx-search > select { flex: 1 1 160px; width: auto; }
-body.staff-workspace .support-ui .sx-management .sx-search > button { flex: 0 0 auto; margin: 0; }
+
+body.staff-workspace .support-ui .sx-management .sx-search>select {
+  flex: 1 1 160px;
+  width: auto;
+}
+
+body.staff-workspace .support-ui .sx-management .sx-search>button {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
 body.staff-workspace .support-ui .support-case-page .case-toolbar,
 body.staff-workspace .support-ui .support-case-page .admin-filters {
   display: grid;
@@ -730,21 +920,40 @@ body.staff-workspace .support-ui .support-case-page .admin-filters {
   padding: 22px 26px;
   margin: 0 0 24px;
 }
-body.staff-workspace .support-ui .support-case-page .case-toolbar .toolbar-search { grid-column: span 2; }
-body.staff-workspace .support-ui .support-case-page .case-toolbar > *,
-body.staff-workspace .support-ui .support-case-page .admin-filters > * { min-width: 0; width: 100%; margin: 0; }
-body.staff-workspace .support-ui .support-case-page :is(.toolbar-search,.case-status-filter,.admin-filters label) {
+
+body.staff-workspace .support-ui .support-case-page .case-toolbar .toolbar-search {
+  grid-column: span 2;
+}
+
+body.staff-workspace .support-ui .support-case-page .case-toolbar>*,
+body.staff-workspace .support-ui .support-case-page .admin-filters>* {
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+}
+
+body.staff-workspace .support-ui .support-case-page :is(.toolbar-search, .case-status-filter, .admin-filters label) {
   display: flex;
   flex-direction: column;
   gap: 9px;
   align-self: stretch;
 }
-body.staff-workspace .support-ui .support-case-page .admin-filters :is(input,select),
-body.staff-workspace .support-ui .support-case-page .case-toolbar select { width: 100%; min-width: 0; }
-body.staff-workspace .support-ui .refund-requests-page { width: 100%; min-width: 0; }
-body.staff-workspace .support-ui .refund-requests-page > :is(.management-heading,.management-search,.management-table-wrap,.management-pagination) {
+
+body.staff-workspace .support-ui .support-case-page .admin-filters :is(input, select),
+body.staff-workspace .support-ui .support-case-page .case-toolbar select {
+  width: 100%;
+  min-width: 0;
+}
+
+body.staff-workspace .support-ui .refund-requests-page {
+  width: 100%;
+  min-width: 0;
+}
+
+body.staff-workspace .support-ui .refund-requests-page> :is(.management-heading, .management-search, .management-table-wrap, .management-pagination) {
   margin-bottom: 24px;
 }
+
 body.staff-workspace .support-ui .refund-requests-page .refund-search {
   display: grid;
   grid-template-columns: minmax(220px, 2fr) minmax(170px, 1fr) auto;
@@ -752,41 +961,84 @@ body.staff-workspace .support-ui .refund-requests-page .refund-search {
   gap: 18px 24px;
   padding: 24px 26px;
 }
-body.staff-workspace .support-ui .refund-requests-page .refund-search > * { min-width: 0; margin: 0; }
-body.staff-workspace .support-ui .refund-requests-page .refund-search label { display: grid; gap: 10px; }
-body.staff-workspace .support-ui .refund-requests-page .refund-filter-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-body.staff-workspace .support-ui .refund-requests-page .management-table-wrap { width: 100%; overflow-x: auto; }
-body.staff-workspace .support-ui .refund-requests-page td { padding: 18px 20px; }
+
+body.staff-workspace .support-ui .refund-requests-page .refund-search>* {
+  min-width: 0;
+  margin: 0;
+}
+
+body.staff-workspace .support-ui .refund-requests-page .refund-search label {
+  display: grid;
+  gap: 10px;
+}
+
+body.staff-workspace .support-ui .refund-requests-page .refund-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+body.staff-workspace .support-ui .refund-requests-page .management-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+body.staff-workspace .support-ui .refund-requests-page td {
+  padding: 18px 20px;
+}
+
 @media (min-width: 1550px) {
   body.staff-workspace .support-ui .sx-management .sx-content-grid.sx-editing {
     grid-template-columns: minmax(0, 1.2fr) minmax(370px, 0.8fr);
     gap: 32px;
   }
 }
+
 @media (max-width: 1100px) {
-  body.staff-workspace .support-ui .refund-requests-page .refund-search { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  body.staff-workspace .support-ui .refund-requests-page .refund-filter-actions { grid-column: 1 / -1; }
-  body.staff-workspace .support-ui .support-case-page .admin-filters { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  body.staff-workspace .support-ui .refund-requests-page .refund-search {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.staff-workspace .support-ui .refund-requests-page .refund-filter-actions {
+    grid-column: 1 / -1;
+  }
+
+  body.staff-workspace .support-ui .support-case-page .admin-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
+
 @media (max-width: 700px) {
-  body.staff-workspace .support-ui .support-case-page :is(.case-toolbar,.admin-filters),
-  body.staff-workspace .support-ui .refund-requests-page .refund-search { grid-template-columns: minmax(0,1fr); padding: 18px; }
+
+  body.staff-workspace .support-ui .support-case-page :is(.case-toolbar, .admin-filters),
+  body.staff-workspace .support-ui .refund-requests-page .refund-search {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 18px;
+  }
+
   body.staff-workspace .support-ui .support-case-page .case-toolbar .toolbar-search,
-  body.staff-workspace .support-ui .refund-requests-page .refund-filter-actions { grid-column: auto; }
-  body.staff-workspace .support-ui .sx-management .sx-search > :is(input,select,button) { flex: 1 1 100%; width: 100%; }
-  body.staff-workspace .support-ui .sx-management .sx-resource-card { padding: 18px; }
+  body.staff-workspace .support-ui .refund-requests-page .refund-filter-actions {
+    grid-column: auto;
+  }
+
+  body.staff-workspace .support-ui .sx-management .sx-search> :is(input, select, button) {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  body.staff-workspace .support-ui .sx-management .sx-resource-card {
+    padding: 18px;
+  }
 }
 
 
 /* ===== 2026-10 Back-office button system (staff only) =====
    Scoped to the authenticated staff shell. Navigation, icon-only controls,
    checkboxes, and pagination keep their specialized behavior. */
-body.staff-workspace .support-ui :is(
-  .management-content, .management-page, .admin-page, .support-case-page,
+body.staff-workspace .support-ui :is(.management-content, .management-page, .admin-page, .support-case-page,
   .sx-management, .refund-requests-page, .ticket-detail-page,
   .support-content-page, .staff-panel, .permissions-panel,
-  .overview-page, .platform-page, .page
-) button:not(.sidebar-group-toggle):not(.sidebar-mobile-toggle):not(.icon-btn):not(.icon-button):not(.notification-bell):not(.close-button):not(.close-btn):not(.tab):not(.tab-button) {
+  .overview-page, .platform-page, .page) button:not(.sidebar-group-toggle):not(.sidebar-mobile-toggle):not(.icon-btn):not(.icon-button):not(.notification-bell):not(.close-button):not(.close-btn):not(.tab):not(.tab-button) {
   --staff-btn-text: #245067;
   --staff-btn-bg: #f8fcff;
   --staff-btn-border: #c5d9e6;
@@ -812,65 +1064,66 @@ body.staff-workspace .support-ui :is(
   transition: background-color .16s ease, border-color .16s ease, color .16s ease,
     box-shadow .16s ease, transform .16s ease;
 }
-body.staff-workspace .support-ui :is(.management-content, .management-page, .admin-page, .support-case-page, .sx-management, .refund-requests-page, .ticket-detail-page, .staff-panel, .permissions-panel, .page)
-  button:not(:disabled):hover:not(.sidebar-group-toggle):not(.sidebar-mobile-toggle):not(.icon-btn):not(.icon-button) {
+
+body.staff-workspace .support-ui :is(.management-content, .management-page, .admin-page, .support-case-page, .sx-management, .refund-requests-page, .ticket-detail-page, .staff-panel, .permissions-panel, .page) button:not(:disabled):hover:not(.sidebar-group-toggle):not(.sidebar-mobile-toggle):not(.icon-btn):not(.icon-button) {
   border-color: #75b9c9;
   background: #eaf7fb;
   box-shadow: 0 5px 13px rgba(25, 94, 124, .12);
   transform: translateY(-1px);
 }
-body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page)
-  button:focus-visible {
+
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button:focus-visible {
   outline: 3px solid rgba(27, 137, 168, .30);
   outline-offset: 2px;
 }
+
 /* Primary / submit / search actions */
-body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page)
-  button:is(.primary, .sx-primary, .primary-action, .action-primary, .btn-primary, [type="submit"]):not(.sidebar-group-toggle) {
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button:is(.primary, .sx-primary, .primary-action, .action-primary, .btn-primary, [type="submit"]):not(.sidebar-group-toggle) {
   --staff-btn-bg: #087e98;
   --staff-btn-border: #087e98;
   --staff-btn-text: #fff;
   box-shadow: 0 3px 9px rgba(8, 126, 152, .17);
 }
-body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page)
-  button:is(.primary, .sx-primary, .primary-action, .action-primary, .btn-primary, [type="submit"]):hover:not(:disabled) {
+
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button:is(.primary, .sx-primary, .primary-action, .action-primary, .btn-primary, [type="submit"]):hover:not(:disabled) {
   background: #096b81;
   border-color: #096b81;
   color: #fff;
 }
+
 /* Positive outcomes: approval, publish, restore */
-body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page)
-  button:is(.action-success, .btn-success, .approve, .approve-btn, .success) {
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button:is(.action-success, .btn-success, .approve, .approve-btn, .success) {
   --staff-btn-bg: #eaf8f0;
   --staff-btn-border: #b7e1cb;
   --staff-btn-text: #176a4d;
 }
-body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page)
-  button:is(.action-success, .btn-success, .approve, .approve-btn, .success):hover:not(:disabled) {
+
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button:is(.action-success, .btn-success, .approve, .approve-btn, .success):hover:not(:disabled) {
   background: #d6f0e2;
   border-color: #80c5a1;
   color: #10583c;
 }
+
 /* Destructive actions: rejects, suspensions, deletions */
-body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page)
-  button:is(.action-danger, .btn-danger, .danger, .reject, .reject-btn, .review-reject-button) {
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button:is(.action-danger, .btn-danger, .danger, .reject, .reject-btn, .review-reject-button) {
   --staff-btn-bg: #fff0f1;
   --staff-btn-border: #f0c4ca;
   --staff-btn-text: #aa3543;
 }
-body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page)
-  button:is(.action-danger, .btn-danger, .danger, .reject, .reject-btn, .review-reject-button):hover:not(:disabled) {
+
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button:is(.action-danger, .btn-danger, .danger, .reject, .reject-btn, .review-reject-button):hover:not(:disabled) {
   background: #ffe0e4;
   border-color: #e9a0aa;
   color: #902c38;
 }
+
 /* Info / view controls */
-body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page)
-  button:is(.action-info, .btn-info) {
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button:is(.action-info, .btn-info) {
   --staff-btn-bg: #ebf5ff;
   --staff-btn-border: #c2dced;
   --staff-btn-text: #236587;
 }
+
 /* Uniform row button spacing; no changes to click handlers */
 body.staff-workspace .support-ui :is(.management-actions, .refund-row-actions, .row-actions, .table-actions, .refund-filter-actions) {
   display: flex;
@@ -878,10 +1131,12 @@ body.staff-workspace .support-ui :is(.management-actions, .refund-row-actions, .
   align-items: center;
   gap: 9px;
 }
+
 body.staff-workspace .support-ui :is(.management-actions, .refund-row-actions, .row-actions, .table-actions) button {
   min-height: 34px;
   padding: 6px 11px;
 }
+
 /* Disabled controls should not pretend to be interactive */
 body.staff-workspace .support-ui button:disabled {
   opacity: .50;
@@ -890,6 +1145,7 @@ body.staff-workspace .support-ui button:disabled {
   transform: none !important;
   box-shadow: none !important;
 }
+
 /* Preserve quiet pager buttons: first/last page logic belongs to Vue */
 body.staff-workspace .support-ui :is(.management-pagination, .unified-pager, .pager) button {
   min-width: 70px;
@@ -900,10 +1156,20 @@ body.staff-workspace .support-ui :is(.management-pagination, .unified-pager, .pa
   color: #42637a;
   border: 1px solid #d7e4ec;
 }
+
 @media (max-width: 640px) {
-  body.staff-workspace .support-ui :is(.management-actions, .refund-row-actions, .row-actions, .table-actions, .refund-filter-actions) { gap: 8px; }
-  body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button { font-size: 12px; }
+  body.staff-workspace .support-ui :is(.management-actions, .refund-row-actions, .row-actions, .table-actions, .refund-filter-actions) {
+    gap: 8px;
+  }
+
+  body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button {
+    font-size: 12px;
+  }
 }
+
 @media (prefers-reduced-motion: reduce) {
-  body.staff-workspace .support-ui button { transition: none !important; transform: none !important; }
+  body.staff-workspace .support-ui button {
+    transition: none !important;
+    transform: none !important;
+  }
 }

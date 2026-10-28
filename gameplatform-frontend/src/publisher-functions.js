@@ -47,7 +47,7 @@ export const publisherFunctions = [
   {
     mode: 'builds',
     label: '遊戲版本資訊管理',
-    description: '維護版本號，上傳 ZIP 或填寫檔案網址，並設定啟用狀態。'
+    description: '上傳 ZIP 或填寫網址；已上架遊戲可新增並發布更新版本，保留歷史版本。'
   },
   {
     mode: 'tags',

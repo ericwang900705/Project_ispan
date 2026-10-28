@@ -3,11 +3,37 @@
 import { ref, computed, onMounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { miniGameOf } from '@/cart/minigames'
+import { accessToken, session } from '../../api'
 // 共用的購物車 store（遊戲庫資料也放在這裡）
 import { useCartStore } from '@/cart/stores/cart'
 import ReviewForm from '@/cart/components/ReviewForm.vue'
 
 const cart = useCartStore()
+const aiNames = new Set(["暗夜倖存者", "無盡深淵", "失落王國", "星露森林", "荒野生存", "戰場前線", "火柴人射擊", "火柴人紅藍競技場", "三國戰棋", "牛排大師", "火柴人羽毛球", "火柴人賽車"])
+const canPlay = entry => !!miniGameOf(entry?.game) || aiNames.has(entry?.game?.gameName)
+function versionUrl(entry) {
+  const raw = entry?.latestBuild?.file_url || ''
+  if (/^\/api\/publisher-assets\/builds\/[1-9]\d*\/[a-f0-9-]+\.zip$/.test(raw)) return raw
+  try { const url = new URL(raw); return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : '' } catch { return '' }
+}
+const canDownload = entry => entry?.isActive !== false && (versionUrl(entry) || aiNames.has(entry?.game?.gameName))
+async function downloadGame(entry) {
+  if (!canDownload(entry)) return
+  const token = accessToken()
+  const id = session.user?.id
+  if (!token || id == null) { alert('請先登入'); return }
+  const build = versionUrl(entry)
+  if (build && !build.startsWith('/api/')) { window.open(build, '_blank', 'noopener,noreferrer'); return }
+  try {
+    const response = await fetch(build || `/api/member-games/${id}/${entry.game.gameId}/ai-zip`, { headers: { Authorization: `Bearer ${token}` } })
+    if (!response.ok) throw new Error('無法下載遊戲版本，請確認已匯入 ZIP')
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `${entry.game.gameName}.zip`; a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 30000)
+  } catch (err) { alert(err.message || '下載失敗') }
+}
+
 const router = useRouter()
 // 進入頁面時向後端抓最新的遊戲庫
 onMounted(() => cart.fetchLibrary())
@@ -95,7 +121,7 @@ function openReview(entry) {
             {{ entry.obtainedSource === 'GIFT' ? '🎁 ' : '' }}{{ sourceLabel[entry.obtainedSource] ??
               entry.obtainedSource }}
           </span>
-          <button class="play" @click="play(entry)">{{ miniGameOf(entry.game) ? '▶ 開始遊戲' : '查看遊玩方式' }}</button>
+          <button class="play" @click="play(entry)">{{ canPlay(entry) ? '▶ 線上遊玩' : '查看遊玩方式' }}</button>
         </div>
 
         <!-- 文字：名稱、遊玩時數、取得日期 -->
@@ -109,6 +135,7 @@ function openReview(entry) {
             }}</span>
             <span class="date">{{ entry.obtainedAt?.slice(0, 10) }}</span>
           </div>
+          <button v-if="canDownload(entry)" class="ai-download" @click="downloadGame(entry)">↓ 下載版本 {{ entry.latestBuild?.version || 'ZIP' }}</button>
           <button class="review-btn" @click="openReview(entry)">✎ 評論</button>
         </div>
       </article>
@@ -121,6 +148,8 @@ function openReview(entry) {
 
 <!-- 遊戲庫頁面樣式（深藍底 + 金色重點色，和遊戲首頁同色系） -->
 <style scoped>
+.ai-download { margin: 8px 8px 8px 0; padding: 9px 14px; border-radius:8px; border:1px solid #d4a64a; color:#ffe1a2; background:#233968; cursor:pointer; }
+.ai-download:hover {background:#36548c;}
 /* ===== 配色：和 GamesHome.vue 一樣，要換顏色改這裡就好 ===== */
 .library {
   --bg: #0b0c32;

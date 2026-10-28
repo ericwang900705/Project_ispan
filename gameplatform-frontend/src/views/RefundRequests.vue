@@ -11,6 +11,7 @@ const q = ref(String(route.query.q || '')), status = ref(''), page = ref(0)
 const rows = ref([]), total = ref(0), loading = ref(false), busy = ref(false)
 const error = ref(''), notice = ref(''), selected = ref(null), action = ref('')
 const reason = ref(''), reference = ref(''), confirmed = ref(false), dialogError = ref('')
+const supportNote = ref('')
 const states = { PENDING: '待處理', REFUNDED: '已退款', REJECTED: '無法退款' }
 const isTest = computed(() => selected.value?.payment_environment === 'TEST')
 const money = n => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(Number(n || 0))
@@ -26,7 +27,7 @@ async function load() {
 function search() { page.value = 0; load() }
 function clear() { q.value = ''; status.value = ''; search() }
 async function open(row, next = '') {
-  error.value = ''; dialogError.value = ''; reason.value = ''; reference.value = ''; confirmed.value = false
+  error.value = ''; dialogError.value = ''; reason.value = ''; reference.value = ''; confirmed.value = false; supportNote.value = ''
   try { selected.value = await api(`/backoffice/refund-requests/${row.refund_id}`); action.value = next }
   catch (e) { error.value = e.message }
 }
@@ -39,6 +40,16 @@ async function submit() {
       method: 'POST', body: { action: action.value, reason: reason.value.trim(), reference: reference.value.trim(), confirmed: confirmed.value }
     })
     notice.value = data.message; selected.value = null; await load()
+  } catch (e) { dialogError.value = e.message }
+  finally { busy.value = false }
+}
+async function requestSupport() {
+  if (busy.value || !supportNote.value.trim()) return
+  busy.value = true; dialogError.value = ''
+  try {
+    const data = await api(`/backoffice/refund-requests/${selected.value.refund_id}/support-case`, { method: 'POST', body: { note: supportNote.value.trim() } })
+    selected.value = await api(`/backoffice/refund-requests/${selected.value.refund_id}`)
+    notice.value = data.message; action.value = ''; supportNote.value = ''; await load()
   } catch (e) { dialogError.value = e.message }
   finally { busy.value = false }
 }
@@ -65,7 +76,7 @@ onMounted(load)
     <div class="management-table-wrap refund-table-panel" :aria-busy="loading">
       <table class="refund-data-table"><thead><tr><th>訂單／會員</th><th>申請原因</th><th>實付金額</th><th>申請時間</th><th>狀態</th><th>處理</th></tr></thead>
         <tbody><tr v-for="row in rows" :key="row.refund_id">
-          <td><strong>{{ row.order_no }}</strong><small>{{ row.username }} · {{ row.ticket_no }}</small><small>{{ row.payment_environment === 'TEST' ? '測試訂單' : row.payment_environment === 'PROD' ? '正式訂單' : '付款來源待核對' }}</small></td>
+          <td><strong>{{ row.order_no }}</strong><small>{{ row.username }}</small><small>{{ row.payment_environment === 'TEST' ? '測試訂單' : row.payment_environment === 'PROD' ? '正式訂單' : '付款來源待核對' }}</small></td>
           <td class="refund-reason-preview">{{ row.reason }}</td><td>NT$ {{ money(row.total_amount) }}</td><td>{{ timeText(row.requested_at) }}</td>
           <td><span class="refund-status" :class="row.status">{{ states[row.status] }}{{ row.refund_mode === 'TEST' ? '（測試）' : '' }}</span></td>
           <td><div class="refund-row-actions"><button type="button" class="action-info" @click="open(row)">查看</button><template v-if="row.status === 'PENDING'"><button type="button" class="action-success" @click="open(row, 'REFUND')">退款</button><button type="button" class="action-danger" @click="open(row, 'REJECT')">無法退款</button></template></div></td>
@@ -75,16 +86,23 @@ onMounted(load)
     <nav class="management-pagination unified-pager" aria-label="退款申請分頁"><button v-if="page > 0" :disabled="loading || page === 0" @click="paginate(-1)">上一頁</button><span>{{ page + 1 }} / {{ Math.max(1, Math.ceil(total / 20)) }}</span><button v-if="(page + 1) * 20 < total" :disabled="loading || (page + 1) * 20 >= total" @click="paginate(1)">下一頁</button></nav>
     <Teleport to="body"><div v-if="selected" class="refund-dialog-backdrop support-ui" @click.self="close" @keydown.esc="close">
       <section class="refund-review-dialog" role="dialog" aria-modal="true" aria-labelledby="refund-review-title" tabindex="-1">
-        <header><div><span class="management-eyebrow">REFUND REVIEW</span><h2 id="refund-review-title">{{ action === 'REFUND' ? '確認退款' : action === 'REJECT' ? '無法退款' : '退款申請明細' }}</h2></div><button type="button" class="secondary" :disabled="busy" aria-label="關閉退款視窗" @click="close">✕</button></header>
+        <header><div><span class="management-eyebrow">REFUND REVIEW</span><h2 id="refund-review-title">{{ action === 'REFUND' ? '確認退款' : action === 'REJECT' ? '無法退款' : action === 'SUPPORT' ? '請會員補充資料' : '退款申請明細' }}</h2></div><button type="button" class="secondary" :disabled="busy" aria-label="關閉退款視窗" @click="close">✕</button></header>
         <dl class="refund-summary"><div><dt>訂單</dt><dd>{{ selected.order_no }}</dd></div><div><dt>申請會員</dt><dd>{{ selected.username }}</dd></div><div><dt>實付金額</dt><dd>NT$ {{ money(selected.total_amount) }}</dd></div><div><dt>付款方式</dt><dd>{{ selected.payment_type || '待核對' }}</dd></div></dl>
         <div class="refund-original-reason"><h3>會員申請原因</h3><p>{{ selected.reason }}</p></div>
         <ul class="refund-items"><li v-for="(item, index) in selected.items" :key="index">{{ item.game_name }}<span v-if="item.is_gift">（贈禮）</span><span>NT$ {{ money(Number(item.unit_price) - Number(item.discount_amount)) }}</span></li></ul>
-        <RouterLink v-if="hasPermission(session.user, 'TICKET_HANDLE')" class="refund-ticket-link" :to="`/tickets/${selected.ticket_id}`" @click="close">查看客服案件 {{ selected.ticket_no }} →</RouterLink>
+        <section v-if="selected.playTimes?.length" class="refund-play-times"><h3>遊玩時數</h3><p v-for="(item, index) in selected.playTimes" :key="index">{{ item.game_name }}：{{ item.total_play_minutes || 0 }} 分鐘<span v-if="item.last_played_at"> · 最後遊玩 {{ timeText(item.last_played_at) }}</span></p></section>
+        <RouterLink v-if="selected.ticket_id && hasPermission(session.user, 'TICKET_HANDLE')" class="refund-ticket-link" :to="`/tickets/${selected.ticket_id}`" @click="close">查看客服案件 {{ selected.ticket_no }} →</RouterLink>
         <template v-if="selected.status !== 'PENDING'"><p class="refund-final-result">{{ states[selected.status] }}{{ selected.refund_mode === 'TEST' ? '（測試）' : '' }} · {{ selected.processed_by_name }} · {{ timeText(selected.processed_at) }}</p><p class="refund-decision-text">{{ selected.decision_reason }}</p><p v-if="selected.refund_reference">退款紀錄：{{ selected.refund_reference }}</p></template>
-        <div v-else-if="!action" class="refund-dialog-actions"><button class="action-success" @click="action = 'REFUND'">退款</button><button class="action-danger" @click="action = 'REJECT'">無法退款</button></div>
+        <div v-else-if="!action" class="refund-dialog-actions"><button class="action-success" @click="action = 'REFUND'">退款</button><button class="action-danger" @click="action = 'REJECT'">無法退款</button><button v-if="!selected.ticket_id" class="secondary" @click="action = 'SUPPORT'">請會員補充資料</button></div>
+        <form v-else-if="action === 'SUPPORT'" @submit.prevent="requestSupport">
+          <p class="refund-mode-note">需要補充資料時才建立客服案件。會員會收到通知，退款仍由退款管理頁決定。</p>
+          <label>需要補充的資料<textarea v-model="supportNote" required maxlength="2000" rows="4" :disabled="busy" /></label>
+          <p v-if="dialogError" class="error" role="alert">{{ dialogError }}</p>
+          <footer class="refund-dialog-actions"><button type="button" class="secondary" :disabled="busy" @click="action = ''">返回明細</button><button class="primary" :disabled="busy || !supportNote.trim()">{{ busy ? '建立中…' : '建立補件案件並通知會員' }}</button></footer>
+        </form>
         <form v-else @submit.prevent="submit">
           <p v-if="action === 'REFUND'" class="refund-mode-note">{{ isTest ? '測試退款：只更新測試訂單、遊戲庫及優惠券狀態，不會執行真實金流退刷。' : '此頁不會自動執行綠界退刷。請先於金流／銀行完成退款，再填入退款紀錄編號並確認。' }}</p>
-          <p v-else class="refund-mode-note">請填寫無法退款原因，處理結果將回覆至會員的客服案件。</p>
+          <p v-else class="refund-mode-note">請填寫無法退款原因，處理結果將顯示在會員的「我的訂單」，並發送通知。</p>
           <label>{{ action === 'REJECT' ? '無法退款原因' : '處理說明' }}<textarea v-model="reason" required maxlength="1000" rows="3" placeholder="請清楚說明處理結果，會員也會收到此內容。" :disabled="busy" /></label>
           <label v-if="action === 'REFUND' && !isTest">退款紀錄編號<input v-model="reference" required minlength="5" maxlength="100" placeholder="已完成退款的金流或銀行紀錄編號" :disabled="busy"></label>
           <label v-if="action === 'REFUND'" class="refund-confirm"><input v-model="confirmed" type="checkbox" required :disabled="busy"><span>{{ isTest ? '確認執行整筆測試退款，撤銷本訂單購買／贈送的遊戲權益，並釋放優惠券使用次數。' : '確認已完成整筆實際退款；登記後撤銷本訂單的遊戲權益並釋放優惠券使用次數。' }}</span></label>
@@ -97,6 +115,8 @@ onMounted(load)
 </template>
 
 <style scoped>
+.refund-play-times { padding: 14px; margin-bottom: 16px; background: #eef5fa; border-radius: 10px; color: #244157; }
+.refund-play-times p { line-height: 1.7; margin: 6px 0; }
 
 /* Refund workspace: consistent gutters, intentional search and table layout. */
 .refund-layout-v2 {

@@ -73,11 +73,18 @@ public class ShopController {
         return shop.cancel(a, memberId, orderId);
     }
 
-    public record ReviewReportInput(String reason){}
+    public record ReviewReportInput(String reason) {
+    }
+
     @PostMapping("/reviews/{reviewId}/report")
-    public Object reportReview(Actor a,@PathVariable int reviewId,@RequestBody ReviewReportInput input){return shop.reportReview(a,reviewId,input.reason());}
+    public Object reportReview(Actor a, @PathVariable int reviewId, @RequestBody ReviewReportInput input) {
+        return shop.reportReview(a, reviewId, input.reason());
+    }
+
     @GetMapping("/reviews/mute-status")
-    public Object reviewMuteStatus(Actor a){return shop.reviewMuteStatus(a);}
+    public Object reviewMuteStatus(Actor a) {
+        return shop.reviewMuteStatus(a);
+    }
 
     @GetMapping("/reviews/game/{gameId}")
     public Object reviews(org.springframework.security.core.Authentication auth, @PathVariable int gameId) {

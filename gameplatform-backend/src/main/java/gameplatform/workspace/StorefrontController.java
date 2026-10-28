@@ -30,9 +30,10 @@ public class StorefrontController {
         // 價格由後端統一計算；未生效的折扣不顯示。
         Integer percent = activeDiscounts.get(game.getGameId());
         BigDecimal original = game.getPrice();
-        BigDecimal current = percent == null ? original : original
-                .multiply(BigDecimal.valueOf(100 - percent))
-                .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
+        BigDecimal current = percent == null ? original
+                : original
+                        .multiply(BigDecimal.valueOf(100 - percent))
+                        .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
         out.put("price", current);
         out.put("originalPrice", original);
         out.put("discountPercent", percent);
@@ -64,8 +65,8 @@ public class StorefrontController {
                     ORDER BY start_at DESC, discount_id DESC
                 ) d
                 WHERE g.status IN ('PUBLISHED', 'PENDING_OFF_SHELF')
-                """, (org.springframework.jdbc.core.RowCallbackHandler) rs ->
-                activeDiscounts.put(rs.getInt(1), rs.getInt(2)));
+                """, (org.springframework.jdbc.core.RowCallbackHandler) rs -> activeDiscounts.put(rs.getInt(1),
+                rs.getInt(2)));
         var result = new ArrayList<Map<String, Object>>();
         int page = 0;
         org.springframework.data.domain.Page<Game> batch;
@@ -102,4 +103,3 @@ public class StorefrontController {
         return list.getFirst();
     }
 }
-

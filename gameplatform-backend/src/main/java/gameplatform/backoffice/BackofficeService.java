@@ -24,8 +24,10 @@ public class BackofficeService {
     }
 
     void require(Actor actor, String area) {
-        if("system-logs".equals(area)) {
-            if(actor==null||permissions.forActor(actor).stream().noneMatch(c->c.equals("OPERATION_LOG_VIEW")||c.equals("LOGIN_LOG_VIEW")))throw new Problem(403,"未授權使用此功能");
+        if ("system-logs".equals(area)) {
+            if (actor == null || permissions.forActor(actor).stream()
+                    .noneMatch(c -> c.equals("OPERATION_LOG_VIEW") || c.equals("LOGIN_LOG_VIEW")))
+                throw new Problem(403, "未授權使用此功能");
             return;
         }
         String code = ACCESS.get(area);
@@ -69,10 +71,12 @@ public class BackofficeService {
 
     // Fixed query definitions and bind parameters only; request data never becomes
     // a SQL identifier.
-    private String operationSource(){return "(SELECT CONCAT('M-',operation_id) AS operation_id,admin_id,action_code,target_id,detail,created_at,N'後台操作' AS source_name FROM dbo.admin_operation_logs "
-                        + "UNION ALL SELECT CONCAT('G-',game_audit_id),admin_id,CONCAT('GAME_',review_type,'_',decision),game_id,comment,reviewed_at,N'遊戲審核' FROM dbo.game_audit_logs "
-                        + "UNION ALL SELECT CONCAT('S-',audit_id),actor_admin_id,CONCAT('SUPPORT_',action_code),COALESCE(ticket_id,support_room_id),CONCAT(CASE WHEN ticket_id IS NOT NULL THEN N'客服案件 #' ELSE N'客服聊天室 #' END,COALESCE(ticket_id,support_room_id)),created_at,N'客服操作' FROM dbo.support_audit_logs WHERE actor_admin_id IS NOT NULL "
-                        + "UNION ALL SELECT CONCAT('P-',application_id),admin_id,CONCAT('PUBLISHER_',approval_status),member_id,review_comment,reviewed_at,N'發行商審核' FROM dbo.publisher_applications WHERE approval_status IN ('APPROVED','REJECTED') AND reviewed_at IS NOT NULL) l LEFT JOIN dbo.admin a ON a.admin_id=l.admin_id";}
+    private String operationSource() {
+        return "(SELECT CONCAT('M-',operation_id) AS operation_id,admin_id,action_code,target_id,detail,created_at,N'後台操作' AS source_name FROM dbo.admin_operation_logs "
+                + "UNION ALL SELECT CONCAT('G-',game_audit_id),admin_id,CONCAT('GAME_',review_type,'_',decision),game_id,comment,reviewed_at,N'遊戲審核' FROM dbo.game_audit_logs "
+                + "UNION ALL SELECT CONCAT('S-',audit_id),actor_admin_id,CONCAT('SUPPORT_',action_code),COALESCE(ticket_id,support_room_id),CONCAT(CASE WHEN ticket_id IS NOT NULL THEN N'客服案件 #' ELSE N'客服聊天室 #' END,COALESCE(ticket_id,support_room_id)),created_at,N'客服操作' FROM dbo.support_audit_logs WHERE actor_admin_id IS NOT NULL "
+                + "UNION ALL SELECT CONCAT('P-',application_id),admin_id,CONCAT('PUBLISHER_',approval_status),member_id,review_comment,reviewed_at,N'發行商審核' FROM dbo.publisher_applications WHERE approval_status IN ('APPROVED','REJECTED') AND reviewed_at IS NOT NULL) l LEFT JOIN dbo.admin a ON a.admin_id=l.admin_id";
+    }
 
     public Map<String, Object> list(Actor actor, String area, String keyword, String status, int page) {
         require(actor, area);
@@ -93,16 +97,17 @@ public class BackofficeService {
             }
             case "promotions" -> {
                 from = "(SELECT d.*,g.game_name,g.price AS original_price,m.username AS publisher_name,"
-                    + "ROUND(g.price*(100-d.discount_percent)/100.0,0) AS discount_price,DATEADD(DAY,30,d.end_at) AS next_allowed_at,"
-                    + "CASE WHEN d.start_at>CURRENT_TIMESTAMP THEN 'SCHEDULED' WHEN d.end_at>CURRENT_TIMESTAMP THEN 'ACTIVE' "
-                    + "WHEN DATEADD(DAY,30,d.end_at)>CURRENT_TIMESTAMP THEN 'COOLDOWN' ELSE 'ENDED' END AS status "
-                    + "FROM dbo.game_discounts d JOIN dbo.games g ON g.game_id=d.game_id JOIN dbo.members m ON m.member_id=g.member_id) d";
+                        + "ROUND(g.price*(100-d.discount_percent)/100.0,0) AS discount_price,DATEADD(DAY,30,d.end_at) AS next_allowed_at,"
+                        + "CASE WHEN d.start_at>CURRENT_TIMESTAMP THEN 'SCHEDULED' WHEN d.end_at>CURRENT_TIMESTAMP THEN 'ACTIVE' "
+                        + "WHEN DATEADD(DAY,30,d.end_at)>CURRENT_TIMESTAMP THEN 'COOLDOWN' ELSE 'ENDED' END AS status "
+                        + "FROM dbo.game_discounts d JOIN dbo.games g ON g.game_id=d.game_id JOIN dbo.members m ON m.member_id=g.member_id) d";
                 select = "d.discount_id,d.game_id,d.game_name,d.publisher_name,d.discount_percent,d.original_price,d.discount_price,d.start_at,d.end_at,d.next_allowed_at,d.status";
                 search = "CONCAT(d.game_name,' ',d.publisher_name)";
                 order = "d.start_at DESC,d.discount_id DESC";
-                if(!status.isEmpty()){
-                    if(!Set.of("SCHEDULED","ACTIVE","COOLDOWN","ENDED").contains(status))throw bad("活動狀態不正確");
-                    filter=" AND d.status=?";
+                if (!status.isEmpty()) {
+                    if (!Set.of("SCHEDULED", "ACTIVE", "COOLDOWN", "ENDED").contains(status))
+                        throw bad("活動狀態不正確");
+                    filter = " AND d.status=?";
                 }
             }
             case "reviews" -> {
@@ -159,12 +164,21 @@ public class BackofficeService {
                 }
             }
             case "system-logs" -> {
-                var granted=permissions.forActor(actor);var sources=new ArrayList<String>();
-                if(granted.contains("OPERATION_LOG_VIEW"))sources.add("SELECT CONCAT('O-',l.operation_id) AS record_id,l.source_name,a.admin_account AS actor_name,l.action_code,l.target_id,l.detail,l.created_at FROM "+operationSource());
-                if(granted.contains("LOGIN_LOG_VIEW"))sources.add("SELECT CONCAT('L-',l.login_log_id) AS record_id,N'會員登入' AS source_name,COALESCE(m.username,N'未識別帳號') AS actor_name,CONCAT('MEMBER_LOGIN_',l.login_status) AS action_code,l.member_id AS target_id,CONCAT(N'連線 IP：',l.ip_address) AS detail,l.login_at AS created_at FROM dbo.member_login_logs l LEFT JOIN dbo.members m ON m.member_id=l.member_id");
-                from="("+String.join(" UNION ALL ",sources)+") l";select="l.record_id,l.source_name,l.actor_name,l.action_code,l.target_id,l.detail,l.created_at";
-                search="CONCAT(l.source_name,' ',l.actor_name,' ',l.action_code,' ',l.detail,' ',l.target_id)";order="l.created_at DESC,l.record_id DESC";
-                if(!status.isEmpty())throw bad("請到分類頁篩選紀錄狀態");
+                var granted = permissions.forActor(actor);
+                var sources = new ArrayList<String>();
+                if (granted.contains("OPERATION_LOG_VIEW"))
+                    sources.add(
+                            "SELECT CONCAT('O-',l.operation_id) AS record_id,l.source_name,a.admin_account AS actor_name,l.action_code,l.target_id,l.detail,l.created_at FROM "
+                                    + operationSource());
+                if (granted.contains("LOGIN_LOG_VIEW"))
+                    sources.add(
+                            "SELECT CONCAT('L-',l.login_log_id) AS record_id,N'會員登入' AS source_name,COALESCE(m.username,N'未識別帳號') AS actor_name,CONCAT('MEMBER_LOGIN_',l.login_status) AS action_code,l.member_id AS target_id,CONCAT(N'連線 IP：',l.ip_address) AS detail,l.login_at AS created_at FROM dbo.member_login_logs l LEFT JOIN dbo.members m ON m.member_id=l.member_id");
+                from = "(" + String.join(" UNION ALL ", sources) + ") l";
+                select = "l.record_id,l.source_name,l.actor_name,l.action_code,l.target_id,l.detail,l.created_at";
+                search = "CONCAT(l.source_name,' ',l.actor_name,' ',l.action_code,' ',l.detail,' ',l.target_id)";
+                order = "l.created_at DESC,l.record_id DESC";
+                if (!status.isEmpty())
+                    throw bad("請到分類頁篩選紀錄狀態");
             }
             case "operations" -> {
                 // 以現有紀錄彙整，不補造歷史；客服只顯示動作與案件編號，不公開備註內容。
@@ -183,7 +197,8 @@ public class BackofficeService {
         String term = keyword.trim();
         String where = (term.isEmpty() ? " WHERE 1=1" : " WHERE CHARINDEX(?," + search + ")>0") + filter;
         var args = new ArrayList<Object>();
-        if (!term.isEmpty()) args.add(term);
+        if (!term.isEmpty())
+            args.add(term);
         if (!status.isEmpty())
             args.add(status);
         Long total = db.queryForObject("SELECT COUNT_BIG(*) FROM " + from + where, Long.class, args.toArray());
@@ -203,7 +218,9 @@ public class BackofficeService {
         var items = db.queryForList(
                 "SELECT i.order_item_id,g.game_name,i.quantity,i.unit_price,i.discount_amount,i.final_amount,i.is_gift,m.username AS recipient FROM dbo.order_items i JOIN dbo.games g ON g.game_id=i.game_id LEFT JOIN dbo.members m ON m.member_id=i.recipient_member_id WHERE i.order_id=? ORDER BY i.order_item_id",
                 id);
-        return Map.of("order", order, "items", items, "paymentAttempts", db.queryForList("SELECT merchant_trade_no,payment_method,payment_environment,status,ecpay_trade_no,created_at FROM payment_attempts WHERE order_id=? ORDER BY attempt_id DESC",id));
+        return Map.of("order", order, "items", items, "paymentAttempts", db.queryForList(
+                "SELECT merchant_trade_no,payment_method,payment_environment,status,ecpay_trade_no,created_at FROM payment_attempts WHERE order_id=? ORDER BY attempt_id DESC",
+                id));
     }
 
     public record TagInput(String name) {
@@ -237,8 +254,9 @@ public class BackofficeService {
     public record CouponInput(String name, String type, BigDecimal value, BigDecimal minimum, Integer totalLimit,
             Integer memberLimit, String status, LocalDateTime start, LocalDateTime end,
             String scopeType, Integer publisherId, Integer tagId) {
-        public CouponInput(String name,String type,BigDecimal value,BigDecimal minimum,Integer totalLimit,Integer memberLimit,String status,LocalDateTime start,LocalDateTime end) {
-            this(name,type,value,minimum,totalLimit,memberLimit,status,start,end,"ALL",null,null);
+        public CouponInput(String name, String type, BigDecimal value, BigDecimal minimum, Integer totalLimit,
+                Integer memberLimit, String status, LocalDateTime start, LocalDateTime end) {
+            this(name, type, value, minimum, totalLimit, memberLimit, status, start, end, "ALL", null, null);
         }
     }
 
@@ -246,11 +264,12 @@ public class BackofficeService {
         if (c == null)
             throw bad("請填寫優惠券資料");
         text(c.name(), 100);
-        String scope=Objects.toString(c.scopeType(),"ALL");
-        if(!Set.of("ALL","PUBLISHER","TAG").contains(scope)
-            || (scope.equals("PUBLISHER") && (c.publisherId()==null || c.publisherId()<1 || c.tagId()!=null))
-            || (scope.equals("TAG") && (c.tagId()==null || c.tagId()<1 || c.publisherId()!=null))
-            || (scope.equals("ALL") && (c.publisherId()!=null || c.tagId()!=null))) throw bad("優惠券使用範圍不正確");
+        String scope = Objects.toString(c.scopeType(), "ALL");
+        if (!Set.of("ALL", "PUBLISHER", "TAG").contains(scope)
+                || (scope.equals("PUBLISHER") && (c.publisherId() == null || c.publisherId() < 1 || c.tagId() != null))
+                || (scope.equals("TAG") && (c.tagId() == null || c.tagId() < 1 || c.publisherId() != null))
+                || (scope.equals("ALL") && (c.publisherId() != null || c.tagId() != null)))
+            throw bad("優惠券使用範圍不正確");
         if (!Set.of("RATE", "AMOUNT").contains(Objects.toString(c.type(), "")) || c.value() == null
                 || c.value().signum() <= 0 || c.value().scale() > 2
                 || c.value().compareTo(new BigDecimal("99999999.99")) > 0)
@@ -270,8 +289,13 @@ public class BackofficeService {
     public void saveCoupon(Actor actor, Integer id, CouponInput c) {
         require(actor, "coupons");
         validateCoupon(c);
-        if("PUBLISHER".equals(c.scopeType()) && db.queryForObject("SELECT COUNT(*) FROM dbo.members WHERE member_id=? AND is_publisher=1",Integer.class,c.publisherId())!=1) throw bad("請選擇有效的發行商");
-        if("TAG".equals(c.scopeType()) && db.queryForObject("SELECT COUNT(*) FROM dbo.tags WHERE tag_id=?",Integer.class,c.tagId())!=1) throw bad("請選擇有效的遊戲類型");
+        if ("PUBLISHER".equals(c.scopeType())
+                && db.queryForObject("SELECT COUNT(*) FROM dbo.members WHERE member_id=? AND is_publisher=1",
+                        Integer.class, c.publisherId()) != 1)
+            throw bad("請選擇有效的發行商");
+        if ("TAG".equals(c.scopeType())
+                && db.queryForObject("SELECT COUNT(*) FROM dbo.tags WHERE tag_id=?", Integer.class, c.tagId()) != 1)
+            throw bad("請選擇有效的遊戲類型");
         boolean creating = id == null;
         if (id == null)
             id = db.queryForObject(
@@ -289,61 +313,91 @@ public class BackofficeService {
                     c.name().trim(), c.type(), c.value(), c.minimum(), c.totalLimit(), c.memberLimit(), c.status(),
                     c.start(), c.end(), id);
         }
-        db.update("DELETE FROM dbo.coupon_rules WHERE coupon_id=?",id);
-        db.update("INSERT INTO dbo.coupon_rules(coupon_id,scope_type,publisher_member_id,tag_id) VALUES(?,?,?,?)",id,Objects.toString(c.scopeType(),"ALL"),c.publisherId(),c.tagId());
+        db.update("DELETE FROM dbo.coupon_rules WHERE coupon_id=?", id);
+        db.update("INSERT INTO dbo.coupon_rules(coupon_id,scope_type,publisher_member_id,tag_id) VALUES(?,?,?,?)", id,
+                Objects.toString(c.scopeType(), "ALL"), c.publisherId(), c.tagId());
         audit(actor, creating ? "COUPON_CREATE" : "COUPON_UPDATE", Objects.requireNonNull(id), c.name().trim());
     }
 
     public Object couponOptions(Actor actor) {
-        require(actor,"coupons");
-        return Map.of("publishers",db.queryForList("SELECT member_id AS id,username AS name FROM dbo.members WHERE is_publisher=1 ORDER BY username"),
-            "tags",db.queryForList("SELECT tag_id AS id,tag_name AS name FROM dbo.tags ORDER BY tag_name"));
+        require(actor, "coupons");
+        return Map.of("publishers", db.queryForList(
+                "SELECT member_id AS id,username AS name FROM dbo.members WHERE is_publisher=1 ORDER BY username"),
+                "tags", db.queryForList("SELECT tag_id AS id,tag_name AS name FROM dbo.tags ORDER BY tag_name"));
     }
 
     public record ReviewInput(String status, String reason) {
     }
 
-    public Object reviewModeration(Actor actor,int id){
-        require(actor,"reviews");var review=one("SELECT member_id FROM dbo.game_reviews WHERE review_id=?",id);
+    public Object reviewModeration(Actor actor, int id) {
+        require(actor, "reviews");
+        var review = one("SELECT member_id FROM dbo.game_reviews WHERE review_id=?", id);
         return new gameplatform.moderation.ReviewModerationPolicy(db).status(number(review.get("member_id")));
     }
 
     @Transactional
-    public void moderate(Actor actor,int id,ReviewInput input){
-        require(actor,"reviews");
-        if(input==null||!Set.of("NORMAL","HIDDEN").contains(Objects.toString(input.status(),"")))throw bad("審核狀態不正確");
-        String reason=text(input.reason(),500);
-        var rows=db.queryForList("SELECT member_id FROM dbo.game_reviews WHERE review_id=?",id);
-        if(rows.isEmpty())throw new Problem(409,"評論不存在或狀態已改變");
-        int member=number(rows.getFirst().get("member_id"));var policy=new gameplatform.moderation.ReviewModerationPolicy(db);policy.lockMember(member);
-        if(db.update("UPDATE dbo.game_reviews SET status=?,updated_at=CURRENT_TIMESTAMP WHERE review_id=? AND status IN ('NORMAL','HIDDEN')",input.status(),id)!=1)throw new Problem(409,"評論不存在、已由會員刪除或狀態已改變");
-        if("HIDDEN".equals(input.status()))policy.confirm(actor,id,member,null,reason);else policy.reverse(actor,id,member);
-        audit(actor,"REVIEW_"+input.status(),id,reason);
+    public void moderate(Actor actor, int id, ReviewInput input) {
+        require(actor, "reviews");
+        if (input == null || !Set.of("NORMAL", "HIDDEN").contains(Objects.toString(input.status(), "")))
+            throw bad("審核狀態不正確");
+        String reason = text(input.reason(), 500);
+        var rows = db.queryForList("SELECT member_id FROM dbo.game_reviews WHERE review_id=?", id);
+        if (rows.isEmpty())
+            throw new Problem(409, "評論不存在或狀態已改變");
+        int member = number(rows.getFirst().get("member_id"));
+        var policy = new gameplatform.moderation.ReviewModerationPolicy(db);
+        policy.lockMember(member);
+        if (db.update(
+                "UPDATE dbo.game_reviews SET status=?,updated_at=CURRENT_TIMESTAMP WHERE review_id=? AND status IN ('NORMAL','HIDDEN')",
+                input.status(), id) != 1)
+            throw new Problem(409, "評論不存在、已由會員刪除或狀態已改變");
+        if ("HIDDEN".equals(input.status()))
+            policy.confirm(actor, id, member, null, reason);
+        else
+            policy.reverse(actor, id, member);
+        audit(actor, "REVIEW_" + input.status(), id, reason);
     }
 
-    public record ReportInput(boolean remove,String reason){}
+    public record ReportInput(boolean remove, String reason) {
+    }
 
     @Transactional
-    public void report(Actor actor,int id,ReportInput input){
-        require(actor,"review-reports");String reason=text(input==null?null:input.reason(),500);
-        var peek=one("SELECT * FROM dbo.ugc_reports WHERE report_id=? AND target_type='REVIEW'",id);
-        if(!"PENDING".equals(peek.get("status")))throw new Problem(409,"檢舉已處理，請重新整理");
-        int reviewId=number(peek.get("target_id"));Integer member=null;var policy=new gameplatform.moderation.ReviewModerationPolicy(db);
-        if(input.remove()){
-            var review=one("SELECT content,status,member_id FROM dbo.game_reviews WHERE review_id=?",reviewId);
-            if(!Objects.equals(peek.get("snapshot_text"),review.get("content")))throw new Problem(409,"評論內容與檢舉快照不同，請重新核對");
-            member=number(review.get("member_id"));policy.lockMember(member);
+    public void report(Actor actor, int id, ReportInput input) {
+        require(actor, "review-reports");
+        String reason = text(input == null ? null : input.reason(), 500);
+        var peek = one("SELECT * FROM dbo.ugc_reports WHERE report_id=? AND target_type='REVIEW'", id);
+        if (!"PENDING".equals(peek.get("status")))
+            throw new Problem(409, "檢舉已處理，請重新整理");
+        int reviewId = number(peek.get("target_id"));
+        Integer member = null;
+        var policy = new gameplatform.moderation.ReviewModerationPolicy(db);
+        if (input.remove()) {
+            var review = one("SELECT content,status,member_id FROM dbo.game_reviews WHERE review_id=?", reviewId);
+            if (!Objects.equals(peek.get("snapshot_text"), review.get("content")))
+                throw new Problem(409, "評論內容與檢舉快照不同，請重新核對");
+            member = number(review.get("member_id"));
+            policy.lockMember(member);
         }
-        var report=one("SELECT * FROM dbo.ugc_reports WITH (UPDLOCK,ROWLOCK) WHERE report_id=? AND target_type='REVIEW'",id);
-        if(!"PENDING".equals(report.get("status")))throw new Problem(409,"檢舉已處理，請重新整理");
-        if(input.remove()){
-            var review=one("SELECT content,status FROM dbo.game_reviews WITH (UPDLOCK,ROWLOCK) WHERE review_id=?",reviewId);
-            if(!Objects.equals(report.get("snapshot_text"),review.get("content")))throw new Problem(409,"評論內容與檢舉快照不同，請重新核對");
-            if(!Set.of("NORMAL","HIDDEN").contains(review.get("status")))throw new Problem(409,"評論已由會員刪除，請重新確認");
-            db.update("UPDATE dbo.game_reviews SET status='HIDDEN',updated_at=CURRENT_TIMESTAMP WHERE review_id=? AND status='NORMAL'",reviewId);
-            policy.confirm(actor,reviewId,member,id,reason);
+        var report = one(
+                "SELECT * FROM dbo.ugc_reports WITH (UPDLOCK,ROWLOCK) WHERE report_id=? AND target_type='REVIEW'", id);
+        if (!"PENDING".equals(report.get("status")))
+            throw new Problem(409, "檢舉已處理，請重新整理");
+        if (input.remove()) {
+            var review = one("SELECT content,status FROM dbo.game_reviews WITH (UPDLOCK,ROWLOCK) WHERE review_id=?",
+                    reviewId);
+            if (!Objects.equals(report.get("snapshot_text"), review.get("content")))
+                throw new Problem(409, "評論內容與檢舉快照不同，請重新核對");
+            if (!Set.of("NORMAL", "HIDDEN").contains(review.get("status")))
+                throw new Problem(409, "評論已由會員刪除，請重新確認");
+            db.update(
+                    "UPDATE dbo.game_reviews SET status='HIDDEN',updated_at=CURRENT_TIMESTAMP WHERE review_id=? AND status='NORMAL'",
+                    reviewId);
+            policy.confirm(actor, reviewId, member, id, reason);
         }
-        if(db.update("UPDATE dbo.ugc_reports SET status=?,admin_id=?,reviewed_at=CURRENT_TIMESTAMP,review_comment=? WHERE report_id=? AND status='PENDING'",input.remove()?"REMOVED":"DISMISSED",actor.id(),reason,id)!=1)throw new Problem(409,"檢舉已處理，請重新整理");
-        audit(actor,input.remove()?"REPORT_REMOVE":"REPORT_DISMISS",id,reason);
+        if (db.update(
+                "UPDATE dbo.ugc_reports SET status=?,admin_id=?,reviewed_at=CURRENT_TIMESTAMP,review_comment=? WHERE report_id=? AND status='PENDING'",
+                input.remove() ? "REMOVED" : "DISMISSED", actor.id(), reason, id) != 1)
+            throw new Problem(409, "檢舉已處理，請重新整理");
+        audit(actor, input.remove() ? "REPORT_REMOVE" : "REPORT_DISMISS", id, reason);
     }
 }

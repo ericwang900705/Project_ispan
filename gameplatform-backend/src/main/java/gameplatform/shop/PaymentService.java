@@ -58,7 +58,7 @@ public class PaymentService {
             URI client = URI.create(frontend);
             if (client.getHost() == null || client.getUserInfo() != null || client.getFragment() != null
                     || client.getQuery() != null || !("https".equals(client.getScheme())
-                    || (testMode() && isLoopback(client) && "http".equals(client.getScheme()))))
+                            || (testMode() && isLoopback(client) && "http".equals(client.getScheme()))))
                 throw new IllegalArgumentException();
         } catch (IllegalArgumentException e) {
             throw new Problem(503, "前台網址須為 HTTPS；測試環境可使用本機 HTTP");
@@ -75,8 +75,11 @@ public class PaymentService {
     }
 
     public boolean publicCallback() {
-        try { return "https".equals(URI.create(backend).getScheme()) && !isLoopback(URI.create(backend)); }
-        catch (IllegalArgumentException e) { return false; }
+        try {
+            return "https".equals(URI.create(backend).getScheme()) && !isLoopback(URI.create(backend));
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     public boolean available() {
@@ -95,24 +98,25 @@ public class PaymentService {
         if (!Set.of("Credit", "ATM", "CVS").contains(method))
             throw new Problem(400, "不支援的付款方式");
         var order = shop.createOrder(a, member, method);
-        shop.recordPaymentEnvironment(((Number)order.get("orderId")).intValue(), testMode());
+        shop.recordPaymentEnvironment(((Number) order.get("orderId")).intValue(), testMode());
         String trade = order.get("orderNo").toString();
-        shop.addPaymentAttempt(((Number)order.get("orderId")).intValue(),trade,method,testMode());
-        return form(order,method,trade);
+        shop.addPaymentAttempt(((Number) order.get("orderId")).intValue(), trade, method, testMode());
+        return form(order, method, trade);
     }
 
     @Transactional
-    public Map<String,Object> resume(Actor actor,int member,int orderId) {
+    public Map<String, Object> resume(Actor actor, int member, int orderId) {
         ready();
-        var order=shop.pendingPayment(actor,member,orderId,testMode());
-        String method=Objects.toString(order.get("paymentType"),"");
-        if(!Set.of("Credit","ATM","CVS").contains(method))throw new Problem(409,"此訂單付款方式需人工核對");
-        String trade="RP"+UUID.randomUUID().toString().replace("-","").substring(0,18).toUpperCase(Locale.ROOT);
-        shop.addPaymentAttempt(orderId,trade,method,testMode());
-        return form(order,method,trade);
+        var order = shop.pendingPayment(actor, member, orderId, testMode());
+        String method = Objects.toString(order.get("paymentType"), "");
+        if (!Set.of("Credit", "ATM", "CVS").contains(method))
+            throw new Problem(409, "此訂單付款方式需人工核對");
+        String trade = "RP" + UUID.randomUUID().toString().replace("-", "").substring(0, 18).toUpperCase(Locale.ROOT);
+        shop.addPaymentAttempt(orderId, trade, method, testMode());
+        return form(order, method, trade);
     }
 
-    private Map<String,Object> form(Map<String,Object> order,String method,String trade) {
+    private Map<String, Object> form(Map<String, Object> order, String method, String trade) {
         var p = new LinkedHashMap<String, String>();
         p.put("MerchantID", merchant);
         p.put("MerchantTradeNo", trade);

@@ -96,7 +96,7 @@ public class SupportService {
             throw Problem.denied();
     }
 
-    /** 建立會員本人的退款客服案件；實際款項及遊戲權益由客服核對處理。 */
+    /** 直接建立退款申請；需要補件時才另外建立案件。 */
     public Map<String, Object> requestRefund(Actor actor, int orderId, String reason) {
         member(actor);
         if (reason == null || reason.isBlank() || reason.length() > 2000)
@@ -118,7 +118,8 @@ public class SupportService {
                 orderId, actor.id(), reason.strip());
         events.changed(actor.id());
         if (notifications != null) {
-            notifications.member(actor.id(), "REFUND_REQUESTED", "退款申請已送出", "訂單 #" + orderId, "/orders");
+            notifications.refundQueue("新的退款申請", "訂單 #" + orderId);
+            notifications.member(actor.id(), "REFUND_REQUESTED", "退款申請已送出", "訂單 #" + orderId, "/orders?refundOrder=" + orderId);
         }
         return Map.of("refundId", refundId, "message", "退款申請已送出，請在我的訂單查看進度");
     }

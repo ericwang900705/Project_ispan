@@ -14,6 +14,7 @@ import ParticleBackground from './cart/components/ParticleBackground.vue'
 import PublisherToast from './components/PublisherToast.vue'
 import FriendsList from './cart/components/FriendsList.vue'
 import ChatWidget from './components/ChatWidget.vue'
+import UiIcon from './components/UiIcon.vue'
 import GlobalNotificationBell from './components/GlobalNotificationBell.vue'
 // 共用的遊戲 store：下拉選單的分類清單從這裡來
 // genreIcon：依分類名稱拿到對應的圖示
@@ -100,6 +101,13 @@ onUnmounted(() => {
 // 縮小視窗後的商城選單
 const navOpen = ref(false)
 const genreMenuOpen = ref(false)
+const supportMenuOpen = ref(false)
+const supportMenuEl = ref(null), supportMenuTrigger = ref(null)
+function toggleSupportMenu() {
+  supportMenuOpen.value = !supportMenuOpen.value
+  genreMenuOpen.value = false
+  accountMenuOpen.value = false
+}
 const navigationEl = ref(null)
 
 function toggleNavigation() {
@@ -107,6 +115,7 @@ function toggleNavigation() {
 
   if (!navOpen.value) {
     genreMenuOpen.value = false
+    supportMenuOpen.value = false
   }
 }
 
@@ -115,6 +124,7 @@ const accountMenuEl = ref(null)
 
 // 點選單外側時關閉
 function onClickOutside(event) {
+  if (supportMenuEl.value && !supportMenuEl.value.contains(event.target)) supportMenuOpen.value = false
   if (accountMenuEl.value && !accountMenuEl.value.contains(event.target)) {
     accountMenuOpen.value = false
   }
@@ -128,6 +138,8 @@ function onClickOutside(event) {
 // 按 Escape 關閉
 function onAccountEscape(event) {
   if (event.key === 'Escape') {
+    if (supportMenuOpen.value) supportMenuTrigger.value?.focus()
+    supportMenuOpen.value = false
     accountMenuOpen.value = false
     navOpen.value = false
     genreMenuOpen.value = false
@@ -145,6 +157,7 @@ watch(() => route.fullPath, () => {
   accountMenuOpen.value = false
   navOpen.value = false
   genreMenuOpen.value = false
+  supportMenuOpen.value = false
 })
 </script>
 
@@ -183,7 +196,7 @@ watch(() => route.fullPath, () => {
               </RouterLink>
 
               <button type="button" class="genre-toggle" :aria-expanded="genreMenuOpen" aria-label="展開遊戲分類"
-                @click="genreMenuOpen = !genreMenuOpen">
+                @click="genreMenuOpen = !genreMenuOpen; supportMenuOpen = false">
                 ▾
               </button>
             </div>
@@ -222,9 +235,14 @@ watch(() => route.fullPath, () => {
             發行商工作區
           </RouterLink>
 
-          <RouterLink :to="session.user ? '/member/support' : '/faq'">
-            客服中心
-          </RouterLink>
+          <div ref="supportMenuEl" class="support-nav-menu">
+            <button ref="supportMenuTrigger" type="button" class="support-nav-trigger" :class="{ active: route.path === '/faq' || support }"
+              :aria-expanded="supportMenuOpen" aria-controls="support-nav-links" @click="toggleSupportMenu">客服中心 <UiIcon name="chevron-down" /></button>
+            <div v-if="supportMenuOpen" id="support-nav-links" class="support-nav-links" aria-label="客服中心選項">
+              <RouterLink to="/faq" @click="supportMenuOpen = false; navOpen = false"><span class="support-nav-symbol"><UiIcon name="file" /></span><span><strong>常見問題</strong><small>下載更新、付款與帳號協助</small></span><UiIcon name="chevron" /></RouterLink>
+              <RouterLink @click="supportMenuOpen = false; navOpen = false" :to="session.user ? '/member/support' : { path: '/member/login', query: { redirect: '/member/support' } }"><span class="support-nav-symbol"><UiIcon name="chat" /></span><span><strong>我的案件</strong><small>{{ session.user ? '查看進度與補充問題資料' : '登入後查看自己的客服案件' }}</small></span><UiIcon name="chevron" /></RouterLink>
+            </div>
+          </div>
 
         </nav>
       </div>
@@ -314,6 +332,27 @@ watch(() => route.fullPath, () => {
 <!-- scoped：樣式只作用於此元件，不會影響其他元件 -->
 
 <style scoped>
+/* 客服入口獨立下拉，不受所有遊戲分類的 hover 展開規則影響。 */
+.support-nav-menu { position: relative; height: 100%; display: flex; align-items: center; }
+.support-nav-trigger { display: inline-flex; align-items: center; gap: 6px; min-height: 42px; padding: 0 16px; border: 0; border-radius: 9px; background: transparent; color: #d4a64a; font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; white-space: nowrap; }
+.support-nav-trigger .ui-icon { width: 14px; height: 14px; transition: transform .18s; }
+.support-nav-trigger[aria-expanded="true"] .ui-icon { transform: rotate(180deg); }
+.support-nav-trigger:hover, .support-nav-trigger.active, .support-nav-trigger[aria-expanded="true"] { color: #ffe2a3; background: #20294e; }
+.support-nav-trigger:focus-visible, .support-nav-links a:focus-visible { outline: 2px solid #e8bc64; outline-offset: 3px; }
+.support-nav-links { position: absolute; top: calc(100% + 8px); right: 0; width: 290px; box-sizing: border-box; padding: 8px; border: 1px solid #43527c; border-radius: 14px; background: #161e3e; box-shadow: 0 18px 42px #03071988; z-index: 1410; }
+.support-nav-links a { display: flex; align-items: center; gap: 12px; padding: 14px 10px; color: #edf2ff; border-radius: 10px; text-decoration: none; white-space: normal; }
+.support-nav-links a:hover { background: #263357; }
+.support-nav-symbol { display: grid; place-items: center; flex: 0 0 38px; height: 38px; border-radius: 11px; background: #dfb45b16; color: #e9be70; }
+.support-nav-symbol .ui-icon { width: 20px; height: 20px; }
+.support-nav-links a > .ui-icon { margin-left: auto; width: 15px; height: 15px; color: #9cacd0; }
+.support-nav-links strong { display: block; font-size: 14px; }
+.support-nav-links small { display: block; margin-top: 4px; font-size: 11px; line-height: 1.5; color: #b7c5e1; }
+@media(max-width:1250px) {
+  .store-nav .support-nav-menu { display: block; height: auto; }
+  .store-nav .support-nav-trigger { justify-content: space-between; width: 100%; padding: 12px 16px; min-height: 46px; border-bottom: 1px solid #35406f; border-radius: 0; }
+  .store-nav .support-nav-links { position: static; width: 100%; margin: 4px 0 8px; box-shadow: none; background: #101735; }
+}
+
 /* 頂欄 */
 .store-header {
   position: fixed;

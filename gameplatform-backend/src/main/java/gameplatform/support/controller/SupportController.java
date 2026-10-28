@@ -47,7 +47,8 @@ public class SupportController {
     }
 
     public record RefundRequestInput(
-            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max=2000) String reason) {}
+            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 2000) String reason) {
+    }
 
     @PostMapping("/orders/{orderId}/refund-request")
     public Object requestRefund(Actor actor, @PathVariable int orderId, @Valid @RequestBody RefundRequestInput input) {

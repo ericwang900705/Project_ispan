@@ -70,7 +70,7 @@ const form = ref({
 })
 watch(() => form.value.avatarUrl, () => { avatarFailed.value = false })
 
-const publisherStatus=ref({status:'UNKNOWN',reviewComment:''}),publisherStatusError=ref('')
+const publisherStatus = ref({ status: 'UNKNOWN', reviewComment: '' }), publisherStatusError = ref('')
 const publisherForm = ref({
   companyName: '',
   taxId: '',
@@ -115,8 +115,8 @@ async function loadProfile() {
     form.value.birthDate = profile.value.birthDate || ''
     form.value.address = profile.value.address || ''
     form.value.avatarUrl = profile.value.avatarUrl || ''
-    publisherStatusError.value=''
-    try{publisherStatus.value=await api('/members/publisher-application')}catch(e){publisherStatus.value={status:'UNKNOWN',reviewComment:''};publisherStatusError.value=e.message}
+    publisherStatusError.value = ''
+    try { publisherStatus.value = await api('/members/publisher-application') } catch (e) { publisherStatus.value = { status: 'UNKNOWN', reviewComment: '' }; publisherStatusError.value = e.message }
     googleError.value = ''; googleLink.value = null
     try { googleLink.value = await api('/members/google-link') } catch (e) { googleError.value = e.message }
   } catch (e) { error.value = e.message }
@@ -226,13 +226,13 @@ async function changePassword() {
 }
 
 async function applyPublisher() {
-  if (loading.value || !['NONE','REJECTED'].includes(publisherStatus.value.status)) return
-  if (!/^[0-9]{8}$/.test(publisherForm.value.taxId)) { error.value='統一編號必須為 8 位數字'; return }
-  const result=await send('/members/apply-publisher', {...publisherForm.value})
-  if(result){
-    publisherStatus.value={status:'PENDING',reviewComment:''}
-    for(const key of Object.keys(publisherForm.value))publisherForm.value[key]=''
-    notice.value=result.message||'發行商申請已送出，請等候審核'
+  if (loading.value || !['NONE', 'REJECTED'].includes(publisherStatus.value.status)) return
+  if (!/^[0-9]{8}$/.test(publisherForm.value.taxId)) { error.value = '統一編號必須為 8 位數字'; return }
+  const result = await send('/members/apply-publisher', { ...publisherForm.value })
+  if (result) {
+    publisherStatus.value = { status: 'PENDING', reviewComment: '' }
+    for (const key of Object.keys(publisherForm.value)) publisherForm.value[key] = ''
+    notice.value = result.message || '發行商申請已送出，請等候審核'
   }
 }
 </script>
@@ -279,7 +279,7 @@ async function applyPublisher() {
       <!-- 重發驗證信 -->
       <form v-else-if="action === 'verification-sent'" @submit.prevent="resendVerification">
         <p v-if="verificationSent">驗證信已寄送至 <strong>{{ verificationEmail
-        }}</strong>，請查看收件匣或垃圾郵件。完成信箱驗證後，本頁會顯示驗證成功；驗證信開啟的頁面會前往會員登入。</p>
+            }}</strong>，請查看收件匣或垃圾郵件。完成信箱驗證後，本頁會顯示驗證成功；驗證信開啟的頁面會前往會員登入。</p>
         <p v-if="verificationStatusNotice" role="status">{{ verificationStatusNotice }}</p>
         <p>沒有收到或連結過期？確認註冊信箱後重新寄送。</p>
         <label>電子郵件 <input v-model.trim="form.email" type="email" required autocomplete="email" /></label>
@@ -386,10 +386,14 @@ async function applyPublisher() {
           <div v-if="profile?.isPublisher" role="status">
             <p>您目前已經是遊戲發行商身分，無需重複申請。</p>
           </div>
-          <p v-else-if="publisherStatus.status==='PENDING'" role="status">發行商申請已送出，正在審核中，無需重複申請。</p>
-          <div v-else-if="publisherStatus.status==='UNKNOWN'"><p role="alert">{{publisherStatusError || '正在確認申請狀態…'}}</p><button type="button" @click="loadProfile">重新整理</button></div>
+          <p v-else-if="publisherStatus.status === 'PENDING'" role="status">發行商申請已送出，正在審核中，無需重複申請。</p>
+          <div v-else-if="publisherStatus.status === 'UNKNOWN'">
+            <p role="alert">{{ publisherStatusError || '正在確認申請狀態…' }}</p><button type="button"
+              @click="loadProfile">重新整理</button>
+          </div>
           <form v-else @submit.prevent="applyPublisher">
-            <p v-if="publisherStatus.status==='REJECTED'" role="status">上次申請未通過：{{publisherStatus.reviewComment || '請修正資料後重新申請'}}</p>
+            <p v-if="publisherStatus.status === 'REJECTED'" role="status">上次申請未通過：{{ publisherStatus.reviewComment ||
+              '請修正資料後重新申請'}}</p>
             <label>公司名稱
               <input v-model.trim="publisherForm.companyName" required maxlength="100" />
             </label>
@@ -405,7 +409,8 @@ async function applyPublisher() {
             </label>
             <label>
               收款銀行帳號
-              <input v-model.trim="publisherForm.bankAccount" required maxlength="30" pattern="[0-9\-]+" inputmode="numeric" />
+              <input v-model.trim="publisherForm.bankAccount" required maxlength="30" pattern="[0-9\-]+"
+                inputmode="numeric" />
             </label>
             <button class="primary" :disabled="loading">
               {{ loading ? '送出中…' : '送出發行商申請' }}
@@ -423,43 +428,328 @@ async function applyPublisher() {
 </template>
 
 <style scoped>
-.google-account-link{margin-top:28px;padding-top:24px;border-top:1px solid #cfe1ec;line-height:1.8}
-.google-linked-status{margin-top:12px;padding:16px;border:1px solid #c9dfd6;border-radius:14px;background:#f5fbf8}
-.google-linked-heading{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:#17364e}
-.google-linked-icon{width:24px;height:24px;flex-shrink:0}
-.google-linked-badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;background:#e1f2e8;color:#166534;font-size:13px;font-weight:700}
-.google-linked-status .google-linked-email{margin:10px 0 0;color:#17364e;overflow-wrap:anywhere}
-.google-linked-status .google-linked-help{margin:4px 0 0;color:#536c79;font-size:13px}
+.google-account-link {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid #cfe1ec;
+  line-height: 1.8
+}
 
-.member-account-wrap{position:relative;isolation:isolate;z-index:0;width:min(100% - 32px,620px);margin:clamp(36px,5vw,76px) auto 70px;color:#17364e}
-.member-account-card{padding:clamp(24px,4vw,44px);background:rgba(247,252,255,.94);border:1px solid rgba(125,170,202,.55);border-radius:22px;box-shadow:0 16px 48px rgba(18,59,95,.15)}
-.member-account-card h1{margin:8px 0 6px;font-size:clamp(27px,3vw,35px);color:#17364e}
-.member-account-lead,.member-account-hint{color:#45637b}
-.member-account-card form{display:grid;gap:14px;margin-top:24px}
-.member-account-card h2{font-size:19px;color:#17364e;margin:6px 0 0}
-.member-account-card label{display:grid;gap:7px;color:#17364e;font-weight:600}
-.member-account-card input{width:100%;box-sizing:border-box;border:1px solid #91b2cd;border-radius:10px;background:#fff;color:#17364e;padding:12px 13px;font-size:16px}
-.member-account-card input:focus{outline:2px solid #1784a4;outline-offset:1px}
-.member-account-card button.primary{width:100%;min-height:45px;border:0;border-radius:10px;background:#096a86;color:white;font-size:16px;font-weight:700;cursor:pointer}
-.member-account-card button:disabled{opacity:.55;cursor:not-allowed}
-.member-account-links{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:12px 20px;margin-top:24px;padding-top:20px;border-top:1px solid rgba(125,170,202,.35)}
-.member-account-links a{color:#0b678b;font-weight:650;text-decoration:underline}
-.member-account-hint{display:block;margin-top:24px;line-height:1.6}
-.member-account-error{padding:12px;background:#fff0ed;color:#942a1a;border-radius:9px}
-.member-account-success{padding:12px;background:#edf9f8;color:#115c55;border-radius:9px}
-.member-profile-summary{margin:22px 0;background:rgba(209,230,244,.66);padding:12px 18px;border-radius:12px}
-.member-profile-summary p{margin:8px 0}
-@media(max-width:480px){.member-account-wrap{position:relative;isolation:isolate;z-index:0;width:calc(100% - 24px);margin:25px auto 40px}.member-account-card{padding:20px}}
-.member-profile-layout{width:min(100% - 32px,820px);display:grid;grid-template-columns:160px minmax(0,1fr);align-items:start;gap:20px;margin:36px auto 56px}
-.member-profile-layout .member-account-card{padding:26px;border-radius:18px}
-.member-profile-nav{display:grid;gap:8px;padding:18px 12px;background:rgba(247,252,255,.94);border:1px solid var(--hero-page-border);border-radius:15px;position:sticky;top:94px}
-.member-profile-nav strong{padding:5px 10px 12px;font-size:14px}
-.member-profile-nav a{text-align:left;padding:12px;border-radius:9px;color:#45637b;background:transparent}
-.member-profile-nav a.active{background:#d8edf6;color:#095c77;font-weight:700}
-.member-profile-identity{display:flex;align-items:center;gap:16px;margin:22px 0;padding-bottom:20px;border-bottom:1px solid #d1e2ec}
-.member-profile-identity strong{font-size:18px}.member-profile-identity p{margin:5px 0;font-size:14px;overflow-wrap:anywhere}.member-profile-identity small{color:#45637b}
-.member-avatar{width:76px;height:76px;flex:none;border-radius:50%;overflow:hidden;background:#d8edf6;display:grid;place-items:center;color:#0b678b;font-size:23px;font-weight:700;border:2px solid #fff}
-.member-avatar img{width:100%;height:100%;object-fit:cover}
-.profile-birthday{display:grid;gap:7px;font-weight:600}.profile-birthday small{font-size:12px;font-weight:400;color:#45637b}.profile-static-date{margin:0;padding:10px 0;font-variant-numeric:tabular-nums;font-size:16px}
-@media(max-width:650px){.member-profile-layout{grid-template-columns:1fr;gap:12px}.member-profile-nav{position:static;grid-template-columns:1fr 1fr;padding:10px}.member-profile-nav strong{display:none}.member-profile-nav a{text-align:center}.member-profile-layout .member-account-card{padding:22px}}
+.google-linked-status {
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid #c9dfd6;
+  border-radius: 14px;
+  background: #f5fbf8
+}
+
+.google-linked-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: #17364e
+}
+
+.google-linked-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0
+}
+
+.google-linked-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #e1f2e8;
+  color: #166534;
+  font-size: 13px;
+  font-weight: 700
+}
+
+.google-linked-status .google-linked-email {
+  margin: 10px 0 0;
+  color: #17364e;
+  overflow-wrap: anywhere
+}
+
+.google-linked-status .google-linked-help {
+  margin: 4px 0 0;
+  color: #536c79;
+  font-size: 13px
+}
+
+.member-account-wrap {
+  position: relative;
+  isolation: isolate;
+  z-index: 0;
+  width: min(100% - 32px, 620px);
+  margin: clamp(36px, 5vw, 76px) auto 70px;
+  color: #17364e
+}
+
+.member-account-card {
+  padding: clamp(24px, 4vw, 44px);
+  background: rgba(247, 252, 255, .94);
+  border: 1px solid rgba(125, 170, 202, .55);
+  border-radius: 22px;
+  box-shadow: 0 16px 48px rgba(18, 59, 95, .15)
+}
+
+.member-account-card h1 {
+  margin: 8px 0 6px;
+  font-size: clamp(27px, 3vw, 35px);
+  color: #17364e
+}
+
+.member-account-lead,
+.member-account-hint {
+  color: #45637b
+}
+
+.member-account-card form {
+  display: grid;
+  gap: 14px;
+  margin-top: 24px
+}
+
+.member-account-card h2 {
+  font-size: 19px;
+  color: #17364e;
+  margin: 6px 0 0
+}
+
+.member-account-card label {
+  display: grid;
+  gap: 7px;
+  color: #17364e;
+  font-weight: 600
+}
+
+.member-account-card input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #91b2cd;
+  border-radius: 10px;
+  background: #fff;
+  color: #17364e;
+  padding: 12px 13px;
+  font-size: 16px
+}
+
+.member-account-card input:focus {
+  outline: 2px solid #1784a4;
+  outline-offset: 1px
+}
+
+.member-account-card button.primary {
+  width: 100%;
+  min-height: 45px;
+  border: 0;
+  border-radius: 10px;
+  background: #096a86;
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer
+}
+
+.member-account-card button:disabled {
+  opacity: .55;
+  cursor: not-allowed
+}
+
+.member-account-links {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(125, 170, 202, .35)
+}
+
+.member-account-links a {
+  color: #0b678b;
+  font-weight: 650;
+  text-decoration: underline
+}
+
+.member-account-hint {
+  display: block;
+  margin-top: 24px;
+  line-height: 1.6
+}
+
+.member-account-error {
+  padding: 12px;
+  background: #fff0ed;
+  color: #942a1a;
+  border-radius: 9px
+}
+
+.member-account-success {
+  padding: 12px;
+  background: #edf9f8;
+  color: #115c55;
+  border-radius: 9px
+}
+
+.member-profile-summary {
+  margin: 22px 0;
+  background: rgba(209, 230, 244, .66);
+  padding: 12px 18px;
+  border-radius: 12px
+}
+
+.member-profile-summary p {
+  margin: 8px 0
+}
+
+@media(max-width:480px) {
+  .member-account-wrap {
+    position: relative;
+    isolation: isolate;
+    z-index: 0;
+    width: calc(100% - 24px);
+    margin: 25px auto 40px
+  }
+
+  .member-account-card {
+    padding: 20px
+  }
+}
+
+.member-profile-layout {
+  width: min(100% - 32px, 820px);
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  align-items: start;
+  gap: 20px;
+  margin: 36px auto 56px
+}
+
+.member-profile-layout .member-account-card {
+  padding: 26px;
+  border-radius: 18px
+}
+
+.member-profile-nav {
+  display: grid;
+  gap: 8px;
+  padding: 18px 12px;
+  background: rgba(247, 252, 255, .94);
+  border: 1px solid var(--hero-page-border);
+  border-radius: 15px;
+  position: sticky;
+  top: 94px
+}
+
+.member-profile-nav strong {
+  padding: 5px 10px 12px;
+  font-size: 14px
+}
+
+.member-profile-nav a {
+  text-align: left;
+  padding: 12px;
+  border-radius: 9px;
+  color: #45637b;
+  background: transparent
+}
+
+.member-profile-nav a.active {
+  background: #d8edf6;
+  color: #095c77;
+  font-weight: 700
+}
+
+.member-profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 22px 0;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #d1e2ec
+}
+
+.member-profile-identity strong {
+  font-size: 18px
+}
+
+.member-profile-identity p {
+  margin: 5px 0;
+  font-size: 14px;
+  overflow-wrap: anywhere
+}
+
+.member-profile-identity small {
+  color: #45637b
+}
+
+.member-avatar {
+  width: 76px;
+  height: 76px;
+  flex: none;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #d8edf6;
+  display: grid;
+  place-items: center;
+  color: #0b678b;
+  font-size: 23px;
+  font-weight: 700;
+  border: 2px solid #fff
+}
+
+.member-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover
+}
+
+.profile-birthday {
+  display: grid;
+  gap: 7px;
+  font-weight: 600
+}
+
+.profile-birthday small {
+  font-size: 12px;
+  font-weight: 400;
+  color: #45637b
+}
+
+.profile-static-date {
+  margin: 0;
+  padding: 10px 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 16px
+}
+
+@media(max-width:650px) {
+  .member-profile-layout {
+    grid-template-columns: 1fr;
+    gap: 12px
+  }
+
+  .member-profile-nav {
+    position: static;
+    grid-template-columns: 1fr 1fr;
+    padding: 10px
+  }
+
+  .member-profile-nav strong {
+    display: none
+  }
+
+  .member-profile-nav a {
+    text-align: center
+  }
+
+  .member-profile-layout .member-account-card {
+    padding: 22px
+  }
+}
 </style>

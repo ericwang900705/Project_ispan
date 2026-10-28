@@ -1,11 +1,11 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { discountLabel } from '@/cart/stores/coupons'
 import { useOrdersStore } from '@/cart/stores/orders'
 
 const store = useOrdersStore()
-const router = useRouter()
+const route = useRoute()
 const refundTarget = ref(null)
 const refundReason = ref('')
 const refundError = ref('')
@@ -78,7 +78,15 @@ function toggle(orderId) {
 function refreshOrdersWhenVisible() {
   if (document.visibilityState === 'visible' && !store.loading) store.fetchOrders().catch(e => { paymentError.value = e.message })
 }
-onMounted(() => { store.fetchOrders(); document.addEventListener('visibilitychange', refreshOrdersWhenVisible) })
+function expandRefundOrder() {
+  const value = String(route.query.refundOrder || '')
+  if (/^[1-9]\d*$/.test(value)) { tab.value = 'all'; openId.value = Number(value) }
+}
+watch(() => route.query.refundOrder, expandRefundOrder)
+onMounted(() => {
+  store.fetchOrders().then(expandRefundOrder).catch(e => { paymentError.value = e.message })
+  document.addEventListener('visibilitychange', refreshOrdersWhenVisible)
+})
 onUnmounted(() => document.removeEventListener('visibilitychange', refreshOrdersWhenVisible))
 
 // 綠界的付款方式代碼換成中文，例如 Credit_CreditCard → 信用卡、ATM_TAISHIN → ATM 轉帳
@@ -172,9 +180,12 @@ async function cancel(order) {
             <button class="cancel" :disabled="store.loading" @click="cancel(order)">取消訂單</button>
           </div>
 
-          <div v-if="order.refundStatus" class="refund-entry">
+          <div v-if="order.refundStatus" class="refund-entry refund-result">
             <span>{{ order.refundStatus === 'PENDING' ? '退款申請處理中' : order.refundStatus === 'REJECTED' ? '退款申請未通過' : '退款已完成' }}</span>
-            <RouterLink v-if="order.refundTicketId" :to="`/member/support/${order.refundTicketId}`">查看處理結果 →</RouterLink>
+            <p v-if="order.refundReason">申請原因：{{ order.refundReason }}</p>
+            <p v-if="order.refundDecisionReason">處理說明：{{ order.refundDecisionReason }}</p>
+            <p v-if="order.refundProcessedAt">處理時間：{{ formatTime(order.refundProcessedAt) }}{{ order.refundMode === 'TEST' ? '（測試退款）' : '' }}</p>
+            <RouterLink v-if="order.refundTicketId" :to="`/member/support/${order.refundTicketId}`">查看補件案件 →</RouterLink>
           </div>
           <div v-if="canRefund(order)" class="refund-entry">
             <button class="cancel" :disabled="store.loading" @click="openRefund(order)">申請退款</button>
@@ -224,13 +235,13 @@ async function cancel(order) {
     <div v-if="refundTarget" class="refund-overlay">
       <form class="refund-dialog" role="dialog" aria-modal="true" aria-labelledby="refund-title" @submit.prevent="submitRefund">
         <h2 id="refund-title">訂單 #{{ refundTarget.orderId }} 退款申請</h2>
-        <p>系統會建立客服案件並自動關聯此訂單。款項、遊戲與優惠券狀態會在客服核對後處理。</p>
+        <p>申請會直接送至退款管理人員。可在「我的訂單」查看進度與結果；送出申請不代表退款完成。</p>
         <label for="refund-reason">退款原因</label>
         <textarea id="refund-reason" v-model="refundReason" required maxlength="2000" rows="5" />
         <p v-if="refundError" role="alert">{{ refundError }}</p>
         <div class="refund-actions">
           <button type="button" class="cancel" :disabled="store.loading" @click="refundTarget = null">取消</button>
-          <button class="btn-gold" :disabled="store.loading || !refundReason.trim()">{{ store.loading ? '送出中…' : '送出客服申請' }}</button>
+          <button class="btn-gold" :disabled="store.loading || !refundReason.trim()">{{ store.loading ? '送出中…' : '送出退款申請' }}</button>
         </div>
       </form>
     </div>
@@ -239,6 +250,8 @@ async function cancel(order) {
 
 <!-- 我的訂單樣式：和購物車同色系（暗棕底 + 金色） -->
 <style scoped>
+.refund-entry.refund-result { display: grid; gap: 8px; overflow-wrap: anywhere; }
+.refund-result p { margin: 0; white-space: pre-wrap; line-height: 1.7; }
 .refund-entry,.refund-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:14px 0}
 .refund-overlay{position:fixed;inset:0;z-index:1000;background:#05091ac9;display:grid;place-items:center;padding:20px}
 .refund-dialog{box-sizing:border-box;width:min(540px,100%);max-height:90vh;overflow:auto;padding:24px;border:1px solid #5265a6;border-radius:14px;background:#121a4a;color:#e4e8f8;box-shadow:0 20px 70px #0008}
@@ -612,6 +625,8 @@ async function cancel(order) {
 </style>
 
 <style scoped>
+.refund-entry.refund-result { display: grid; gap: 8px; overflow-wrap: anywhere; }
+.refund-result p { margin: 0; white-space: pre-wrap; line-height: 1.7; }
 .pending-pay-entry { display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 12px 20px; border-top: 1px solid #2e4a9a; color: #b7c5e5; font-size: 13px; }
 .pending-pay-entry .btn-gold { border: 0; cursor: pointer; padding: 9px 16px; border-radius: 7px; }
 .payment-feedback { padding: 12px 16px; background: #18394b; border: 1px solid #427b8e; border-radius: 9px; color: #b7efe3; }.payment-feedback.error { color: #ffc1c1; background: #422839; border-color: #86556a; }

@@ -1,5 +1,4 @@
 <script setup>
-import SupportFaqPanel from '../components/SupportFaqPanel.vue'
 import { canSupport, canUseTickets, homeFor, roleName } from '../permissions'
 
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
@@ -39,6 +38,7 @@ let request = 0
 // --- 載入案件清單 ---
 async function load() {
   const token = ++request
+  loading.value = true
   try {
     const params = new URLSearchParams({
       status: status.value,
@@ -67,11 +67,11 @@ async function load() {
       error.value = ''
     }
   } catch (e) {
-    if (alive) {
+    if (alive && token === request) {
       error.value = e.message
     }
   } finally {
-    loading.value = false
+    if (alive && token === request) loading.value = false
   }
 }
 
@@ -111,7 +111,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="page tickets-page support-case-page">
+  <div class="page tickets-page support-case-page" :class="{ 'member-case-workspace': ['MEMBER', 'PUBLISHER'].includes(session.user?.role) }">
     <!-- 後台採精簡標題列，不套用共用標題卡片的背景及大面積留白。 -->
     <header v-if="canSupport(session.user?.role)" class="case-admin-heading">
       <div>
@@ -123,7 +123,7 @@ onUnmounted(() => {
       <div class="case-hero-main">
         <span class="eyebrow">CASE TRACKING</span>
         <h1>
-          {{ canSupport(session.user?.role) ? '客服案件管理' : '會員客服中心' }}
+          {{ canSupport(session.user?.role) ? '客服案件管理' : '我的案件' }}
         </h1>
         <p class="hero-text">
           {{
@@ -136,7 +136,7 @@ onUnmounted(() => {
 
     </section>
 
-    <SupportFaqPanel v-if="['MEMBER', 'PUBLISHER'].includes(session.user?.role)" />
+    <p v-if="['MEMBER', 'PUBLISHER'].includes(session.user?.role)" class="member-case-faq-link">找下載、更新或付款的操作說明？<RouterLink to="/faq">查看常見問題 →</RouterLink></p>
 
     <section class="case-toolbar">
 
@@ -144,7 +144,7 @@ onUnmounted(() => {
       <div class="toolbar-search">
         <span class="toolbar-label">搜尋案件</span>
 
-        <SearchBar ref="searchBar" label="搜尋案件" :placeholder="canSupport(session.user?.role)
+        <SearchBar ref="searchBar" :busy="loading" label="搜尋案件" :placeholder="canSupport(session.user?.role)
           ? '案件編號、標題、摘要或會員名稱'
           : '案件編號、標題或摘要'" @search="searchNow" />
       </div>
@@ -295,6 +295,18 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.member-case-workspace .case-toolbar { padding: 20px; gap: 20px; border: 1px solid #3b507a; border-radius: 16px; background: #142141; box-shadow: 0 8px 25px #03071822; }
+.member-case-workspace :is(.toolbar-label,.case-status-filter > span) { color: #d3dff4; font-size: 13px; font-weight: 650; }
+.member-case-workspace :deep(.support-search-row) { display: flex; gap: 10px; align-items: stretch; }
+.member-case-workspace :deep(.support-search input), .member-case-workspace .case-status-filter select { min-width: 0; min-height: 48px; padding: 12px 14px; border: 1px solid #566c95; border-radius: 11px; background: #0c1830; color: #f1f5ff; font-size: 14px; }
+.member-case-workspace :deep(.support-search input) { flex: 1; width: 100%; }.member-case-workspace :deep(.support-search input::placeholder) { color: #a8bbdb; }
+.member-case-workspace :deep(.support-search input:focus-visible), .member-case-workspace .case-status-filter select:focus-visible { outline: 2px solid #e9c376; outline-offset: 2px; }
+.member-case-workspace :deep(.support-search .search-button) { min-height: 48px; padding: 11px 22px; border: 1px solid #e7bd68; border-radius: 11px; background: #e7bd68; color: #18203a; font-weight: 750; }
+.member-case-workspace :deep(.support-search .search-button:hover:not(:disabled)) { background: #f4d28a; }.member-case-workspace :deep(.support-search .clear-button) { min-height: 44px; padding: 10px 14px; border: 1px solid #52698e; border-radius: 10px; background: #263755; color: #e6efff; }
+@media(max-width:640px) { .member-case-workspace :deep(.support-search-row) { flex-wrap: wrap; }.member-case-workspace :deep(.support-search input) { flex-basis: 100%; }.member-case-workspace .case-toolbar { padding: 16px; } }
+
+.member-case-faq-link { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 18px; margin: 20px 0; border: 1px solid #344775; border-radius: 12px; color: #c7d3eb; background: #152044; font-size: 14px; }
+.member-case-faq-link a { color: #f1cc7f; text-decoration: none; font-weight: 650; }
 .support-case-page .case-admin-heading {
   display: flex;
   align-items: center;

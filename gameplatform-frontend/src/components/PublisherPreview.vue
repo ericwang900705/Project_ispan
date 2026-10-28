@@ -43,7 +43,7 @@ watch(active, () => { failed.value = false })
       <div>
         <h2>{{ game.game_name }}</h2>
         <div class="publisher-preview-tags"><span v-for="tag in game.tags" :key="tag.tag_id">{{ tag.tag_name
-            }}</span><span v-if="!game.tags.length">尚未設定標籤</span></div>
+        }}</span><span v-if="!game.tags.length">尚未設定標籤</span></div>
       </div>
       <div class="publisher-preview-price">NT$ {{ Number(game.price).toLocaleString('zh-TW') }}<small>{{
         game.release_date ? '預定發行：' + String(game.release_date).slice(0, 10) : '發行日期尚未設定' }}</small></div>

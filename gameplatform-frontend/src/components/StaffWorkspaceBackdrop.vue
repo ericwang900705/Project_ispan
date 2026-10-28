@@ -22,6 +22,7 @@
     radial-gradient(ellipse at 12% 88%, #90b3e75c, transparent 45%),
     linear-gradient(150deg, #e0effa, #bdd8ec 55%, #90b5d2);
 }
+
 .workspace-grid {
   position: absolute;
   inset: 0;
@@ -29,11 +30,43 @@
   background-size: 52px 52px;
   mask-image: linear-gradient(135deg, transparent 10%, #000 70%);
 }
-.workspace-orbit { position: absolute; width: 680px; height: 680px; right: -340px; top: 70px; border: 1px solid #fff9; border-radius: 50%; }
-.orbit-inner { width: 530px; height: 530px; right: -265px; top: 145px; border-color: #fff6; }
-.workspace-horizon { position: absolute; width: 75vw; height: 30vw; left: 20vw; bottom: -25vw; border-radius: 50%; border: 1px solid #ffffff70; box-shadow: 0 0 0 45px #ffffff0b, 0 0 0 90px #ffffff09; }
+
+.workspace-orbit {
+  position: absolute;
+  width: 680px;
+  height: 680px;
+  right: -340px;
+  top: 70px;
+  border: 1px solid #fff9;
+  border-radius: 50%;
+}
+
+.orbit-inner {
+  width: 530px;
+  height: 530px;
+  right: -265px;
+  top: 145px;
+  border-color: #fff6;
+}
+
+.workspace-horizon {
+  position: absolute;
+  width: 75vw;
+  height: 30vw;
+  left: 20vw;
+  bottom: -25vw;
+  border-radius: 50%;
+  border: 1px solid #ffffff70;
+  box-shadow: 0 0 0 45px #ffffff0b, 0 0 0 90px #ffffff09;
+}
+
 @media (max-width: 700px) {
-  .workspace-grid { background-size: 40px 40px; }
-  .workspace-orbit { opacity: .5; }
+  .workspace-grid {
+    background-size: 40px 40px;
+  }
+
+  .workspace-orbit {
+    opacity: .5;
+  }
 }
 </style>

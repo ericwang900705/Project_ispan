@@ -10,12 +10,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class NotificationService {
-    // 共用通知表目前僅由客服使用；查詢與已讀操作限定客服事件。
+    // 客服、遊戲及退款通知依目前身分與授權查詢。
     private static final String SUPPORT_EVENTS = " AND event_type IN "
             + "('NEW_CHAT','TICKET_CREATED','CHAT_REPLY','TICKET_REPLY','CHAT_MESSAGE','TICKET_MESSAGE','ROOM_CLOSED','TICKET_CLOSED')";
 
+    private static final String MEMBER_EVENTS = " AND event_type IN "
+            + "('REFUND_REQUESTED','REFUND_UPDATE','NEW_CHAT','TICKET_CREATED','CHAT_REPLY','TICKET_REPLY','CHAT_MESSAGE','TICKET_MESSAGE','ROOM_CLOSED','TICKET_CLOSED')";
+
     private static final String PUBLISHER_EVENTS = " AND event_type IN "
-            + "('NEW_CHAT','TICKET_CREATED','CHAT_REPLY',"
+            + "('REFUND_REQUESTED','REFUND_UPDATE','NEW_CHAT','TICKET_CREATED','CHAT_REPLY',"
             + "'TICKET_REPLY','CHAT_MESSAGE','TICKET_MESSAGE','ROOM_CLOSED','TICKET_CLOSED',"
             + "'GAME_APPROVED','GAME_REJECTED','GAME_FORCE_OFF_SHELF')";
 
@@ -32,17 +35,12 @@ public class NotificationService {
         if (actor.role().equals("PUBLISHER"))
             return PUBLISHER_EVENTS;
         if (actor.isMember())
-            return SUPPORT_EVENTS;
+            return MEMBER_EVENTS;
         var granted = permissions.forActor(actor);
         boolean support = granted.contains("TICKET_HANDLE");
         boolean review = granted.contains("GAME_REVIEW");
-        if (support && review)
-            return ADMIN_EVENTS;
-        if (support)
-            return SUPPORT_EVENTS;
-        if (review)
-            return REVIEWER_EVENTS;
-        return " AND 1=0";
+        String filter = support && review ? ADMIN_EVENTS : support ? SUPPORT_EVENTS : review ? REVIEWER_EVENTS : " AND 1=0";
+        return granted.contains("REFUND_MANAGE") ? " AND (event_type='REFUND_REQUESTED' OR (1=1" + filter + "))" : filter;
     }
 
     private final JdbcTemplate db;
@@ -107,6 +105,16 @@ public class NotificationService {
                         + "WHERE u.admin_id=a.admin_id AND p.permission_code='TICKET_HANDLE')))",
                 Integer.class))
             staff(id, type, title, body, path);
+    }
+
+    /** 退款待辦只送給有處理權限的人員。 */
+    public void refundQueue(String title, String body) {
+        for (Integer id : db.queryForList(
+                "SELECT a.admin_id FROM dbo.admin a JOIN dbo.admin_roles r ON r.admin_role_id=a.admin_role_id "
+                + "WHERE a.status='ACTIVE' AND (r.role_code='ADMIN' OR (r.role_code='STAFF' AND EXISTS "
+                + "(SELECT 1 FROM dbo.admin_user_permissions u JOIN dbo.admin_permissions p ON p.permission_id=u.permission_id "
+                + "WHERE u.admin_id=a.admin_id AND p.permission_code='REFUND_MANAGE')))", Integer.class))
+            staff(id, "REFUND_REQUESTED", title, body, "/admin/refund-requests");
     }
 
     // Notify ADMIN, fixed REVIEWER, and STAFF granted GAME_REVIEW.

@@ -32,9 +32,13 @@ class SupportExtensionInitializerTests {
     void initializesStructureBeforeCategoriesOnOneConnection() throws Exception {
         initializer.run(null);
         var sql = ArgumentCaptor.forClass(String.class);
-        verify(statement, times(2)).execute(sql.capture());
+        verify(statement, times(3)).execute(sql.capture());
         assertTrue(sql.getAllValues().getFirst().contains("CREATE TABLE dbo.support_order_links"));
-        String categories = sql.getAllValues().getLast();
+        String categories = sql.getAllValues().get(1);
+        String faqs = sql.getAllValues().get(2);
+        assertTrue(faqs.contains("HERO_FAQ_CATALOG_20261028"));
+        assertTrue(faqs.contains("sp_addextendedproperty"));
+        assertTrue(faqs.contains("怎麼更新已下載的 ZIP 遊戲檔案"));
         assertTrue(categories.indexOf("BEGIN TRANSACTION;") < categories.indexOf("sys.sp_getapplock"));
         assertTrue(categories.contains("sp_getapplock="));
         assertTrue(categories.contains("ROLLBACK TRANSACTION;"));

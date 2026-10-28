@@ -23,6 +23,47 @@ const { games, genres, discountedGames, stats } = storeToRefs(gamesStore)
 // ===== 搜尋框 =====
 // 搜尋框輸入的文字
 const keyword = ref('')
+const searchFocused = ref(false)
+const selectedSuggestion = ref(-1)
+const searchTerm = computed(() => keyword.value.trim().toLocaleLowerCase())
+// 只顯示已公開且仍可在前台瀏覽的遊戲，最多顯示 6 筆。
+const searchSuggestions = computed(() => {
+  if (!searchTerm.value) return []
+  return games.value.filter((game) =>
+    ['PUBLISHED', 'PENDING_OFF_SHELF', 'ON_SALE'].includes(game.status) &&
+    String(game.gameName ?? '').toLocaleLowerCase().includes(searchTerm.value)
+  ).slice(0, 6)
+})
+const showSuggestions = computed(() => searchFocused.value && Boolean(searchTerm.value))
+function selectSuggestion(game) {
+  searchFocused.value = false
+  selectedSuggestion.value = -1
+  router.push(`/games/${game.gameId}`)
+}
+function onSearchKeydown(event) {
+  if (event.key === 'Escape') {
+    searchFocused.value = false
+    selectedSuggestion.value = -1
+    event.target.blur()
+  } else if (showSuggestions.value && event.key === 'ArrowDown') {
+    event.preventDefault()
+    selectedSuggestion.value = Math.min(selectedSuggestion.value + 1, searchSuggestions.value.length - 1)
+  } else if (showSuggestions.value && event.key === 'ArrowUp') {
+    event.preventDefault()
+    selectedSuggestion.value = Math.max(selectedSuggestion.value - 1, -1)
+  }
+}
+function submitSearch() {
+  const selected = searchSuggestions.value[selectedSuggestion.value]
+  if (showSuggestions.value && selected) return selectSuggestion(selected)
+  searchFocused.value = false
+  selectedSuggestion.value = -1
+  search()
+}
+function formatSearchPrice(game) {
+  const price = Number(game.price)
+  return Number.isFinite(price) ? `NT$ ${price.toLocaleString('zh-TW')}` : '查看價格'
+}
 // 按 Enter 或放大鏡：跳到所有遊戲頁，並把關鍵字放在網址 ?q=
 function search() {
   router.push({ path: '/games/all', query: keyword.value ? { q: keyword.value } : {} })
@@ -154,10 +195,36 @@ onUnmounted(stopAuto)
     <!-- ===== 搜尋框 ===== -->
     <div class="store-nav">
       <!-- 搜尋框：按 Enter 或放大鏡就搜尋 -->
-      <form class="search" @submit.prevent="search">
-        <input v-model="keyword" placeholder="搜尋" />
-        <button type="submit" aria-label="搜尋">🔍</button>
-      </form>
+      <div class="search-container">
+        <form class="search" role="search" @submit.prevent="submitSearch">
+          <input v-model="keyword" placeholder="搜尋你想玩的遊戲…" autocomplete="off"
+            aria-label="搜尋遊戲" :aria-expanded="showSuggestions" aria-controls="store-search-suggestions"
+            @focus="searchFocused = true; selectedSuggestion = -1"
+            @blur="searchFocused = false" @input="selectedSuggestion = -1"
+            @keydown="onSearchKeydown" />
+          <button type="submit" aria-label="搜尋遊戲" class="search-submit">
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.8" cy="10.8" r="6.6"/><path d="m16 16 4.4 4.4"/></svg>
+          </button>
+        </form>
+        <div v-if="showSuggestions" id="store-search-suggestions" class="search-suggestions">
+          <div class="search-suggestions-heading"><span>搜尋結果</span><span class="search-match-count">{{ searchSuggestions.length }} 款遊戲</span></div>
+          <button v-for="(game, index) in searchSuggestions" :key="game.gameId" type="button"
+            class="search-result" :class="{ selected: index === selectedSuggestion }"
+            @mousedown.prevent="selectSuggestion(game)">
+            <img v-if="game.coverUrl" :src="game.coverUrl" :alt="game.gameName" class="search-cover" />
+            <span v-else class="search-cover search-cover-empty">🎮</span>
+            <span class="search-result-info">
+              <strong>{{ game.gameName }}</strong>
+              <small>{{ game.genre || '未分類' }}</small>
+            </span>
+            <span class="search-result-price">{{ formatSearchPrice(game) }}</span>
+          </button>
+          <div v-if="!searchSuggestions.length" class="search-no-results">找不到符合的遊戲</div>
+          <button v-else type="button" class="search-all" @mousedown.prevent="searchFocused = false; search()">
+            查看全部搜尋結果
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="layout">
@@ -793,6 +860,95 @@ section {
     width: 120px;
     height: 45px;
   }
+}
+
+/* 商店搜尋視覺整理：限定首頁搜尋欄位，避免影響其他元件 */
+.store-nav { position: relative; z-index: 35; }
+.search-container { position: relative; margin-left: auto; width: min(420px, 100%); }
+.search-container .search {
+  margin: 0; width: 100%; height: 50px; display: flex; align-items: center;
+  padding: 4px; box-sizing: border-box; overflow: hidden;
+  border: 1px solid rgba(219, 177, 89, .55); border-radius: 16px;
+  background: linear-gradient(135deg, rgba(16, 26, 63, .98), rgba(30, 45, 91, .98));
+  box-shadow: 0 5px 18px rgba(1, 5, 27, .27), inset 0 1px 0 rgba(255,255,255,.05);
+  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+.search-container .search:hover { border-color: rgba(239, 192, 106, .85); }
+.search-container .search:focus-within {
+  border-color: #f4c86e;
+  box-shadow: 0 0 0 3px rgba(231,185,92,.15), 0 10px 26px rgba(0,0,0,.32);
+}
+.search-container .search input {
+  width: 100%; min-width: 0; flex: 1; height: 100%; border: 0; border-radius: 0;
+  background: transparent; box-shadow: none; outline: none;
+  padding: 0 13px 0 16px; font-size: 15px; letter-spacing: .2px;
+  color: #f5f7ff; line-height: 1.4;
+}
+.search-container .search input:focus { outline: none; border: 0; }
+.search-container .search input::placeholder { color: #a5b3d2; opacity: 1; }
+.search-container .search .search-submit {
+  flex: 0 0 44px; width: 44px; height: 40px; min-height: 40px; border: 0;
+  border-radius: 12px; display: grid; place-items: center; color: #20243b;
+  background: linear-gradient(140deg, #f6d68d 0%, #d6a94e 100%);
+  box-shadow: 0 2px 8px rgba(0,0,0,.2); cursor: pointer;
+  transition: filter .2s ease, transform .2s ease;
+}
+.search-container .search .search-submit:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.search-container .search .search-submit:active { transform: translateY(0); }
+.search-container .search .search-submit:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
+.search-suggestions {
+  position: absolute; z-index: 65; top: calc(100% + 12px); right: 0;
+  width: min(500px, 92vw); box-sizing: border-box; overflow: hidden;
+  border: 1px solid rgba(139,163,210,.5); border-radius: 17px;
+  background: linear-gradient(160deg, #182653 0%, #101939 100%);
+  box-shadow: 0 22px 55px rgba(0, 4, 29, .55), 0 3px 12px rgba(0, 4, 29, .2);
+  padding: 9px;
+}
+.search-suggestions-heading {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 9px 12px 11px; color: #f5f7ff; font-weight: 700; font-size: 13px;
+  letter-spacing: .5px;
+}
+.search-match-count { color: #aebddc; font-size: 12px; font-weight: 500; letter-spacing: 0; }
+.search-suggestions .search-result {
+  width: 100%; height: auto; min-height: 76px; display: flex; align-items: center;
+  padding: 10px 12px; gap: 13px; text-align: left;
+  border: 1px solid transparent; border-radius: 11px;
+  background: transparent; color: #f1f4ff; cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.search-suggestions .search-result:hover,
+.search-suggestions .search-result.selected,
+.search-suggestions .search-result:focus-visible {
+  background: rgba(56, 83, 144, .55); border-color: rgba(130, 165, 228, .24); outline: none;
+}
+.search-cover {
+  flex-shrink: 0; width: 76px; height: 54px; object-fit: cover;
+  background: #2a3762; border: 1px solid rgba(255,255,255,.1); border-radius: 9px;
+}
+.search-cover-empty { display: grid; place-items: center; font-size: 24px; }
+.search-result-info { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 5px; }
+.search-result-info strong { color: #f7f8ff; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.search-result-info small { color: #b6c6e7; font-size: 12px; }
+.search-result-price { color: #ffdc94; white-space: nowrap; font-size: 13px; font-weight: 750; }
+.search-no-results { padding: 22px 12px; color: #c1cbe3; text-align: center; font-size: 14px; }
+.search-suggestions .search-all {
+  display: block; width: 100%; height: auto; min-height: 42px; padding: 11px 14px;
+  margin-top: 5px; border: 0; border-top: 1px solid rgba(157, 174, 216, .22);
+  border-radius: 8px; background: transparent; color: #f4c96d; font-weight: 650;
+  font-size: 13px; cursor: pointer; text-align: center;
+}
+.search-suggestions .search-all:hover,
+.search-suggestions .search-all:focus-visible { background: rgba(58,78,126,.5); outline: none; }
+@media (max-width: 600px) {
+  .search-container { width: min(100%, 360px); }
+  .search-container .search { height: 46px; }
+  .search-container .search input { font-size: 14px; padding-left: 12px; }
+  .search-container .search .search-submit { height: 36px; min-height: 36px; flex-basis: 40px; width: 40px; }
+  .search-suggestions { width: min(440px, calc(100vw - 28px)); }
+  .search-suggestions .search-result { gap: 10px; padding: 9px; }
+  .search-cover { width: 58px; height: 44px; }
+  .search-result-price { font-size: 12px; }
 }
 </style>
 

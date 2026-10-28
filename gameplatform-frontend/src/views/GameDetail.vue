@@ -234,7 +234,7 @@ function day(dateTime) {
               <b>{{ r.username }}</b><span v-if="r.mine" class="me">（你）</span>
               <span class="stars">{{ '★'.repeat(r.rating) }}<i>{{ '★'.repeat(5 - r.rating) }}</i></span>
               <span class="date">{{ day(r.createdAt) }}<template v-if="r.updatedAt"> · 修改於 {{ day(r.updatedAt)
-                  }}</template></span>
+              }}</template></span>
             </div>
             <p v-if="r.content" class="content">{{ r.content }}</p>
             <button v-if="session.user && !r.mine && r.content?.trim()" type="button" class="review-report-link"

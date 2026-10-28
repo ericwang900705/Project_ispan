@@ -32,8 +32,8 @@ public class PaymentController {
     }
 
     @PostMapping("/{memberId}/orders/{orderId}/pay")
-    public Object resume(Actor actor,@PathVariable int memberId,@PathVariable int orderId) {
-        return payment.resume(actor,memberId,orderId);
+    public Object resume(Actor actor, @PathVariable int memberId, @PathVariable int orderId) {
+        return payment.resume(actor, memberId, orderId);
     }
 
     @GetMapping("/{memberId}/orders/{tradeNo}")

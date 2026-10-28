@@ -1,5 +1,5 @@
--- 02｜建立 CART 六款小遊戲與示範發行商；先完成 01。
--- 遊戲由既有前端 minigames 程式執行，並非上傳外部 ZIP。
+-- 02｜建立 CART 六款小遊戲 + 12 款 AI HTML/ZIP 遊戲與示範發行商；先完成 01。
+-- CART 六款由 Vue minigames 執行；12 款 AI 遊戲版本使用私人 HTML/ZIP 素材。
 -- 最後執行 03 才會補齊示範發行商登入密碼與驗證資料。
 USE [GamePlatformDB];
 GO
@@ -40,6 +40,45 @@ BEGIN TRY
  INSERT dbo.game_builds(game_id,version,file_url,file_size,status)
  SELECT g.game_id,'demo-1.0.0',@FrontendBase+'/minigames/lifecycle-demo.zip',28223,'ACTIVE' FROM dbo.games g
  WHERE g.game_name=N'火柴人格鬥：霓虹對決' AND g.member_id=@PublisherId AND NOT EXISTS(SELECT 1 FROM dbo.game_builds b WHERE b.game_id=g.game_id AND b.version='demo-1.0.0');
+
+ -- ===== GitHub game/admin 的 12 款 AI 遊戲：6 上架、3 即將發售、3 草稿 =====
+ -- COMING_SOON 為示範預設狀態，不表示真的經過審核；正式上架流程請使用草稿進行。
+ -- HTML / ZIP 私人檔案須另外用素材下載腳本匯入 ai-game-assets；SQL 不包含二進位素材。
+ -- AI 遊戲的封面使用 gameplatform-frontend/public/ai-covers/{slug}.png。
+ CREATE TABLE #AiSeed(name NVARCHAR(150) PRIMARY KEY, tag NVARCHAR(50), slug VARCHAR(60), price DECIMAL(10,2), game_status VARCHAR(20));
+ INSERT #AiSeed VALUES
+ (N'暗夜倖存者',N'Roguelike','dark-survivor',149,'PUBLISHED'),
+ (N'無盡深淵',N'Roguelike','abyss',129,'PUBLISHED'),
+ (N'失落王國',N'冒險','lost-kingdom',129,'PUBLISHED'),
+ (N'戰場前線',N'射擊','tactical-frontline',149,'PUBLISHED'),
+ (N'三國戰棋',N'策略','three-kingdoms',149,'PUBLISHED'),
+ (N'牛排大師',N'經營養成','steak-master',99,'PUBLISHED'),
+ (N'星露森林',N'冒險','starlight-forest',129,'COMING_SOON'),
+ (N'火柴人射擊',N'射擊','stickman-shooter',99,'COMING_SOON'),
+ (N'火柴人羽毛球',N'運動','badminton',99,'COMING_SOON'),
+ (N'荒野生存',N'冒險','wilderness',99,'DRAFT'),
+ (N'火柴人紅藍競技場',N'格鬥','stickman-arena',99,'DRAFT'),
+ (N'火柴人賽車',N'運動','racing',99,'DRAFT');
+ INSERT dbo.tags(tag_name)
+ SELECT DISTINCT s.tag FROM #AiSeed s WHERE NOT EXISTS (SELECT 1 FROM dbo.tags t WHERE t.tag_name=s.tag);
+ INSERT dbo.games(member_id,game_name,price,status,description,cover_url,release_date,created_at)
+ SELECT @PublisherId,s.name,s.price,s.game_status,
+ N'[AI HTML] 購買後可於會員遊戲庫線上遊玩，並可下載 ZIP。',
+ CONCAT('/ai-covers/',s.slug,'.png'),
+ CASE WHEN s.game_status='PUBLISHED' THEN DATEADD(DAY,-10,@now) ELSE DATEADD(DAY,2,@now) END,
+ DATEADD(DAY,-15,@now)
+ FROM #AiSeed s WHERE NOT EXISTS (SELECT 1 FROM dbo.games g WHERE g.game_name=s.name);
+ INSERT dbo.game_tags(game_id,tag_id)
+ SELECT g.game_id,t.tag_id FROM #AiSeed s
+ JOIN dbo.games g ON g.game_name=s.name AND g.member_id=@PublisherId
+ JOIN dbo.tags t ON t.tag_name=s.tag
+ WHERE NOT EXISTS(SELECT 1 FROM dbo.game_tags x WHERE x.game_id=g.game_id AND x.tag_id=t.tag_id);
+ INSERT dbo.game_builds(game_id,version,file_url,file_size,status)
+ SELECT g.game_id,'ai-1.0.0',CONCAT('ai-private://',s.slug,'.zip'),NULL,'ACTIVE'
+ FROM #AiSeed s JOIN dbo.games g ON g.game_name=s.name AND g.member_id=@PublisherId
+ WHERE NOT EXISTS(SELECT 1 FROM dbo.game_builds v WHERE v.game_id=g.game_id AND v.version='ai-1.0.0');
+ DROP TABLE #AiSeed;
+
  COMMIT TRANSACTION;
  SELECT g.game_id,g.game_name,g.price,g.status,g.cover_url FROM dbo.games g JOIN #MiniNames n ON n.name=g.game_name ORDER BY g.game_id;
  DROP TABLE #MiniNames;

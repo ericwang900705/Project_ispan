@@ -40,7 +40,7 @@ export const useOrdersStore = defineStore('orders', () => {
     await Promise.all([fetchOrders(), useCartStore().fetchCart()])
   }
 
-  // 送出客服申請，款項、遊戲及優惠券狀態仍由後續人工處理。
+  // 直接送出退款申請，不自動建立客服案件，款項、遊戲及優惠券狀態仍由後續人工處理。
   async function requestRefund(orderId, reason) {
     loading.value = true
     try {

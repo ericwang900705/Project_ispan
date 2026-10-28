@@ -51,12 +51,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section
-    id="account-help"
-    class="support-account-help"
-    tabindex="-1"
-    aria-labelledby="account-help-title"
-  >
+  <section id="account-help" class="support-account-help" tabindex="-1" aria-labelledby="account-help-title">
     <header>
       <span class="sx-eyebrow">ACCOUNT HELP</span>
       <h2 id="account-help-title">登入遇到問題？</h2>
@@ -98,8 +93,8 @@ onBeforeUnmount(() => {
         <p>Google 綁定與會員資料可到個人資料設定；其他問題可由線上客服協助。</p>
       </div>
       <div>
-        <RouterLink to="/member/profile">個人資料與 Google 綁定</RouterLink
-        ><RouterLink to="/member/support?chat=1">詢問線上客服 →</RouterLink>
+        <RouterLink to="/member/profile">個人資料與 Google 綁定</RouterLink>
+        <RouterLink to="/member/support?chat=1">詢問線上客服 →</RouterLink>
       </div>
     </div>
     <p v-else class="sx-account-member-note">

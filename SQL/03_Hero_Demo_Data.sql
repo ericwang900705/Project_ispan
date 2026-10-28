@@ -1,4 +1,4 @@
--- 03｜示範帳號、訂單、遊戲庫、評論、檢舉、時數及操作紀錄；先完成 01、02。
+-- 03｜示範帳號、訂單、遊戲庫、評論、檢舉、時數及操作紀錄；先完成 01、02（包含 12 款 AI 遊戲）。
 -- 只供全新資料庫第一次載入。若已有帳號／訂單，會停止，避免覆蓋原資料。
 -- 唯一最高管理員 hero_admin；所有本檔帳號密碼均為 HeroDemo2026!。
 -- 付款、登入與操作紀錄均為示範資料，沒有向綠界建立真實交易或寄出驗證信。
@@ -141,34 +141,32 @@ BEGIN TRY
  INSERT dbo.member_coupon_claims(member_id,coupon_id)
  SELECT m.member_id,c.coupon_id FROM dbo.members m CROSS JOIN dbo.coupons c
  WHERE m.username IN('demo_aurora','demo_lin','demo_miko') AND c.coupon_name=N'[DEMO] 小遊戲八折券';
- -- 一筆待處理退款、一筆已退款，方便展示會員訂單與後台處理流程。
- DECLARE @RefundOrder INT,@RefundMember INT,@RefundState VARCHAR(12),@RefundTicket INT,@RefundNo VARCHAR(30),@RefundCategory INT;
- SELECT @RefundCategory=category_id FROM dbo.customer_service_categories WHERE category_name=N'退款問題';
- IF @RefundCategory IS NULL THROW 51408,N'缺少退款問題分類，請先完成客服結構初始化。',1;
- DECLARE refunds CURSOR LOCAL FAST_FORWARD FOR
- SELECT o.order_id,o.member_id,CASE WHEN o.order_status='REFUNDED' THEN 'REFUNDED' ELSE 'PENDING' END
- FROM dbo.orders o WHERE o.order_no IN('DEMO-demo_lin-5','DEMO-demo_miko-5');
- OPEN refunds; FETCH NEXT FROM refunds INTO @RefundOrder,@RefundMember,@RefundState;
- WHILE @@FETCH_STATUS=0
- BEGIN
-  SET @RefundNo=CONCAT('CS-DEMO-',@RefundOrder);
-  INSERT dbo.customer_service_tickets(ticket_no,member_id,category_id,subject,content,status,admin_id,priority,created_at,updated_at)
-  VALUES(@RefundNo,@RefundMember,@RefundCategory,CONCAT(N'退款申請｜訂單 #',@RefundOrder),N'示範退款申請：買錯遊戲，希望協助核對。',
-   CASE WHEN @RefundState='REFUNDED' THEN 'CLOSED' ELSE 'OPEN' END,CASE WHEN @RefundState='REFUNDED' THEN @AdminId ELSE NULL END,'NORMAL',DATEADD(HOUR,-2,@now),@now);
-  SET @RefundTicket=CONVERT(INT,SCOPE_IDENTITY());
-  INSERT dbo.support_order_links(ticket_id,member_id,order_id,linked_by_member_id) VALUES(@RefundTicket,@RefundMember,@RefundOrder,@RefundMember);
-  INSERT dbo.refund_requests(order_id,member_id,ticket_id,reason,status,requested_at,processed_at,processed_by_admin_id,decision_reason,refund_mode)
-  VALUES(@RefundOrder,@RefundMember,@RefundTicket,N'買錯遊戲，希望協助核對。',@RefundState,DATEADD(HOUR,-2,@now),
-   CASE WHEN @RefundState='REFUNDED' THEN @now ELSE NULL END,CASE WHEN @RefundState='REFUNDED' THEN @AdminId ELSE NULL END,
-   CASE WHEN @RefundState='REFUNDED' THEN N'[DEMO] 已核對並完成整筆測試退款。' ELSE NULL END,CASE WHEN @RefundState='REFUNDED' THEN 'TEST' ELSE NULL END);
-  INSERT dbo.customer_service_messages(ticket_id,sender_type,sender_member_id,message_content) VALUES(@RefundTicket,'MEMBER',@RefundMember,N'我買錯遊戲了，可以協助核對退款嗎？');
-  IF @RefundState='REFUNDED'
-   INSERT dbo.customer_service_messages(ticket_id,sender_type,admin_id,message_content) VALUES(@RefundTicket,'ADMIN',@AdminId,N'[DEMO] 測試退款已完成，對應遊戲權益已撤銷。');
-  INSERT dbo.notifications(recipient_type,recipient_id,event_type,title,body,target_path)
-   VALUES('MEMBER',@RefundMember,'TICKET_REPLY',CASE WHEN @RefundState='REFUNDED' THEN N'測試退款已完成' ELSE N'退款申請已建立' END,@RefundNo,CONCAT('/member/support/',@RefundTicket));
-  FETCH NEXT FROM refunds INTO @RefundOrder,@RefundMember,@RefundState;
- END;
- CLOSE refunds; DEALLOCATE refunds;
+ -- 兩筆獨立退款：一般退款不建立客服案件。
+ INSERT dbo.refund_requests(order_id,member_id,reason,status,requested_at,processed_at,processed_by_admin_id,decision_reason,refund_mode)
+ SELECT order_id,member_id,N'買錯遊戲，希望協助核對。',CASE WHEN order_status='REFUNDED' THEN 'REFUNDED' ELSE 'PENDING' END,DATEADD(HOUR,-2,@now),
+  CASE WHEN order_status='REFUNDED' THEN @now ELSE NULL END,CASE WHEN order_status='REFUNDED' THEN @AdminId ELSE NULL END,
+  CASE WHEN order_status='REFUNDED' THEN N'[DEMO] 已核對並完成整筆測試退款。' ELSE NULL END,CASE WHEN order_status='REFUNDED' THEN 'TEST' ELSE NULL END
+ FROM dbo.orders WHERE order_no IN('DEMO-demo_lin-5','DEMO-demo_miko-5');
+ INSERT dbo.notifications(recipient_type,recipient_id,event_type,title,body,target_path)
+ SELECT 'MEMBER',member_id,CASE WHEN status='REFUNDED' THEN 'REFUND_UPDATE' ELSE 'REFUND_REQUESTED' END,
+  CASE WHEN status='REFUNDED' THEN N'測試退款已完成' ELSE N'退款申請已送出' END,
+  COALESCE(decision_reason,N'可在我的訂單查看處理進度。'),CONCAT('/orders?refundOrder=',order_id) FROM dbo.refund_requests;
+ -- 第三筆案例：有需要補充資料，才另外建立客服案件並關聯退款。
+ DECLARE @MoreOrder INT,@MoreMember INT,@MoreTicket INT,@MoreCategory INT;
+ SELECT @MoreOrder=order_id,@MoreMember=member_id FROM dbo.orders WHERE order_no='DEMO-demo_aurora-4';
+ SELECT @MoreCategory=category_id FROM dbo.customer_service_categories WHERE category_name=N'退款問題';
+ IF @MoreOrder IS NULL OR @MoreCategory IS NULL THROW 51408,N'缺少補件範例訂單或退款分類。',1;
+ INSERT dbo.customer_service_tickets(ticket_no,member_id,category_id,subject,content,status,priority,created_at,updated_at)
+ VALUES('CS-DEMO-REFUND-MORE',@MoreMember,@MoreCategory,N'[DEMO] 退款補件',N'請補充遊戲無法啟動的錯誤訊息或操作步驟。','OPEN','NORMAL',@now,@now);
+ SET @MoreTicket=CONVERT(INT,SCOPE_IDENTITY());
+ INSERT dbo.support_order_links(ticket_id,member_id,order_id,linked_by_admin_id) VALUES(@MoreTicket,@MoreMember,@MoreOrder,@AdminId);
+ INSERT dbo.refund_requests(order_id,member_id,ticket_id,reason) VALUES(@MoreOrder,@MoreMember,@MoreTicket,N'遊戲無法啟動，申請退款。');
+ INSERT dbo.customer_service_messages(ticket_id,sender_type,admin_id,message_content) VALUES(@MoreTicket,'ADMIN',@AdminId,N'[DEMO] 請補充遊戲無法啟動的錯誤訊息或操作步驟。');
+ INSERT dbo.notifications(recipient_type,recipient_id,event_type,title,body,target_path)
+ VALUES('MEMBER',@MoreMember,'TICKET_CREATED',N'退款申請需要補充資料','CS-DEMO-REFUND-MORE',CONCAT('/member/support/',@MoreTicket));
+ INSERT dbo.notifications(recipient_type,recipient_id,event_type,title,body,target_path)
+ SELECT 'ADMIN',a.admin_id,'REFUND_REQUESTED',N'[DEMO] 有退款申請待處理',N'請到退款申請管理查看。','/admin/refund-requests'
+ FROM dbo.admin a WHERE a.admin_account IN('hero_admin','demo_staff');
  -- 明確標示示範來源的操作紀錄。
  DECLARE @i INT=1;
  WHILE @i<=24
@@ -182,6 +180,34 @@ BEGIN TRY
  IF (SELECT COUNT(*) FROM dbo.admin WHERE admin_role_id=@AdminRole)<>1 THROW 51406,N'最高管理員數量不等於一，已回滾。',1;
  DROP TABLE #GameOrder;
  DROP TABLE #MiniNames;
+
+ -- 額外給兩位示範會員 AI 遊戲的已付款購買紀錄，驗證「已購買才能開啟 HTML / 下載 ZIP」。
+ -- 不把即將發售與草稿加入遊戲庫。
+ DECLARE @AiPurchase TABLE(account VARCHAR(30),game_name NVARCHAR(150),minutes INT);
+ INSERT @AiPurchase VALUES
+ ('demo_aurora',N'暗夜倖存者',75),('demo_miko',N'三國戰棋',40);
+ DECLARE @AiAccount VARCHAR(30),@AiGameName NVARCHAR(150),@AiMinutes INT,@AiMember INT,@AiGame INT,@AiCost DECIMAL(10,2),@AiOrder INT,@AiItem INT;
+ DECLARE ai_members CURSOR LOCAL FAST_FORWARD FOR SELECT account,game_name,minutes FROM @AiPurchase;
+ OPEN ai_members;
+ FETCH NEXT FROM ai_members INTO @AiAccount,@AiGameName,@AiMinutes;
+ WHILE @@FETCH_STATUS=0
+ BEGIN
+  SELECT @AiMember=member_id FROM dbo.members WHERE username=@AiAccount;
+  SELECT @AiGame=game_id,@AiCost=price FROM dbo.games WHERE game_name=@AiGameName AND status='PUBLISHED';
+  IF @AiMember IS NULL OR @AiGame IS NULL THROW 51441,N'缺少 AI 示範遊戲或會員，請依序執行 01、02、03。',1;
+  INSERT dbo.orders(order_no,member_id,subtotal_amount,discount_amount,total_amount,order_status,payment_type,payment_status,payment_environment,created_at,paid_at,ecpay_trade_no)
+  VALUES(CONCAT('DEMO-AI-',@AiAccount,'-',@AiGame),@AiMember,@AiCost,0,@AiCost,'PAID','Credit','PAID','TEST',DATEADD(DAY,-3,@now),DATEADD(DAY,-3,@now),CONCAT('DM-AI-',@AiMember,'-',@AiGame));
+  SET @AiOrder=CONVERT(INT,SCOPE_IDENTITY());
+  INSERT dbo.order_items(order_id,game_id,quantity,unit_price,discount_amount,is_gift)
+  VALUES(@AiOrder,@AiGame,1,@AiCost,0,0);
+  SET @AiItem=CONVERT(INT,SCOPE_IDENTITY());
+  INSERT dbo.member_games(member_id,game_id,order_item_id,obtained_source,total_play_minutes,is_active,obtained_at,last_played_at,revoked_at)
+  VALUES(@AiMember,@AiGame,@AiItem,'PURCHASE',@AiMinutes,1,DATEADD(DAY,-3,@now),DATEADD(HOUR,-2,@now),NULL);
+  INSERT dbo.play_records(member_id,game_id,started_at,ended_at,play_seconds)
+  VALUES(@AiMember,@AiGame,DATEADD(MINUTE,-@AiMinutes,DATEADD(HOUR,-2,@now)),DATEADD(HOUR,-2,@now),@AiMinutes*60);
+  FETCH NEXT FROM ai_members INTO @AiAccount,@AiGameName,@AiMinutes;
+ END;
+ CLOSE ai_members; DEALLOCATE ai_members;
  COMMIT TRANSACTION;
  SELECT a.admin_account,a.admin_name,r.role_code,a.status,CASE WHEN a.admin_id=@AdminId AND @NewAdmin=0 THEN N'保留原密碼' ELSE N'HeroDemo2026!' END AS login_password
  FROM dbo.admin a JOIN dbo.admin_roles r ON r.admin_role_id=a.admin_role_id WHERE a.admin_id=@AdminId OR a.admin_account IN('demo_staff','demo_reviewer','demo_support') ORDER BY a.admin_id;

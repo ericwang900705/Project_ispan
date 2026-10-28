@@ -130,7 +130,7 @@ public class RefundService {
             db.update("INSERT INTO support_audit_logs(ticket_id,action_code,visibility,actor_admin_id,summary) VALUES(?,'TICKET_CLOSED','MEMBER',?,?)",row.get("ticket_id"),actor.id(),title);
         }
         db.update("INSERT INTO admin_operation_logs(admin_id,action_code,target_id,detail) VALUES(?,?,?,?)",actor.id(),refund?"REFUND_COMPLETE":"REFUND_REJECT",order,title+"："+input.reason().strip().substring(0,Math.min(700,input.reason().strip().length())));
-        notifications.member(id(row.get("member_id")),"REFUND_UPDATE",title,Objects.toString(row.get("order_no")),"/orders");
+        notifications.member(id(row.get("member_id")),"REFUND_UPDATE",title,"訂單 "+row.get("order_no")+"："+input.reason().strip().substring(0,Math.min(350,input.reason().strip().length())),"/orders?refundOrder="+order);
         events.changed(id(row.get("member_id")));
         return Map.of("message",title,"status",status);
     }

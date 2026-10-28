@@ -66,11 +66,6 @@ async function googleLogin({ idToken, nonce }) {
       <GoogleSignInButton :busy="busy" @credential="googleLogin" />
       <p v-if="googleError" class="google-error" role="alert">{{ googleError }}</p>
 
-      <RouterLink class="member-login-help" :to="{ path: '/faq', query: { topic: 'account' } }">
-        <strong>登入遇到問題？</strong>
-        <span>重設密碼、重寄驗證信或聯絡客服 →</span>
-      </RouterLink>
-
       <!-- 帳號相關連結靠右 -->
       <nav class="member-login-links">
         <RouterLink to="/member/register">
@@ -327,9 +322,22 @@ async function googleLogin({ idToken, nonce }) {
   border-radius: 12px;
   text-decoration: none;
 }
-.member-login .member-login-help span { color: #b9c8eb; font-size: 12px; line-height: 1.7; }
-.member-login .member-login-help:hover { border-color: #d4a64a; background: #29366a; }
-.member-login .member-login-help:focus-visible { outline: 3px solid #d4a64a; outline-offset: 3px; }
+
+.member-login .member-login-help span {
+  color: #b9c8eb;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.member-login .member-login-help:hover {
+  border-color: #d4a64a;
+  background: #29366a;
+}
+
+.member-login .member-login-help:focus-visible {
+  outline: 3px solid #d4a64a;
+  outline-offset: 3px;
+}
 
 /* 底部建立會員帳號等連結，靠右 */
 .member-login .member-login-links {
