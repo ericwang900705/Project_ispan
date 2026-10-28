@@ -1,0 +1,1317 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>暗夜倖存者：命運星盤 V25</title><style>body{margin:0;background:#0b1020;color:#eee;font-family:Arial,'Microsoft JhengHei';overflow:hidden}canvas{display:block}#hud{position:fixed;top:10px;left:12px;background:#111b;padding:12px;border:1px solid #a88;border-radius:10px}#modal{position:fixed;inset:0;background:#050816db;display:flex;align-items:center;justify-content:center}#box{max-width:680px;width:90%;background:#182039;border:2px solid #ac8c59;padding:30px;border-radius:20px;text-align:center}h1{color:#f3ce88;font-size:48px}button{background:#493653;border:1px solid #d4ad72;border-radius:10px;padding:15px;margin:8px;color:white;cursor:pointer;font-size:18px}button:hover{background:#765379}small{color:#bcd}#stick{position:fixed;bottom:24px;left:24px;width:110px;height:110px;border-radius:100%;border:2px solid #fff6;background:#fff2;touch-action:none;display:none}#nub{position:absolute;left:35px;top:35px;width:40px;height:40px;border-radius:50%;background:#fffa}@media(pointer:coarse){#stick{display:block}}</style><canvas id="c"></canvas><div id="hud"></div><div id="modal"><div id="box"></div></div><div id="stick"><div id="nub"></div></div><script>
+const c=document.querySelector('#c'),g=c.getContext('2d'),hud=document.querySelector('#hud'),modal=document.querySelector('#modal'),box=document.querySelector('#box');let damageTexts=[],criticalHits=0;let w,h,p,mon=[],bul=[],xp=[],fx=[],keys={},joy={x:0,y:0},mode='menu',time=0,spawn=0,kills=0,bossAt=0,last=0,uid=0;function resize(){w=c.width=innerWidth;h=c.height=innerHeight}onresize=resize;resize();const R=(a,b)=>a+Math.random()*(b-a),D=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);function menu(){mode='menu';modal.style.display='flex';box.innerHTML='<h1>🌙 暗夜倖存者：永恆月蝕</h1><p>自動攻擊 × 怪物浪潮 × 隨機升級 × 雷霆魔法 × 精英寶箱</p><p>WASD／方向鍵移動 · P 暫停 · 手機虛擬搖桿</p><h2>選擇角色</h2><button onclick="start(0)">⚔️ 獵魔騎士<br><small>高生命／旋刃</small></button><button onclick="start(1)">🔮 月影法師<br><small>高傷害／魔彈</small></button><button onclick="start(2)">🏹 夜行遊俠<br><small>高速度／箭矢</small></button><button onclick="start(3)">🛡️ 聖光守衛<br><small>高護甲／定期回復</small></button><button onclick="start(4)">🔥 惡魔獵手<br><small>高暴擊／魔彈</small></button><p>生存 10 分鐘，挑戰月蝕之王！擊敗精英怪取得進化寶箱。</p><button onclick="shop()">🏰 永久強化商店（'+bank+' 金幣）</button>'}function start(cl){p={evolved:{},luck:0,evolveLuck:0,x:0,y:0,r:13,hp:[150,100,115,165,105][cl],max:[150,100,115,165,105][cl],speed:[190,205,235,180,225][cl],dmg:cl===1?1.3:cl===4?1.18:1,rate:1,armor:cl===0?2:cl===3?4:0,level:1,exp:0,need:12,inv:0,regen:0,magnet:120,weapon:{[ ['blade','bolt','arrow','garlic','bolt'][cl] ]:1},heroClass:cl,cool:{}};p.max+=perks.hp*15;p.hp+=perks.hp*15;p.dmg*=1+perks.damage*.08;p.speed*=1+perks.speed*.05;mon=[];bul=[];xp=[];fx=[];damageTexts=[];criticalHits=0;enemyBullets=[];wave=0;time=0;spawn=0;kills=0;bossAt=0;chests=[];lightningFX=[];chestCount=0;coins=0;eliteTimer=0;finalBoss=false;finalBossDefeated=false;mode='play';modal.style.display='none'}const opts=[['bolt','🔮 奧術魔彈','發射魔法彈'],['blade','🗡️ 旋轉飛刃','穿透多名敵人'],['arrow','🏹 追蹤箭','高速箭矢'],['nova','❄️ 冰霜新星','定期範圍傷害'],['orb','🌟 守護星','環繞角色造成傷害'],['dmg','💥 攻擊強化','傷害 +20%'],['rate','⚡ 迅速施法','攻擊速度 +15%'],['hp','❤️ 生命祝福','最大生命 +25'],['speed','👟 疾行','移速 +12%'],['armor','🛡️ 護甲','減少 1 點傷害'],['regen','🌿 回復','每秒恢復生命'],['magnet','🧲 引力','擴大經驗拾取範圍'],['flame','🔥 焰之精靈','召喚火球攻擊怪物'],['poison','☠️ 毒霧','持續腐蝕周圍怪物'],['lightning','⚡ 雷霆之怒','閃電自動打擊敵人'],['garlic','🧄 聖潔結界','持續灼燒近身敵人'],['luck','🍀 幸運','增加寶箱掉落機率'],['evolve','🌙 血月契約','所有武器傷害 +15%，並提高進化機會']];let offers=[];let chests=[],lightningFX=[],chestCount=0,coins=0,eliteTimer=0,finalBoss=false,finalBossDefeated=false,enemyBullets=[],wave=0;let bank=Number(localStorage.getItem('night_bank')||0),perks=JSON.parse(localStorage.getItem('night_perks')||'{"hp":0,"damage":0,"speed":0}');const evolved={bolt:"秘法風暴",blade:"千刃輪舞",arrow:"幽影連弩",lightning:"雷神審判",garlic:"神聖領域"};function upgrade(){mode='upgrade';modal.style.display='flex';let pool=opts.filter(o=>!['bolt','blade','arrow','nova','orb','lightning','garlic'].includes(o[0])||(p.weapon[o[0]]||0)<6);offers=[];for(let i=0;i<3;i++)offers.push(pool.splice(Math.random()*pool.length|0,1)[0]);box.innerHTML='<h1>✨ 升級 Lv.'+p.level+'</h1><p>選擇一項能力</p>'+offers.map((o,i)=>'<button onclick="pick('+i+')">'+o[1]+'<br><small>'+o[2]+'</small></button>').join('')}function pick(i){let k=offers[i][0];if(['bolt','blade','arrow','nova','orb','lightning','garlic'].includes(k))p.weapon[k]=(p.weapon[k]||0)+1;else if(k==='dmg')p.dmg*=1.2;else if(k==='rate')p.rate*=1.15;else if(k==='hp'){p.max+=25;p.hp=Math.min(p.max,p.hp+50)}else if(k==='speed')p.speed*=1.12;else if(k==='armor')p.armor++;else if(k==='regen')p.regen+=.7;else if(k==='luck')p.luck=(p.luck||0)+1;else p.magnet+=45;mode='play';modal.style.display='none';if(p.exp>=p.need)level()}function level(){p.exp-=p.need;p.need=Math.floor(p.need*1.24+7);p.level++;upgrade()}function end(win){if(mode==='end')return;bank+=coins;localStorage.setItem('night_bank',bank);localStorage.setItem('night_perks',JSON.stringify(perks));try{localStorage.setItem('night_survivor_best',String(Math.max(Number(localStorage.getItem('night_survivor_best'))||0,kills)))}catch(e){}mode='end';modal.style.display='flex';box.innerHTML='<h1>'+(win?'🏆 月蝕終結！':'☠️ 黑夜吞噬了你')+'</h1><p>生存 '+fmt(time)+' · 擊殺 '+kills+' · 等級 '+p.level+' · 金幣 '+coins+'</p><button onclick="menu()">重新挑戰</button>'}function fmt(t){return String(t/60|0).padStart(2,'0')+':'+String(t%60|0).padStart(2,'0')}function enemy(boss=false,elite=false){let a=R(0,7),d=Math.max(w,h)*.7+60,type=boss?'boss':elite?'elite':Math.random()<.2?'brute':Math.random()<.3?'bat':'ghoul',hp=type==='boss'?600+time*2:type==='elite'?170+time*.6:type==='brute'?65+time*.2:25+time*.1;mon.push({id:++uid,x:p.x+Math.cos(a)*d,y:p.y+Math.sin(a)*d,r:type==='boss'?40:type==='elite'?28:type==='brute'?23:13,hp,max:hp,type,spd:type==='boss'?60:type==='elite'?88:type==='brute'?52:type==='bat'?125:75,hit:0,attack:R(1.5,3),phase:0})}function nearest(){let n=null,d=1e9;for(let e of mon){let v=D(p,e);if(v<d){n=e;d=v}}return n}function shoot(k,n){let e=nearest();if(!e)return;let a=Math.atan2(e.y-p.y,e.x-p.x);for(let i=0;i<n;i++){let t=a+(i-(n-1)/2)*.2,s=k==='arrow'?550:k==='blade'?400:340;bul.push({x:p.x,y:p.y,vx:Math.cos(t)*s,vy:Math.sin(t)*s,life:1.6,damage:(k==='blade'?22:k==='arrow'?20:26)*p.dmg,pierce:k==='blade'?4:0,hit:new Set(),kind:k})}}function damage(e,n){if(e.hp<=0)return;let crit=Math.random()<(p.heroClass===4?.23:.06);if(crit){n*=p.heroClass===4?2.1:1.5;criticalHits++}damageTexts.push({x:e.x+R(-9,9),y:e.y-14,life:.65,value:Math.round(n),crit});if(damageTexts.length>130)damageTexts.shift();e.hp-=n;e.hit=.1;if(e.hp<=0){kills++;coins+=e.type==='boss'?50:e.type==='elite'?12:1;if(e.type==='elite')chests.push({x:e.x,y:e.y,age:0});if(e.type==='boss'&&time>=600)finalBossDefeated=true;xp.push({x:e.x,y:e.y,val:e.type==='boss'?100:e.type==='brute'?5:2});for(let i=0;i<7;i++)fx.push({x:e.x,y:e.y,vx:R(-110,110),vy:R(-110,110),life:.5});if(e.type==='boss'){chests.push({x:e.x,y:e.y,age:0});chestCount++;if(time>=600)end(true)}else if(e.type==='brute'&&Math.random()<.08+(p.luck||0)*.03){chests.push({x:e.x,y:e.y,age:0});chestCount++}}}function tick(dt){time+=dt;eliteTimer+=dt;if(p.heroClass===3)p.hp=Math.min(p.max,p.hp+dt*.8);for(let t of damageTexts){t.y-=35*dt;t.life-=dt}damageTexts=damageTexts.filter(t=>t.life>0);if(Math.floor(time/120)!==wave){wave=Math.floor(time/120)}if(eliteTimer>=48){eliteTimer=0;enemy(false,true)}p.inv=Math.max(0,p.inv-dt);p.hp=Math.min(p.max,p.hp+p.regen*dt);let dx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0)+joy.x,dy=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0)+joy.y,l=Math.hypot(dx,dy);if(l){p.x+=dx/l*p.speed*dt;p.y+=dy/l*p.speed*dt}spawn-=dt;if(spawn<=0&&mon.length<220){spawn=Math.max(.12,.7-time/1100);enemy();if(time>160&&Math.random()<.3)enemy()}if(time>=600&&!finalBoss){finalBoss=true;bossAt=6;enemy(true)}else if(Math.floor(time/120)>bossAt){bossAt=Math.floor(time/120);enemy(true)}lightningFX=lightningFX.filter(a=>(a.life-=dt)>0);for(let [k,v]of Object.entries(p.weapon)){p.cool[k]=(p.cool[k]||0)-dt;if(p.cool[k]<=0){p.cool[k]=(k==='lightning'?2.1:k==='garlic'?.45:k==='nova'?4:k==='orb'?.2:k==='blade'?1.2:.8)/p.rate/(1+v*.07);if(['bolt','blade','arrow'].includes(k))shoot(k,Math.min(8,1+(v/2|0)+(p.evolved&&p.evolved[k]?3:0)));if(k==='lightning'){let targets=[...mon].filter(e=>e.hp>0).sort((a,b)=>D(p,a)-D(p,b)).slice(0,Math.min(7,v+1));for(let e of targets){damage(e,(34+v*13)*(p.evolved.lightning?2.1:1)*p.dmg);lightningFX.push({x:e.x,y:e.y,life:.24})}}if(k==='garlic')for(let e of mon)if(D(p,e)<85+v*10+(p.evolved.garlic?35:0))damage(e,(8+v*5)*(p.evolved.garlic?2.2:1)*p.dmg);if(k==='nova')for(let e of mon)if(D(p,e)<130+v*12)damage(e,(25+v*12)*p.dmg)}}for(let e of mon){e.hit=Math.max(0,e.hit-dt);if(['boss','elite'].includes(e.type)){e.attack-=dt;if(e.attack<=0){e.attack=e.type==='boss'?(e.hp<e.max*.5?1.4:2.5):3.2;let count=e.type==='boss'?(e.hp<e.max*.5?12:8):3;let a=Math.atan2(p.y-e.y,p.x-e.x);for(let j=0;j<count;j++){let ang=e.type==='boss'?j*Math.PI*2/count:a+(j-1)*.28;enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(ang)*(e.type==='boss'?165:205),vy:Math.sin(ang)*(e.type==='boss'?165:205),life:4,r:6,damage:e.type==='boss'?15:10})}}}let d=D(p,e)||1;e.x+=(p.x-e.x)/d*e.spd*dt;e.y+=(p.y-e.y)/d*e.spd*dt;if(d<e.r+p.r&&p.inv<=0){p.hp-=Math.max(1,(e.type==='boss'?24:e.type==='brute'?16:9)-p.armor);p.inv=.7;if(p.hp<=0){end(false);return}}}for(let b of enemyBullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;if(D(b,p)<p.r+b.r&&p.inv<=0){p.hp-=Math.max(1,b.damage-p.armor);p.inv=.6;b.life=0;if(p.hp<=0){end(false);return}}}enemyBullets=enemyBullets.filter(b=>b.life>0);for(let b of bul){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;for(let e of mon)if(!b.hit.has(e.id)&&D(b,e)<e.r+7){b.hit.add(e.id);damage(e,b.damage);if(b.pierce--<=0){b.life=0;break}}}bul=bul.filter(b=>b.life>0);let orbs=p.weapon.orb||0;if(orbs)for(let i=0;i<Math.min(7,orbs+1);i++){let a=time*3+i*6.283/(orbs+1),o={x:p.x+Math.cos(a)*75,y:p.y+Math.sin(a)*75};for(let e of mon)if(D(o,e)<e.r+11&&e.hit<=0)damage(e,(8+orbs*3)*p.dmg)}mon=mon.filter(e=>e.hp>0);for(let t of damageTexts){g.save();g.globalAlpha=Math.min(1,t.life*2);g.fillStyle=t.crit?'#ffe070':'#fff2ee';g.font=t.crit?'bold 18px Arial':'bold 13px Arial';g.textAlign='center';g.shadowColor='#05050b';g.shadowBlur=4;g.fillText((t.crit?'✦ ':'')+t.value,t.x,t.y);g.restore()}for(let chest of chests){if(D(p,chest)<31){chest.opened=true;openChest();break}}chests=chests.filter(x=>!x.opened);if(mode!=='play')return;for(let gem of xp){let d=D(p,gem);if(d<p.magnet){let s=Math.max(200,600-d);gem.x+=(p.x-gem.x)/(d||1)*s*dt;gem.y+=(p.y-gem.y)/(d||1)*s*dt}if(d<20){gem.gone=true;p.exp+=gem.val}}xp=xp.filter(x=>!x.gone);for(let f of fx){f.x+=f.vx*dt;f.y+=f.vy*dt;f.life-=dt}fx=fx.filter(f=>f.life>0);if(p.exp>=p.need)level();hud.innerHTML='❤️ '+Math.ceil(p.hp)+' / '+p.max+'　✨ Lv.'+p.level+' ('+Math.floor(p.exp/p.need*100)+'%)　⏱ '+fmt(time)+'　💀 '+kills+'　🪙 '+coins+'<br>⚔️ '+Object.entries(p.weapon).map(([k,v])=>((p.evolved&&p.evolved[k]?evolved[k]:{bolt:'魔彈',blade:'旋刃',arrow:'箭矢',nova:'冰霜',orb:'守護星',lightning:'雷霆',garlic:'結界'}[k])+' '+v)).join(' · ')}function openChest(){mode='chest';modal.style.display='flex';let possible=Object.keys(p.weapon).filter(k=>p.weapon[k]>=5&&evolved[k]&&!p.evolved?.[k]);let k=possible[0];box.innerHTML='<h1>🎁 精英寶箱</h1><p>擊敗精英怪，獲得戰利品！</p>'+(k?'<button onclick="claimChest(\''+k+'\')">🌟 進化 '+evolved[k]+'（大幅提升火力）</button>':'<button onclick="claimChest(\'heal\')">❤️ 恢復 40 生命 + 20 金幣</button>')+'<button onclick="claimChest(\'power\')">⚔️ 所有傷害 +12% + 10 金幣</button>'}function claimChest(k){if(evolved[k]){p.evolved=p.evolved||{};p.evolved[k]=true;p.dmg*=1.22;p.rate*=1.1}else if(k==='heal'){p.hp=Math.min(p.max,p.hp+40);coins+=20}else{p.dmg*=1.12;coins+=10}mode='play';modal.style.display='none'}function shop(){mode='shop';modal.style.display='flex';let items=[['hp','❤️ 永久生命 +15'],['damage','⚔️ 永久傷害 +8%'],['speed','👟 永久速度 +5%']];box.innerHTML='<h1>🏰 暗夜營地</h1><p>持有金幣：'+bank+'（每項最高 10 級）</p>'+items.map(([k,label])=>{let cost=40*(perks[k]+1);return '<button onclick="buyPerk(\''+k+'\')">'+label+'　Lv.'+perks[k]+'/10<br><small>花費 '+cost+' 金幣</small></button>'}).join('')+'<p><button onclick="menu()">返回選角</button></p>'}function buyPerk(k){let cost=40*(perks[k]+1);if(perks[k]>=10||bank<cost)return;bank-=cost;perks[k]++;localStorage.setItem('night_bank',bank);localStorage.setItem('night_perks',JSON.stringify(perks));shop()}function draw(){g.fillStyle=wave>=3?'#201422':wave>=1?'#17251e':'#121728';g.fillRect(0,0,w,h);if(!p)return;g.save();g.translate(w/2-p.x,h/2-p.y);g.strokeStyle='#2b3041';for(let x=Math.floor((p.x-w/2)/80)*80;x<p.x+w/2;x+=80){g.beginPath();g.moveTo(x,p.y-h/2);g.lineTo(x,p.y+h/2);g.stroke()}for(let y=Math.floor((p.y-h/2)/80)*80;y<p.y+h/2;y+=80){g.beginPath();g.moveTo(p.x-w/2,y);g.lineTo(p.x+w/2,y);g.stroke()}for(let chest of chests){g.fillStyle='#ae783d';g.fillRect(chest.x-13,chest.y-10,26,20);g.fillStyle='#f4d487';g.fillRect(chest.x-3,chest.y-10,6,20);g.strokeStyle='#fff0a0';g.strokeRect(chest.x-13,chest.y-10,26,20)}for(let flash of lightningFX){g.strokeStyle='#a4eaff';g.lineWidth=3;g.beginPath();g.moveTo(flash.x-15,flash.y-65);g.lineTo(flash.x+5,flash.y-30);g.lineTo(flash.x-4,flash.y-30);g.lineTo(flash.x+14,flash.y);g.stroke();g.lineWidth=1}if(p.weapon.garlic){g.strokeStyle=p.evolved.garlic?'#fff6aa':'#e9d78a77';g.lineWidth=3;g.beginPath();g.arc(p.x,p.y,85+p.weapon.garlic*10+(p.evolved.garlic?35:0),0,Math.PI*2);g.stroke();g.lineWidth=1}for(let gem of xp){g.fillStyle=gem.val>20?'#ffcc62':'#66ddff';g.save();g.translate(gem.x,gem.y);g.rotate(.785);g.fillRect(-5,-5,10,10);g.restore()}for(let e of mon){g.fillStyle=e.hit?'white':e.type==='boss'?'#b23c72':e.type==='elite'?'#d78c3c':e.type==='brute'?'#82749d':e.type==='bat'?'#9b63c7':'#548b79';g.beginPath();g.arc(e.x,e.y,e.r,0,7);g.fill();g.fillStyle='#fff';g.fillRect(e.x-6,e.y-4,4,4);g.fillRect(e.x+3,e.y-4,4,4);if(e.type==='boss'||e.type==='elite'){g.fillStyle='#ed4b67';g.fillRect(e.x-35,e.y-e.r-17,70*e.hp/e.max,6)}}for(let b of enemyBullets){g.fillStyle='#ff577c';g.beginPath();g.arc(b.x,b.y,b.r,0,7);g.fill()}for(let b of bul){g.fillStyle=b.kind==='bolt'?'#ae9aff':b.kind==='blade'?'#eee':'#e9d485';g.beginPath();g.arc(b.x,b.y,7,0,7);g.fill()}let n=p.weapon.orb||0;for(let i=0;i<n+1&&n;i++){let a=time*3+i*6.283/(n+1);g.fillStyle='#f5dd8a';g.beginPath();g.arc(p.x+Math.cos(a)*75,p.y+Math.sin(a)*75,10,0,7);g.fill()}g.fillStyle=p.inv>0&&Math.floor(time*16)%2?'white':'#f2d3ac';g.beginPath();g.arc(p.x,p.y,14,0,7);g.fill();g.fillStyle='#765aab';g.beginPath();g.arc(p.x,p.y-6,12,3.14,6.28);g.lineTo(p.x+12,p.y+8);g.lineTo(p.x-12,p.y+8);g.fill();for(let f of fx){g.globalAlpha=f.life*2;g.fillStyle='#ff91a7';g.fillRect(f.x,f.y,4,4)}g.globalAlpha=1;g.restore();let grad=g.createRadialGradient(w/2,h/2,100,w/2,h/2,Math.max(w,h)*.75);grad.addColorStop(0,'#0000');grad.addColorStop(1,'#050311cc');g.fillStyle=grad;g.fillRect(0,0,w,h)}function loop(t){let dt=Math.min(.04,(t-last)/1000||0);last=t;if(mode==='play')tick(dt);draw();requestAnimationFrame(loop)}addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase()))e.preventDefault();if(e.key.toLowerCase()==='p'){if(mode==='play'){mode='pause';modal.style.display='flex';box.innerHTML='<h1>暫停</h1><button onclick="resume()">繼續</button><button onclick="menu()">主選單</button>'}else if(mode==='pause')resume()}if(mode==='upgrade'&&['1','2','3'].includes(e.key))pick(+e.key-1)});function resume(){mode='play';modal.style.display='none'}addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);let stick=document.querySelector('#stick'),nub=document.querySelector('#nub');function move(e){let r=stick.getBoundingClientRect(),x=e.clientX-r.left-55,y=e.clientY-r.top-55,l=Math.hypot(x,y)||1;joy.x=x/l*Math.min(l,40)/40;joy.y=y/l*Math.min(l,40)/40;nub.style.transform='translate('+joy.x*40+'px,'+joy.y*40+'px)'}stick.onpointerdown=e=>{stick.setPointerCapture(e.pointerId);move(e)};stick.onpointermove=e=>{if(e.buttons)move(e)};stick.onpointerup=stick.onpointercancel=()=>{joy.x=joy.y=0;nub.style.transform=''};menu();requestAnimationFrame(loop);
+
+// V5：地圖、解鎖角色、成就、武器進化特效與音效。
+let mapChoice=0, soundOn=false, audioCtx=null, bonusTimer=0, stormFX=[], relics=[], records=JSON.parse(localStorage.getItem('night_v5_records')||'{"runs":0,"bestTime":0,"bestKills":0,"wins":0}');
+const maps=[['🌙 亡者墓園','幽暗墓碑與月光'],['🌲 詛咒森林','迷霧樹影與螢火'],['🏰 惡魔城堡','血紅磚地與火炬']];
+function saveRecords(){localStorage.setItem('night_v5_records',JSON.stringify(records))}
+function tone(freq=440,duration=.08){if(!soundOn)return;try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();let o=audioCtx.createOscillator(),v=audioCtx.createGain();o.type='triangle';o.frequency.value=freq;v.gain.setValueAtTime(.045,audioCtx.currentTime);v.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+duration);o.connect(v);v.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+duration)}catch(e){}}
+function toggleSound(){soundOn=!soundOn;menu();tone(620)}
+function chooseMap(i){mapChoice=i;menu()}
+const oldMenu=menu;menu=function(){oldMenu();box.innerHTML=box.innerHTML.replace('永恆月蝕','血月遠征');let m='<h3>🗺️ 選擇戰場</h3>'+maps.map((v,i)=>'<button style="background:'+(i===mapChoice?'#805270':'#302c45')+'" onclick="chooseMap('+i+')">'+v[0]+'<br><small>'+v[1]+'</small></button>').join('');m+='<p><button onclick="start(3)">🧛 吸血鬼獵人（累積擊殺 100 解鎖）</button><button onclick="start(4)">💀 死靈法師（累積擊殺 300 解鎖）</button></p>';m+='<p><button onclick="achievements()">🏅 生存紀錄與成就</button><button onclick="toggleSound()">🔊 音效：'+(soundOn?'開':'關')+'</button></p>';box.innerHTML+=m};
+function achievements(){mode='achievements';modal.style.display='flex';let n=records;box.innerHTML='<h1>🏅 生存紀錄</h1><p>遊玩局數：'+n.runs+' · 最佳存活：'+fmt(n.bestTime)+'<br>單局最高擊殺：'+n.bestKills+' · 勝利次數：'+n.wins+'</p><p>🧛 吸血鬼獵人：'+(n.bestKills>=100?'已解鎖':'單局擊殺 100 解鎖')+'<br>💀 死靈法師：'+(n.bestKills>=300?'已解鎖':'單局擊殺 300 解鎖')+'<br>👑 月蝕征服者：'+(n.wins?'已完成':'擊敗最終 Boss')+'</p><button onclick="menu()">返回</button>'}
+const oldStart=start;start=function(cl){if(cl===3&&records.bestKills<100||cl===4&&records.bestKills<300){box.innerHTML+='<p>🔒 尚未解鎖此角色</p>';return}oldStart(cl===3?2:cl===4?1:cl);if(cl===3){p.max+=30;p.hp+=30;p.regen+=1.2;p.dmg*=1.12}else if(cl===4){p.max-=15;p.hp=Math.min(p.hp,p.max);p.weapon.orb=2;p.rate*=1.08}p.hero=cl;bonusTimer=0;stormFX=[];relics=[];records.runs++;saveRecords();tone(520)};
+const oldEnd=end;end=function(win){if(mode==='end')return;records.bestTime=Math.max(records.bestTime,time);records.bestKills=Math.max(records.bestKills,kills);if(win)records.wins++;saveRecords();tone(win?880:180,.3);oldEnd(win)};
+const oldPick=pick;pick=function(i){oldPick(i);tone(720)};
+const oldClaimChest=claimChest;claimChest=function(k){oldClaimChest(k);tone(980,.2)};
+const oldTick=tick;tick=function(dt){if(mode!=='play')return;oldTick(dt);if(mode!=='play')return;bonusTimer+=dt; // 進化武器具有獨立攻擊機制
+if(bonusTimer>.19){bonusTimer=0;for(const [k,active] of Object.entries(p.evolved||{})){if(!active)continue;
+if(k==='bolt'){let targets=mon.filter(e=>D(e,p)<300).sort((a,b)=>D(a,p)-D(b,p)).slice(0,3);for(let e of targets){damage(e,8*p.dmg);stormFX.push({x:e.x,y:e.y,r:15,color:'#bda8ff',life:.25})}}
+if(k==='blade'){for(let e of mon)if(D(e,p)<115&&D(e,p)>45){damage(e,4*p.dmg);stormFX.push({x:e.x,y:e.y,r:12,color:'#e7d9f9',life:.15})}}
+if(k==='arrow'){let e=nearest();if(e&&D(e,p)<420){damage(e,6*p.dmg);stormFX.push({x:e.x,y:e.y,r:9,color:'#ffdd89',life:.2})}}
+if(k==='lightning'){let targets=mon.filter(e=>D(e,p)<340).slice(0,5);for(let e of targets){damage(e,10*p.dmg);stormFX.push({x:e.x,y:e.y,r:19,color:'#8deaff',life:.23})}}
+if(k==='garlic'){for(let e of mon)if(D(e,p)<155){damage(e,3*p.dmg);stormFX.push({x:e.x,y:e.y,r:7,color:'#ffefa8',life:.13})}}
+}}
+for(let f of stormFX)f.life-=dt;stormFX=stormFX.filter(f=>f.life>0);};
+const oldDraw=draw;draw=function(){oldDraw();if(!p)return;g.save();g.translate(w/2-p.x,h/2-p.y); // 地圖裝飾與視覺主題
+let size=140,cx=Math.floor(p.x/size),cy=Math.floor(p.y/size);for(let a=cx-8;a<=cx+8;a++)for(let b=cy-6;b<=cy+6;b++){let seed=Math.abs(Math.sin(a*91.7+b*127.3)*43758.5)%1;if(seed<.86)continue;let x=a*size+40,y=b*size+35;if(mapChoice===0){g.fillStyle='#5a5669';g.fillRect(x-9,y-15,18,28);g.beginPath();g.arc(x,y-15,9,Math.PI,0);g.fill();g.fillStyle='#393548';g.fillRect(x-2,y-7,4,13)}else if(mapChoice===1){g.fillStyle='#2c513f';g.beginPath();g.arc(x,y-12,20,0,7);g.fill();g.fillStyle='#436c4b';g.beginPath();g.arc(x-5,y-18,13,0,7);g.fill()}else{g.fillStyle='#56303a';g.fillRect(x-14,y-14,28,28);g.fillStyle='#e27b3b';g.fillRect(x-3,y-19,6,12)}}
+for(let f of stormFX){g.globalAlpha=Math.min(1,f.life*4);g.strokeStyle=f.color;g.lineWidth=3;g.beginPath();g.arc(f.x,f.y,f.r+(1-f.life)*25,0,7);g.stroke()}g.globalAlpha=1;g.restore()};
+
+// V6：地圖首領、特殊敵人、元素武器與成就獎勵
+let v6Bosses=['墓園死靈王','森林魔狼','血堡領主'],v6SpecialTimer=0,v6ElementTimer=0,v6Effects=[],v6BossId=null;
+const v6Enemy=enemy;
+enemy=function(boss=false,elite=false){v6Enemy(boss,elite);let e=mon[mon.length-1];if(!e)return;if(boss){e.v6Name=v6Bosses[mapChoice]||v6Bosses[0];e.hp*=mapChoice===2?1.35:1.18;e.max=e.hp;e.spd+=mapChoice===1?32:8;e.r+=6;v6BossId=e.id}else if(!elite&&time>50&&Math.random()<.16){e.special=mapChoice===0?'necromancer':mapChoice===1?'wolf':'vampire';e.hp*=1.7;e.max=e.hp;e.spd*=e.special==='wolf'?1.6:.83;e.r+=5;e.attack=1.8}}
+const v6Start=start;
+start=function(cl){v6Start(cl);v6SpecialTimer=0;v6ElementTimer=0;v6Effects=[];v6BossId=null;p.v6Class=cl;p.v6Shield=cl===0?12:0;p.v6Drain=cl===1?.025:0;p.v6Crit=cl===2?.12:0;};
+const v6Damage=damage;
+damage=function(e,n){if(e.hp<=0)return;let dealt=n;if(p&&p.v6Crit&&Math.random()<p.v6Crit){dealt*=1.8;v6Effects.push({x:e.x,y:e.y,life:.35,col:'#ffe08b',r:19})}let was=e.hp;v6Damage(e,dealt);if(p&&p.v6Drain&&was>0)p.hp=Math.min(p.max,p.hp+Math.min(was,dealt)*p.v6Drain);};
+const v6Tick=tick;
+tick=function(dt){if(mode!=='play')return;v6Tick(dt);if(mode!=='play')return;
+v6SpecialTimer+=dt;v6ElementTimer+=dt;
+if(v6SpecialTimer>=1.3){v6SpecialTimer=0;for(let e of mon){if(e.hp<=0||!e.special)continue;let d=D(e,p);if(e.special==='necromancer'&&d<420&&Math.random()<.4&&mon.length<210){let a=R(0,6.28);mon.push({id:++uid,x:e.x+Math.cos(a)*45,y:e.y+Math.sin(a)*45,r:11,hp:22+time*.08,max:22+time*.08,type:'ghoul',spd:95,hit:0,attack:3,phase:0})}if(e.special==='wolf'&&d<290){e.x+=(p.x-e.x)/(d||1)*55;e.y+=(p.y-e.y)/(d||1)*55}if(e.special==='vampire'&&d<260&&Math.random()<.6){let a=Math.atan2(p.y-e.y,p.x-e.x);enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(a)*170,vy:Math.sin(a)*170,r:7,life:3,damage:10})}}}
+if(v6ElementTimer>=.48){v6ElementTimer=0;let fl=p.weapon.flame||0,po=p.weapon.poison||0;if(fl){let targets=mon.filter(e=>D(e,p)<340).sort((a,b)=>D(a,p)-D(b,p)).slice(0,Math.min(6,fl+1));for(let e of targets){damage(e,(12+fl*6)*p.dmg);v6Effects.push({x:e.x,y:e.y,life:.38,col:'#ff883e',r:13+fl*2})}}if(po){for(let e of mon)if(D(e,p)<95+po*15){damage(e,(2+po*2.2)*p.dmg);v6Effects.push({x:e.x,y:e.y,life:.3,col:'#7dea78',r:10})}}}
+for(let f of v6Effects)f.life-=dt;v6Effects=v6Effects.filter(f=>f.life>0);
+};
+const v6Draw=draw;
+draw=function(){v6Draw();if(!p)return;g.save();g.translate(w/2-p.x,h/2-p.y);for(let e of mon){if(!e.special&&!e.v6Name)continue;g.font='bold 13px Microsoft JhengHei';g.textAlign='center';g.fillStyle=e.v6Name?'#ffe2a2':'#e7a8ed';g.fillText(e.v6Name||({necromancer:'召喚師',wolf:'疾風狼',vampire:'血族術士'}[e.special]),e.x,e.y-e.r-20)}for(let f of v6Effects){g.globalAlpha=Math.min(1,f.life*3);g.strokeStyle=f.col;g.lineWidth=4;g.beginPath();g.arc(f.x,f.y,f.r+(1-f.life)*15,0,Math.PI*2);g.stroke()}g.globalAlpha=1;g.restore();};
+const v6Menu=menu;
+menu=function(){v6Menu();box.innerHTML+='<p style="color:#f6c780">三張地圖專屬首領、特殊怪物、火焰與毒霧武器、角色專屬被動天賦。</p>';};
+
+
+// V7：融合魔法、首領技能、月光祭壇、設定
+let v7={fusion:{},timer:0,bossTimer:0,eventTimer:0,shrines:[],rings:[],quality:1,sound:true};
+const fusionDefs=[['bolt','lightning','⚡ 星雷風暴'],['blade','flame','🔥 煉獄刃環'],['arrow','poison','☠️ 腐蝕箭雨']];
+function v7Reset(){v7.fusion={};v7.timer=0;v7.bossTimer=0;v7.eventTimer=0;v7.shrines=[];v7.rings=[];}
+const v7Start=start;start=function(cl){v7Start(cl);v7Reset()};
+function v7CheckFusion(){if(!p)return;for(let [a,b,name] of fusionDefs){let key=a+'_'+b;if(!v7.fusion[key]&&(p.weapon[a]||0)>=3&&(p.weapon[b]||0)>=3){v7.fusion[key]=true;v7.rings.push({x:p.x,y:p.y,r:25,life:1.4,col:'#ffe5a2'});v7Notice('🌟 武器融合：'+name)}}}
+function v7Notice(msg){let el=document.getElementById('v7toast');if(!el){el=document.createElement('div');el.id='v7toast';el.style.cssText='position:fixed;top:100px;left:50%;transform:translateX(-50%);background:#171327df;color:#ffe8ac;border:1px solid #caa66b;padding:12px 20px;border-radius:12px;pointer-events:none;font:bold 20px Microsoft JhengHei;z-index:5';document.body.appendChild(el)}el.textContent=msg;clearTimeout(v7Notice.timeout);v7Notice.timeout=setTimeout(()=>el.textContent='',2700)}
+function v7OpenShrine(i){if(mode!=='play')return;let shrine=v7.shrines[i];if(!shrine||shrine.used)return;shrine.used=true;mode='shrine';modal.style.display='flex';box.innerHTML='<h1>🌙 月光祭壇</h1><p>古老的力量回應了你的呼喚，選擇一項祝福。</p><button onclick="v7Bless(0)">❤️ 月之庇護<br><small>恢復 40% 最大生命</small></button><button onclick="v7Bless(1)">⚔️ 血月之力<br><small>本局攻擊 +15%</small></button><button onclick="v7Bless(2)">💎 靈魂寶藏<br><small>獲得 60 經驗與 20 金幣</small></button>'}
+function v7Bless(n){if(n===0)p.hp=Math.min(p.max,p.hp+p.max*.4);if(n===1)p.dmg*=1.15;if(n===2){p.exp+=60;coins+=20}mode='play';modal.style.display='none';v7Notice('✨ 祭壇祝福已獲得');if(p.exp>=p.need)level()}
+const v7Tick=tick;tick=function(dt){if(mode!=='play')return;v7Tick(dt);if(mode!=='play')return;v7CheckFusion();v7.timer+=dt;v7.bossTimer+=dt;v7.eventTimer+=dt;
+if(v7.eventTimer>80){v7.eventTimer=0;let a=R(0,6.283),d=R(120,230);v7.shrines.push({x:p.x+Math.cos(a)*d,y:p.y+Math.sin(a)*d,used:false});v7Notice('🌙 月光祭壇出現！靠近後按 E')}
+for(let i=0;i<v7.shrines.length;i++){let q=v7.shrines[i];if(!q.used&&D(q,p)<48&&(keys.e||keys['enter'])){keys.e=false;keys['enter']=false;v7OpenShrine(i);return}}
+if(v7.timer>.36){v7.timer=0;let f=v7.fusion;if(f.bolt_lightning){for(let e of mon.filter(e=>D(e,p)<350).sort((a,b)=>D(a,p)-D(b,p)).slice(0,5)){damage(e,22*p.dmg);v7.rings.push({x:e.x,y:e.y,r:15,life:.32,col:'#9de7ff'})}}if(f.blade_flame){for(let e of mon)if(D(e,p)<115){damage(e,12*p.dmg);v7.rings.push({x:e.x,y:e.y,r:9,life:.25,col:'#ff924f'})}}if(f.arrow_poison){for(let e of mon.filter(e=>D(e,p)<330).slice(0,4)){damage(e,16*p.dmg);v7.rings.push({x:e.x,y:e.y,r:11,life:.3,col:'#98ed79'})}}}
+if(v7.bossTimer>3.3){v7.bossTimer=0;for(let e of mon.filter(e=>e.v6Name&&e.hp>0)){let a=Math.atan2(p.y-e.y,p.x-e.x);if(mapChoice===0){for(let i=-2;i<=2;i++){let t=a+i*.23;enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(t)*170,vy:Math.sin(t)*170,r:8,life:3,damage:11})}}else if(mapChoice===1){e.x+=Math.cos(a)*90;e.y+=Math.sin(a)*90;v7.rings.push({x:e.x,y:e.y,r:50,life:.5,col:'#ff7878'})}else{for(let i=0;i<12;i++){let t=i*Math.PI/6+time*.2;enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(t)*135,vy:Math.sin(t)*135,r:7,life:3,damage:12})}}}}
+for(let q of v7.rings)q.life-=dt;v7.rings=v7.rings.filter(q=>q.life>0);};
+const v7Draw=draw;draw=function(){v7Draw();if(!p)return;g.save();g.translate(w/2-p.x,h/2-p.y);for(let q of v7.shrines){if(q.used)continue;g.fillStyle='#3b2b63';g.strokeStyle='#e9c783';g.lineWidth=3;g.beginPath();g.arc(q.x,q.y,20+Math.sin(time*3)*3,0,Math.PI*2);g.fill();g.stroke();g.font='25px serif';g.textAlign='center';g.fillText('🌙',q.x,q.y+8)}for(let r of v7.rings){g.globalAlpha=Math.min(1,r.life*3);g.strokeStyle=r.col;g.lineWidth=4;g.beginPath();g.arc(r.x,r.y,r.r+(1-r.life)*18,0,Math.PI*2);g.stroke()}g.globalAlpha=1;g.restore();if(mode==='play'&&v7.shrines.some(q=>!q.used&&D(q,p)<48)){g.font='bold 18px Microsoft JhengHei';g.textAlign='center';g.fillStyle='#ffe5a0';g.fillText('按 E 啟動月光祭壇',w/2,h/2-65)}};
+const v7Menu=menu;menu=function(){v7Menu();box.innerHTML+='<p style="color:#c9b3ed">新增：武器融合、首領專屬招式、月光祭壇與畫質設定</p><button onclick="v7Settings()">⚙️ 遊戲設定</button>'};
+function v7Settings(){mode='settings';modal.style.display='flex';box.innerHTML='<h1>⚙️ 遊戲設定</h1><p>畫質：'+(v7.quality?'標準':'精簡')+'　音效：'+(v7.sound?'開啟':'關閉')+'</p><button onclick="v7.quality=1-v7.quality;v7Settings()">切換畫質</button><button onclick="v7.sound=!v7.sound;v7Settings()">切換音效</button><button onclick="menu()">返回主選單</button>'}
+const v7Tone=tone;tone=function(...args){if(v7.sound)return v7Tone(...args)};
+
+
+// V9：地圖專屬怪物、召喚物、主動技能與角色動畫
+const v9={skillCd:0,summonTimer:0,summons:[],skillRings:[],waveTimer:0};
+const v9Start=start;
+start=function(cl){v9Start(cl);v9.skillCd=0;v9.summonTimer=0;v9.summons=[];v9.skillRings=[];v9.waveTimer=0;};
+const v9Enemy=enemy;
+enemy=function(boss=false){const n=mon.length;v9Enemy(boss);if(mon.length<=n||boss)return;const e=mon[mon.length-1];if(Math.random()<.35){if(mapChoice===0){e.v9Type='骷髏兵';e.spd*=.88;e.hp*=1.25;e.max=e.hp}else if(mapChoice===1){e.v9Type='森林狼人';e.spd*=1.32;e.hp*=.9;e.max=e.hp}else{e.v9Type='血族侍衛';e.spd*=.94;e.hp*=1.45;e.max=e.hp}}};
+function v9Skill(){
+ if(mode!=='play'||!p||v9.skillCd>0)return;
+ v9.skillCd=18;
+ let name=['旋刃風暴','秘法爆發','疾風箭雨','聖光庇護','惡魔之怒'][p.heroClass||0];
+ if((p.heroClass||0)===3){p.hp=Math.min(p.max,p.hp+40);p.inv=2.5}
+ else if((p.heroClass||0)===2){for(let e of mon.filter(e=>D(e,p)<340).slice(0,20))damage(e,65*p.dmg)}
+ else if((p.heroClass||0)===4){for(let e of mon.filter(e=>D(e,p)<240))damage(e,90*p.dmg)}
+ else {for(let e of mon.filter(e=>D(e,p)<200))damage(e,(p.heroClass===1?100:75)*p.dmg)}
+ v9.skillRings.push({x:p.x,y:p.y,r:10,max:250,life:.7});
+ v7Notice('✨ '+name+'！');
+}
+addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat){e.preventDefault();v9Skill()}});
+const v9Tick=tick;
+tick=function(dt){
+ v9Tick(dt);if(mode!=='play'||!p)return;
+ v9.skillCd=Math.max(0,v9.skillCd-dt);
+ v9.summonTimer+=dt;v9.waveTimer+=dt;
+ if(v9.summonTimer>1.4){v9.summonTimer=0;const max=p.heroClass===1?3:2;
+ while(v9.summons.length<max)v9.summons.push({angle:Math.random()*Math.PI*2,attack:0});
+ for(let i=0;i<v9.summons.length;i++){
+ const q=v9.summons[i];q.angle+=.38;
+ const x=p.x+Math.cos(q.angle+i*3)*95,y=p.y+Math.sin(q.angle+i*3)*95;
+ const targets=mon.filter(e=>e.hp>0&&Math.hypot(e.x-x,e.y-y)<180).sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y));
+ if(targets[0]){damage(targets[0],(12+p.level*.7)*p.dmg);v9.skillRings.push({x:targets[0].x,y:targets[0].y,r:4,max:28,life:.2})}
+ }}
+ for(const q of v9.skillRings)q.life-=dt;
+ v9.skillRings=v9.skillRings.filter(q=>q.life>0);
+ // 清理距離過遠的普通怪物，避免長時間遊玩效能下降
+ if(v9.waveTimer>6){v9.waveTimer=0;mon=mon.filter(e=>e.type==='boss'||D(e,p)<Math.max(w,h)*1.6)}
+};
+const v9Draw=draw;
+draw=function(){
+ v9Draw();if(!p)return;
+ g.save();g.translate(w/2-p.x,h/2-p.y);
+ // 簡易動畫：召喚靈體繞行，角色腳步與武器光暈
+ for(let i=0;i<v9.summons.length;i++){
+ const q=v9.summons[i],a=q.angle+i*3,x=p.x+Math.cos(a)*95,y=p.y+Math.sin(a)*95;
+ g.fillStyle=p.heroClass===1?'#ae8bff':'#80d7e9';g.shadowColor=g.fillStyle;g.shadowBlur=15;
+ g.beginPath();g.arc(x,y+Math.sin(time*7+i)*4,9,0,Math.PI*2);g.fill();
+ g.shadowBlur=0;g.fillStyle='#fff';g.fillRect(x-3,y-2,2,2);g.fillRect(x+2,y-2,2,2);
+ }
+ for(const q of v9.skillRings){g.strokeStyle='#f8d78e';g.globalAlpha=Math.min(1,q.life*2);g.lineWidth=5;g.beginPath();g.arc(q.x,q.y,q.max*(1-q.life/.7)+q.r,0,Math.PI*2);g.stroke()}
+ g.globalAlpha=1;g.restore();
+ if(mode==='play'){
+ g.fillStyle='#f6d69a';g.font='bold 15px Microsoft JhengHei,Arial';g.textAlign='right';
+ g.fillText(v9.skillCd>0?'空白鍵技能：冷卻 '+Math.ceil(v9.skillCd)+' 秒':'空白鍵：施放角色技能',w-18,32);
+ }
+};
+const v9Menu=menu;
+menu=function(){v9Menu();box.innerHTML+='<p style="color:#e6d09b">V9 新增：地圖專屬怪物、召喚靈體、空白鍵主動技能與戰鬥動畫</p>'};
+
+
+// V10：角色技能成長、召喚物進化、圖鑑與強化 Boss
+const v10={skillLevel:1,skillUses:0,summonLevel:1,bossPulse:0};
+const v10Start=start;
+start=function(cl){v10Start(cl);v10.skillLevel=1;v10.skillUses=0;v10.summonLevel=1;v10.bossPulse=0;};
+const v10Skill=v9Skill;
+v9Skill=function(){if(mode!=='play'||v9.skillCd>0)return;v10Skill();v10.skillUses++;v9.skillCd=Math.max(5,v9.skillCd-(v10.skillLevel-1)*2);if(v10.skillLevel>1){for(const e of mon){if(D(e,p)<145+v10.skillLevel*30)damage(e,(v10.skillLevel-1)*22*p.dmg)}p.hp=Math.min(p.max,p.hp+(p.heroClass===3?8:0)*(v10.skillLevel-1))}};
+const v10Level=level;
+level=function(){v10Level();if(p.level%4===0){v10.skillLevel=Math.min(5,v10.skillLevel+1);v7Notice('✨ 主動技能提升至 Lv.'+v10.skillLevel)}if(p.level%6===0){v10.summonLevel=Math.min(4,v10.summonLevel+1);v7Notice('🐺 召喚靈體進化至 Lv.'+v10.summonLevel)}};
+const v10Tick=tick;
+tick=function(dt){v10Tick(dt);if(mode!=='play'||!p)return;
+ // 召喚物依等級增加數量、攻擊力，並有不同造型
+ const max=Math.min(6,(p.heroClass===1?3:2)+v10.summonLevel-1);
+ while(v9.summons.length<max)v9.summons.push({angle:Math.random()*Math.PI*2,attack:0});
+ v10.bossPulse+=dt;
+ if(v10.bossPulse>4){v10.bossPulse=0;for(const e of mon){if(e.type!=='boss'||e.hp<=0||e.hp>e.max*.5)continue;let d=D(e,p);if(d<460){const a=Math.atan2(p.y-e.y,p.x-e.x);for(let j=-2;j<=2;j++){let angle=a+j*.22;enemyBullets.push({x:e.x,y:e.y,vx:Math.cos(angle)*180,vy:Math.sin(angle)*180,r:7,life:3,damage:10})}v7Notice('⚠️ Boss 進入狂暴階段！')}}}
+};
+const v10Draw=draw;
+draw=function(){v10Draw();if(!p)return;
+ g.save();g.font='bold 14px Microsoft JhengHei,Arial';g.textAlign='right';g.fillStyle='#f4e3ba';g.fillText('技能 Lv.'+v10.skillLevel+' · 召喚 Lv.'+v10.summonLevel,w-18,53);g.restore();
+};
+function v10Codex(){mode='codex';modal.style.display='flex';const weapons=[['bolt','奧術魔彈'],['blade','旋轉飛刃'],['arrow','追蹤箭'],['nova','冰霜新星'],['orb','守護星'],['lightning','雷霆之怒'],['garlic','聖潔結界'],['flame','火焰武器'],['poison','毒霧']];box.innerHTML='<h1>📖 暗夜武器圖鑑</h1><p>武器可以在升級時取得，部分武器可透過精英寶箱進化。</p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;max-height:45vh;overflow:auto">'+weapons.map(([id,n])=>'<div style="padding:12px;border:1px solid #806a50;border-radius:9px;background:#252034">'+n+'<br><small>最高 Lv.6</small></div>').join('')+'</div><p>每提升 4 級，主動技能強化一次；每提升 6 級，召喚靈體進化一次。</p><button onclick="menu()">返回主選單</button>'}
+const v10Menu=menu;
+menu=function(){v10Menu();box.innerHTML+='<button onclick="v10Codex()">📖 武器與技能圖鑑</button><p style="color:#e7d29c">V10：技能成長 · 召喚進化 · Boss 狂暴階段</p>'};
+
+menu();
+
+// V11：精靈獨立索敵、角色像素立繪、地圖 Boss 光效、完整圖鑑
+const v11={pets:[],timer:0,shots:[],frame:0};
+const v11Start=start;
+start=function(cl){v11Start(cl);v11.pets=[];v11.timer=0;v11.shots=[];v11.frame=0;};
+const v11Tick=tick;
+tick=function(dt){
+ v11Tick(dt);if(mode!=='play'||!p)return;
+ v11.frame+=dt;v11.timer+=dt;
+ const count=Math.min(6,(p.heroClass===1?3:2)+v10.summonLevel-1);
+ while(v11.pets.length<count)v11.pets.push({x:p.x+R(-50,50),y:p.y+R(-50,50),cool:R(0,.8),phase:R(0,7)});
+ v11.pets.length=count;
+ for(let i=0;i<v11.pets.length;i++){
+  const q=v11.pets[i];let target=null,best=260;
+  for(const e of mon){if(e.hp<=0)continue;const d=Math.hypot(q.x-e.x,q.y-e.y);if(d<best){best=d;target=e}}
+  const angle=v11.frame*.8+i*6.283/count;
+  const tx=target?target.x:p.x+Math.cos(angle)*85,ty=target?target.y:p.y+Math.sin(angle)*85;
+  const dx=tx-q.x,dy=ty-q.y,dist=Math.hypot(dx,dy)||1,step=Math.min(dist,220*dt);
+  q.x+=dx/dist*step;q.y+=dy/dist*step;q.cool-=dt;
+  if(target&&dist<35&&q.cool<=0){q.cool=.75;damage(target,(13+v10.summonLevel*6)*p.dmg);v11.shots.push({x:q.x,y:q.y,life:.25})}
+ }
+ for(const q of v11.shots)q.life-=dt;v11.shots=v11.shots.filter(q=>q.life>0);
+};
+const v11Draw=draw;
+draw=function(){v11Draw();if(!p)return;
+ g.save();g.translate(w/2-p.x,h/2-p.y);
+ // 玩家 16-bit 像素風立繪：裝甲、披風、頭部與步行動態
+ const bob=Math.sin(v11.frame*12)*2,moving=keys.w||keys.a||keys.s||keys.d||keys.arrowup||keys.arrowdown||keys.arrowleft||keys.arrowright;
+ g.translate(Math.round(p.x),Math.round(p.y));
+ const palette=[['#849cbe','#d5e6ff'],['#7052a5','#d8b9ff'],['#4e986f','#c3f4d1'],['#e3c06c','#fff2b5'],['#a94e59','#ffb1a5']][p.heroClass];
+ g.fillStyle='#090b15';g.fillRect(-12,11,24,5);
+ g.fillStyle=palette[0];g.fillRect(-10,-4,20,17);g.fillRect(-13,-1,5,12);g.fillRect(8,-1,5,12);
+ g.fillStyle='#28263c';g.fillRect(-8,12,6,7+(moving?bob:0));g.fillRect(2,12,6,7-(moving?bob:0));
+ g.fillStyle='#eecba6';g.fillRect(-7,-15+bob,14,12);
+ g.fillStyle=palette[1];g.fillRect(-10,-19+bob,20,7);g.fillRect(-12,-14+bob,5,8);
+ g.fillStyle='#1a1427';g.fillRect(-4,-9+bob,3,3);g.fillRect(3,-9+bob,3,3);
+ g.fillStyle='#e7d99d';g.fillRect(12,0,3,17);
+ g.restore();
+ g.save();g.translate(w/2-p.x,h/2-p.y);
+ for(let i=0;i<v11.pets.length;i++){
+  const q=v11.pets[i],color=i%3===0?'#98e7f0':i%3===1?'#dfbbff':'#ffe1a1';
+  g.fillStyle='#12192b';g.fillRect(q.x-9,q.y-8,18,18);g.fillStyle=color;
+  g.fillRect(q.x-7,q.y-9,14,13);g.fillRect(q.x-5,q.y-13,10,5);
+  g.fillStyle='#111';g.fillRect(q.x-4,q.y-4,3,3);g.fillRect(q.x+2,q.y-4,3,3);
+ }
+ for(const q of v11.shots){g.strokeStyle='#fff2b0';g.lineWidth=3;g.beginPath();g.arc(q.x,q.y,20*(1-q.life/.25),0,7);g.stroke()}
+ for(const e of mon){if(e.type!=='boss')continue;g.save();g.translate(e.x,e.y);g.rotate(v11.frame*.4);g.strokeStyle=mapChoice===0?'#9fdfce':mapChoice===1?'#f4b36c':'#ec6a9c';g.lineWidth=3;g.globalAlpha=.65;for(let i=0;i<6;i++){let a=i*Math.PI/3;g.beginPath();g.moveTo(Math.cos(a)*49,Math.sin(a)*49);g.lineTo(Math.cos(a)*58,Math.sin(a)*58);g.stroke()}g.restore()}
+ g.restore();
+};
+function v11Codex(){mode='codex';modal.style.display='flex';let pairs=[['奧術魔彈','秘法風暴'],['旋轉飛刃','千刃輪舞'],['追蹤箭','幽影連弩'],['雷霆之怒','雷神審判'],['聖潔結界','神聖領域']];box.innerHTML='<h1>📖 武器進化圖鑑</h1><p>武器達 Lv.5，擊敗精英怪拾取寶箱即可進化（若有符合條件的武器）。</p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:9px">'+pairs.map(a=>'<div style="padding:12px;border:1px solid #806a50;border-radius:10px;background:#252034">'+a[0]+'<br>⬇<br><b style="color:#f4d28b">'+a[1]+'</b></div>').join('')+'</div><p>召喚靈體現在會自行追擊最近敵人並造成傷害。</p><button onclick="menu()">返回主選單</button>'}
+const v11Menu=menu;
+menu=function(){v11Menu();box.innerHTML+='<button onclick="v11Codex()">📚 完整進化圖鑑</button><p style="color:#e7d29c">V11：像素風人物 · 召喚物獨立 AI · Boss 光環</p>'};
+
+// V12：地圖事件、召喚職業、怪物像素造型、Boss 階段提示
+const v12={events:[],eventClock:0,notice:'',noticeTime:0,phase:new Set(),frame:0};
+const v12Start=start;
+start=function(cl){v12Start(cl);v12.events=[];v12.eventClock=0;v12.notice='';v12.noticeTime=0;v12.phase.clear();v12.frame=0;};
+function v12Message(s){v12.notice=s;v12.noticeTime=3.5}
+function v12Event(){const a=R(0,6.283),radius=R(230,440),kind=['cache','shrine','merchant'][Math.random()*3|0];v12.events.push({x:p.x+Math.cos(a)*radius,y:p.y+Math.sin(a)*radius,kind,life:75});v12Message(kind==='cache'?'🎁 發現寶藏！靠近拾取':kind==='shrine'?'🔮 神秘祭壇出現！按 E 啟動':'🛒 流浪商人出現！按 E 交易')}
+function v12Interact(){if(mode!=='play'||!p)return;let e=v12.events.find(e=>D(e,p)<60);if(!e)return;if(e.kind==='shrine'){p.dmg*=1.08;p.hp=Math.min(p.max,p.hp+20);v12Message('🌙 月光祝福：傷害 +8%、恢復 20 生命')}else if(e.kind==='merchant'){if(coins>=35){coins-=35;p.max+=20;p.hp=Math.min(p.max,p.hp+45);v12Message('🛒 花費 35 金幣：最大生命 +20')}else v12Message('🛒 金幣不足，需要 35 金幣')}else{coins+=25;p.exp+=25;v12Message('🎁 寶藏：25 金幣與 25 經驗')}v12.events.splice(v12.events.indexOf(e),1)}
+addEventListener('keydown',e=>{if(e.key.toLowerCase()==='e'&&!e.repeat)v12Interact()});
+const v12Tick=tick;
+tick=function(dt){v12Tick(dt);if(mode!=='play'||!p)return;v12.frame+=dt;v12.eventClock+=dt;v12.noticeTime=Math.max(0,v12.noticeTime-dt);if(v12.eventClock>=42){v12.eventClock=0;if(v12.events.length<3)v12Event()}for(const e of v12.events)e.life-=dt;v12.events=v12.events.filter(e=>e.life>0);for(const e of mon){if(e.type==='boss'&&e.hp>0&&e.hp<e.max*.5&&!v12.phase.has(e.id)){v12.phase.add(e.id);e.spd*=1.2;v12Message('⚠️ 首領進入第二階段！速度提升')}}};
+const v12Draw=draw;
+draw=function(){v12Draw();if(!p)return;g.save();g.translate(w/2-p.x,h/2-p.y);
+// 專屬像素怪物造型：不同地圖呈現不同敵人輪廓
+for(const e of mon){if(e.type==='boss')continue;const x=Math.round(e.x),y=Math.round(e.y),bob=Math.sin(v12.frame*8+e.id)*2;g.save();g.translate(x,y+bob);if(e.v9Type==='森林狼人'){g.fillStyle='#7d8c61';g.fillRect(-10,-12,20,23);g.fillRect(-14,-18,9,12);g.fillRect(5,-18,9,12);g.fillStyle='#f8c55d';g.fillRect(-6,-4,4,4);g.fillRect(3,-4,4,4)}else if(e.v9Type==='血族侍衛'){g.fillStyle='#702f55';g.fillRect(-12,-15,24,26);g.fillStyle='#d4b2c8';g.fillRect(-8,-16,16,12);g.fillStyle='#f55275';g.fillRect(-5,-9,3,3);g.fillRect(3,-9,3,3)}else if(e.v9Type==='骷髏兵'){g.fillStyle='#e7dfc6';g.fillRect(-9,-13,18,17);g.fillStyle='#302b40';g.fillRect(-6,-6,4,5);g.fillRect(3,-6,4,5);g.fillStyle='#e7dfc6';g.fillRect(-7,6,14,8)}else{g.fillStyle=e.type==='bat'?'#8761b6':'#63897d';g.fillRect(-9,-10,18,20);g.fillStyle='#faf1d6';g.fillRect(-5,-4,3,3);g.fillRect(3,-4,3,3)}g.restore()}
+// 召喚物依索引分成骷髏戰士、魔狼與元素精靈
+for(let i=0;i<v11.pets.length;i++){let q=v11.pets[i],x=q.x,y=q.y;g.fillStyle=i%3===0?'#e7dfc6':i%3===1?'#a38a69':'#7edbe7';if(i%3===0){g.fillRect(x-7,y-9,14,18);g.fillStyle='#1a1830';g.fillRect(x-4,y-3,3,3);g.fillRect(x+2,y-3,3,3)}else if(i%3===1){g.fillRect(x-11,y-4,22,12);g.fillRect(x-9,y-12,7,10);g.fillRect(x+4,y-12,7,10)}else{g.beginPath();g.arc(x,y,10+Math.sin(v12.frame*5+i)*2,0,7);g.fill()}}
+for(const e of v12.events){let icon=e.kind==='cache'?'🎁':e.kind==='shrine'?'🔮':'🛒';g.font='27px sans-serif';g.textAlign='center';g.fillText(icon,e.x,e.y);if(D(e,p)<70){g.fillStyle='#f8dfac';g.font='13px sans-serif';g.fillText(e.kind==='cache'?'按 E 拾取':'按 E 互動',e.x,e.y-30)}}g.restore();
+if(v12.noticeTime>0){g.save();g.font='bold 21px Microsoft JhengHei, sans-serif';g.textAlign='center';g.fillStyle='#ffe3a0';g.shadowColor='#000';g.shadowBlur=9;g.fillText(v12.notice,w/2,Math.min(115,h*.18));g.restore()}
+};
+const v12Menu=menu;
+menu=function(){v12Menu();box.innerHTML+='<p style="color:#e7d29c">V12：像素怪物 · 三種召喚夥伴 · 隨機地圖事件 · Boss 第二階段</p>'};
+
+
+// V13：三種新武器、戰場障礙、Boss 招式、小地圖
+const v13={obstacles:[],cool:{},effects:[],bossCd:new Map(),bossShots:[],mapTimer:0};
+const v13Start=start;
+start=function(cl){v13Start(cl);v13.obstacles=[];v13.cool={};v13.effects=[];v13.bossCd.clear();v13.bossShots=[];v13.mapTimer=0;v13CreateObstacles();};
+function v13CreateObstacles(){for(let i=0;i<42;i++){let a=R(0,Math.PI*2),d=R(210,1500);v13.obstacles.push({x:p.x+Math.cos(a)*d,y:p.y+Math.sin(a)*d,r:mapChoice===0?18:mapChoice===1?24:22});}}
+const v13Opts=opts;
+opts=[...v13Opts,['scythe','🪓 死神鐮刀','橫掃附近敵人'],['cross','✝️ 聖光十字架','向四周發射聖光'],['blood','🌙 血月法杖','召喚血月爆破']];
+const v13Pick=pick;
+pick=function(i){const k=offers[i]?.[0];if(['scythe','cross','blood'].includes(k)){p.weapon[k]=(p.weapon[k]||0)+1;mode='play';modal.style.display='none';if(p.exp>=p.need)level();return;}v13Pick(i)};
+const v13Upgrade=upgrade;
+upgrade=function(){v13Upgrade();if(mode!=='upgrade')return;let pool=opts.filter(o=>['scythe','cross','blood'].includes(o[0])&&(p.weapon[o[0]]||0)<6);if(pool.length&&Math.random()<.8){let index=Math.random()*offers.length|0;offers[index]=pool[Math.random()*pool.length|0];box.innerHTML='<h1>✨ 升級 Lv.'+p.level+'</h1><p>選擇一項能力</p>'+offers.map((o,i)=>'<button onclick="pick('+i+')">'+o[1]+'<br><small>'+o[2]+'</small></button>').join('')}};
+const v13Tick=tick;
+tick=function(dt){v13Tick(dt);if(mode!=='play'||!p)return;v13.mapTimer+=dt;
+for(const [k,period] of [['scythe',2.2],['cross',1.65],['blood',3.8]]){let lv=p.weapon[k]||0;if(!lv)continue;v13.cool[k]=(v13.cool[k]||0)-dt;if(v13.cool[k]>0)continue;v13.cool[k]=period/(p.rate*(1+lv*.06));let radius=k==='blood'?180:k==='scythe'?115:240;let nearby=mon.filter(e=>D(e,p)<radius).sort((a,b)=>D(a,p)-D(b,p));if(k==='cross')nearby=nearby.slice(0,2+lv);for(let e of nearby)damage(e,(k==='blood'?42:k==='scythe'?31:24)*p.dmg*(1+lv*.2));v13.effects.push({x:p.x,y:p.y,r:radius,life:.4,max:.4,color:k==='blood'?'#f16b9a':k==='scythe'?'#d5c2f4':'#ffe8a1'});}
+// 障礙物實際阻擋玩家移動，避免穿過墓碑、樹木與城牆
+for(const o of v13.obstacles){let dx=p.x-o.x,dy=p.y-o.y,d=Math.hypot(dx,dy)||1,min=o.r+p.r;if(d<min){p.x=o.x+dx/d*min;p.y=o.y+dy/d*min}}
+for(const e of mon){if(e.type!=='boss'||e.hp<=0)continue;let cd=(v13.bossCd.get(e.id)||2)-dt;if(cd<=0){cd=e.hp<e.max*.5?2.2:3.7;if(mapChoice===0){for(let i=0;i<3;i++)enemy(false);v12Message('💀 死靈王召喚亡者！')}else if(mapChoice===1){let a=Math.atan2(p.y-e.y,p.x-e.x);e.x+=Math.cos(a)*85;e.y+=Math.sin(a)*85;v12Message('🐺 魔狼王猛撲！')}else{for(let i=0;i<9;i++){let a=i*Math.PI*2/9;v13.bossShots.push({x:e.x,y:e.y,vx:Math.cos(a)*180,vy:Math.sin(a)*180,life:3})}v12Message('🩸 血堡領主釋放血彈！')}}v13.bossCd.set(e.id,cd)}
+for(const b of v13.bossShots){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;if(D(b,p)<p.r+7&&p.inv<=0){p.hp-=Math.max(1,13-p.armor);p.inv=.6;b.life=0;if(p.hp<=0){end(false);return}}}v13.bossShots=v13.bossShots.filter(b=>b.life>0);
+for(const q of v13.effects)q.life-=dt;v13.effects=v13.effects.filter(q=>q.life>0);
+};
+const v13Draw=draw;
+draw=function(){v13Draw();if(!p)return;g.save();g.translate(w/2-p.x,h/2-p.y);for(const o of v13.obstacles){if(Math.abs(o.x-p.x)>w/2+50||Math.abs(o.y-p.y)>h/2+50)continue;g.fillStyle=mapChoice===0?'#777a8b':mapChoice===1?'#395c45':'#786477';g.fillRect(o.x-o.r*.65,o.y-o.r*.7,o.r*1.3,o.r*1.4);g.fillStyle='#1b2030';g.fillRect(o.x-3,o.y-o.r*.5,6,o.r*.8)}for(const b of v13.bossShots){g.fillStyle='#f35c88';g.beginPath();g.arc(b.x,b.y,7,0,7);g.fill()}for(const q of v13.effects){g.globalAlpha=q.life/q.max;g.strokeStyle=q.color;g.lineWidth=5;g.beginPath();g.arc(q.x,q.y,q.r*(1-q.life/q.max),0,7);g.stroke()}g.restore();g.globalAlpha=1;
+// 小地圖：角色、首領與互動事件
+const size=140,x=w-size-16,y=h-size-16,scale=.085;g.fillStyle='#080d1bdc';g.fillRect(x,y,size,size);g.strokeStyle='#bba77a';g.strokeRect(x,y,size,size);g.save();g.beginPath();g.rect(x,y,size,size);g.clip();g.fillStyle='#fff5d0';g.fillRect(x+size/2-3,y+size/2-3,6,6);for(const e of mon)if(e.type==='boss'){g.fillStyle='#f45b78';g.fillRect(x+size/2+(e.x-p.x)*scale-3,y+size/2+(e.y-p.y)*scale-3,6,6)}for(const e of v12.events){g.fillStyle=e.kind==='merchant'?'#e9ca67':'#77d6fa';g.fillRect(x+size/2+(e.x-p.x)*scale-2,y+size/2+(e.y-p.y)*scale-2,4,4)}g.restore();g.fillStyle='#eee2c7';g.font='12px sans-serif';g.textAlign='left';g.fillText('小地圖',x+8,y+15);
+};
+const v13Menu=menu;
+menu=function(){v13Menu();box.innerHTML+='<p style="color:#e7d29c">V13：死神鐮刀、聖光十字架、血月法杖 · 地圖障礙物 · Boss 專屬招式 · 小地圖</p>'};
+
+
+// V14：難度、三大武器進化、怪物避障、召喚物分工、首領血條
+const v14={difficulty:'normal',evolved:{},pulse:0,petCooldown:[],bossPhase:{}};
+const v14Menu=menu;
+menu=function(){v14Menu();box.innerHTML+='<div style="margin:12px"><strong>⚔️ 挑戰難度：</strong> <button onclick="v14Difficulty(\'normal\')">普通</button><button onclick="v14Difficulty(\'hard\')">困難</button><button onclick="v14Difficulty(\'hell\')">地獄</button><span id="v14difficulty">目前：'+v14.difficulty+'</span></div>'};
+function v14Difficulty(k){v14.difficulty=k;const names={normal:'普通',hard:'困難',hell:'地獄'};document.getElementById('v14difficulty').textContent='目前：'+names[k]}
+const v14Start=start;
+start=function(cl){v14Start(cl);v14.evolved={};v14.pulse=0;v14.petCooldown=[];v14.bossPhase={};};
+const v14Enemy=enemy;
+enemy=function(boss=false){let n=mon.length;v14Enemy(boss);let factor={normal:1,hard:1.55,hell:2.25}[v14.difficulty];for(let i=n;i<mon.length;i++){let e=mon[i];e.hp*=factor;e.max=e.hp;e.spd*=Math.min(1.5,1+(factor-1)*.16)}};
+const v14Tick=tick;
+tick=function(dt){
+ v14Tick(dt);if(mode!=='play'||!p)return;
+ v14.pulse+=dt;
+ // 普通怪物沿障礙物邊緣繞行；避免穿越地形
+ for(const e of mon){if(e.type==='boss')continue;for(const o of v13.obstacles){let dx=e.x-o.x,dy=e.y-o.y,d=Math.hypot(dx,dy)||1,min=e.r+o.r+2;if(d<min){let nx=dx/d,ny=dy/d;e.x=o.x+nx*min;e.y=o.y+ny*min;let tx=-ny,ty=nx,sign=(tx*(p.x-e.x)+ty*(p.y-e.y))>0?1:-1;e.x+=tx*sign*e.spd*dt*.65;e.y+=ty*sign*e.spd*dt*.65}}}
+ // 新武器 Lv.5 後進化：各有獨立追加攻擊
+ for(const k of ['scythe','cross','blood'])if((p.weapon[k]||0)>=5&&!v14.evolved[k]){v14.evolved[k]=true;v12Message(({scythe:'🌑 死神鐮刀進化：冥界收割',cross:'☀️ 聖光十字架進化：天國審判',blood:'🩸 血月法杖進化：永夜血月'})[k])}
+ if(v14.pulse>.9){v14.pulse=0;
+ if(v14.evolved.scythe)for(const e of mon)if(D(e,p)<190)damage(e,25*p.dmg);
+ if(v14.evolved.cross){let targets=mon.filter(e=>D(e,p)<380).sort((a,b)=>D(a,p)-D(b,p)).slice(0,6);for(const e of targets)damage(e,31*p.dmg)}
+ if(v14.evolved.blood)for(const e of mon)if(D(e,p)<260)damage(e,20*p.dmg);
+ }
+ // 三類召喚物：骷髏近戰、魔狼追擊、元素精靈遠程
+ for(let i=0;i<v11.pets.length;i++){const q=v11.pets[i];v14.petCooldown[i]=(v14.petCooldown[i]||0)-dt;if(v14.petCooldown[i]>0)continue;let range=i%3===0?45:i%3===1?90:240;let target=mon.find(e=>e.hp>0&&Math.hypot(e.x-q.x,e.y-q.y)<range);if(target){v14.petCooldown[i]=i%3===0?1.1:i%3===1?.65:1.5;damage(target,(i%3===0?17:i%3===1?12:23)*p.dmg);v11.shots.push({x:target.x,y:target.y,life:.25})}}
+};
+const v14Draw=draw;
+draw=function(){v14Draw();if(!p)return;
+ // 頂部 Boss 血條與階段資訊
+ const bosses=mon.filter(e=>e.type==='boss'&&e.hp>0);if(bosses.length){let b=bosses.reduce((a,e)=>D(e,p)<D(a,p)?e:a),ratio=Math.max(0,b.hp/b.max),bw=Math.min(460,w*.54),bx=(w-bw)/2;g.save();g.fillStyle='#090a14dc';g.fillRect(bx,67,bw,35);g.fillStyle='#542235';g.fillRect(bx+8,89,bw-16,8);g.fillStyle='#f05178';g.fillRect(bx+8,89,(bw-16)*ratio,8);g.fillStyle='#fff0da';g.font='bold 14px Microsoft JhengHei,Arial';g.textAlign='center';g.fillText((['墓園死靈王','森林魔狼','血堡領主'][mapChoice]||'深淵首領')+'  ·  '+(ratio<.5?'第二階段：狂暴':'第一階段'),w/2,83);g.restore()}
+ // 進化提示
+ let evolved=Object.keys(v14.evolved);if(evolved.length){g.save();g.fillStyle='#ffe2a1';g.font='13px Microsoft JhengHei,Arial';g.textAlign='right';g.fillText('究極武器 '+evolved.length+'/3',w-18,55);g.restore()}
+};
+
+
+// V15：天賦路線、召喚物精通、詛咒寶箱、Boss 階段技能與效能調整
+const v15={talents:{},petPower:0,events:[],eventClock:0,fx:[],bossCooldown:new Map(),bossPhase:new Set(),notice:0};
+const v15Start=start;
+start=function(cl){v15Start(cl);v15.talents={};v15.petPower=0;v15.events=[];v15.eventClock=0;v15.fx=[];v15.bossCooldown.clear();v15.bossPhase.clear();};
+const v15Opts=opts;
+opts=[...v15Opts,['v15might','🔥 戰鬥天賦','所有攻擊傷害 +12%'],['v15guard','🛡️ 生存天賦','護甲 +1，恢復 15 生命'],['v15pets','🐺 召喚精通','召喚物攻擊力提升'],['v15luck','🍀 探索天賦','提高經驗吸取範圍']];
+const v15Pick=pick;
+pick=function(i){const k=offers[i]?.[0];if(k&&k.startsWith('v15')){v15.talents[k]=(v15.talents[k]||0)+1;if(k==='v15might')p.dmg*=1.12;if(k==='v15guard'){p.armor++;p.hp=Math.min(p.max,p.hp+15)}if(k==='v15pets')v15.petPower++;if(k==='v15luck')p.magnet+=35;mode='play';modal.style.display='none';if(p.exp>=p.need)level();return}v15Pick(i)};
+const v15Upgrade=upgrade;
+upgrade=function(){v15Upgrade();if(mode!=='upgrade')return;const extras=opts.filter(o=>o[0].startsWith('v15'));if(Math.random()<.85){offers[2]=extras[Math.floor(Math.random()*extras.length)];box.innerHTML='<h1>✨ 升級 Lv.'+p.level+'</h1><p>選擇一項能力</p>'+offers.map((o,i)=>'<button onclick="pick('+i+')">'+o[1]+'<br><small>'+o[2]+'</small></button>').join('')}};
+function v15EventInteract(){if(mode!=='play'||!p)return;let e=v15.events.find(e=>!e.used&&D(e,p)<85);if(!e)return;e.used=true;
+if(e.kind==='cursed'){let gain=45+Math.floor(time/60)*10;p.hp=Math.max(1,p.hp-20);p.exp+=gain;v12Message('🩸 詛咒寶箱：失去 20 生命，獲得 '+gain+' 經驗！')}
+else if(e.kind==='trial'){for(let i=0;i<9;i++)enemy(false);p.dmg*=1.08;v12Message('⚔️ 挑戰開始：怪物來襲，攻擊力 +8%！')}
+else {p.hp=Math.min(p.max,p.hp+35);p.armor++;v12Message('🧙 隱藏商人贈禮：生命 +35、護甲 +1！')}
+}
+addEventListener('keydown',e=>{if(e.key.toLowerCase()==='e'&&!e.repeat)v15EventInteract()});
+const v15Tick=tick;
+tick=function(dt){v15Tick(dt);if(mode!=='play'||!p)return;
+v15.eventClock+=dt;
+if(v15.eventClock>=35){v15.eventClock=0;const types=['cursed','trial','merchant'];let a=R(0,Math.PI*2),d=R(160,340);v15.events.push({x:p.x+Math.cos(a)*d,y:p.y+Math.sin(a)*d,kind:types[Math.floor(Math.random()*3)],used:false});if(v15.events.length>8)v15.events.shift();v12Message('✨ 附近出現新的探索事件！')}
+for(const b of mon){if(b.type!=='boss'||b.hp<=0)continue;const ratio=b.hp/b.max;if(ratio<=.5&&!v15.bossPhase.has(b.id)){v15.bossPhase.add(b.id);v12Message('👑 首領進入狂暴階段！');v15.fx.push({x:b.x,y:b.y,r:30,life:1.1,max:1.1,color:'#ff5a88'})}
+let cd=(v15.bossCooldown.get(b.id)??4)-dt;if(cd<=0){cd=ratio<=.5?3.2:5.3;
+if(mapChoice===0){for(let i=0;i<(ratio<=.5?5:3);i++)enemy(false)}
+else if(mapChoice===1){const a=Math.atan2(p.y-b.y,p.x-b.x);b.x+=Math.cos(a)*(ratio<=.5?125:75);b.y+=Math.sin(a)*(ratio<=.5?125:75)}
+else{let count=ratio<=.5?14:8;for(let i=0;i<count;i++){let a=i*Math.PI*2/count+time*.3;v13.bossShots.push({x:b.x,y:b.y,vx:Math.cos(a)*210,vy:Math.sin(a)*210,life:2.7})}}
+v15.fx.push({x:b.x,y:b.y,r:25,life:.7,max:.7,color:'#ffd17d'})}v15.bossCooldown.set(b.id,cd)}
+// 召喚精通：每秒由附近召喚物額外攻擊一次
+v15.notice+=dt;if(v15.petPower&&v15.notice>=1){v15.notice=0;for(const q of v11.pets){let e=mon.find(e=>e.hp>0&&Math.hypot(e.x-q.x,e.y-q.y)<150);if(e)damage(e,(9+v15.petPower*9)*p.dmg)}}
+for(const f of v15.fx)f.life-=dt;v15.fx=v15.fx.filter(f=>f.life>0);
+// 只保留可見範圍附近的特效，避免長時間累積
+if(v13.effects.length>100)v13.effects.splice(0,v13.effects.length-100);
+if(fx.length>250)fx.splice(0,fx.length-250);
+};
+const v15Draw=draw;
+draw=function(){v15Draw();if(!p)return;g.save();g.translate(w/2-p.x,h/2-p.y);
+for(const e of v15.events){if(e.used||Math.abs(e.x-p.x)>w/2+60||Math.abs(e.y-p.y)>h/2+60)continue;g.font='30px sans-serif';g.textAlign='center';g.fillText(e.kind==='cursed'?'🩸':e.kind==='trial'?'⚔️':'🧙',e.x,e.y);if(D(e,p)<85){g.font='13px Microsoft JhengHei,Arial';g.fillStyle='#ffe2a4';g.fillText('按 E 互動',e.x,e.y-34)}}
+for(const f of v15.fx){g.globalAlpha=Math.min(1,f.life/f.max);g.strokeStyle=f.color;g.lineWidth=5;g.beginPath();g.arc(f.x,f.y,f.r+(1-f.life/f.max)*95,0,Math.PI*2);g.stroke()}g.restore();g.globalAlpha=1;
+g.save();g.fillStyle='#ffe1ac';g.font='13px Microsoft JhengHei,Arial';g.textAlign='right';g.fillText('天賦 '+Object.values(v15.talents).reduce((a,b)=>a+b,0)+' · 召喚精通 '+v15.petPower,w-18,75);g.restore()};
+const v15Menu=menu;
+menu=function(){v15Menu();box.innerHTML+='<p style="color:#e7d29c">V15：角色天賦 · 召喚精通 · 詛咒寶箱 · 挑戰事件 · 首領多階段攻擊</p>'};
+
+// V16 局外大型永久天賦樹：節點與連線以 SVG 畫布繪製
+const TREE_KEY='night_passive_tree_v16';
+const treeDefs=[
+ ['root','命運核心','旅程的起點',0,0,0,0,'root',[]],
+ ['might1','武器熟練','傷害 +5%',-130,-30,35,0,'attack',['root']],
+ ['might2','戰鬥本能','攻速 +6%',-250,-85,50,0,'attack',['might1']],
+ ['might3','致命一擊','暴擊率 +3%',-375,-125,70,0,'attack',['might2']],
+ ['might4','屠戮之心','傷害 +12%',-490,-205,110,0,'attack',['might3']],
+ ['might5','迅捷連擊','攻速 +12%',-485,-35,95,0,'attack',['might3']],
+ ['might6','戰爭領主','傷害 +20%',-625,-175,180,0,'attack',['might4','might5']],
+ ['guard1','生命之源','最大生命 +12',70,-120,35,0,'defense',['root']],
+ ['guard2','厚實皮甲','護甲 +1',130,-250,50,0,'defense',['guard1']],
+ ['guard3','再生之血','每秒恢復 0.4 生命',180,-385,75,0,'defense',['guard2']],
+ ['guard4','不屈意志','最大生命 +35',30,-485,110,0,'defense',['guard3']],
+ ['guard5','鋼鐵壁壘','護甲 +2',280,-485,120,0,'defense',['guard3']],
+ ['guard6','永生之誓','生命 +60、恢復 +0.6',165,-625,190,0,'defense',['guard4','guard5']],
+ ['arc1','魔力流動','魔法傷害 +6%',140,60,35,0,'magic',['root']],
+ ['arc2','秘法共鳴','魔法傷害 +8%',270,115,55,0,'magic',['arc1']],
+ ['arc3','元素脈動','魔法傷害 +10%',395,165,75,0,'magic',['arc2']],
+ ['arc4','咒文增幅','魔法傷害 +14%',500,70,105,0,'magic',['arc3']],
+ ['arc5','奧術之心','魔法傷害 +14%',495,280,115,0,'magic',['arc3']],
+ ['arc6','大法師','魔法傷害 +25%',630,170,190,0,'magic',['arc4','arc5']],
+ ['move1','疾風之路','移動速度 +5%',-35,145,35,0,'explore',['root']],
+ ['move2','靈魂吸引','拾取範圍 +30',-85,280,50,0,'explore',['move1']],
+ ['move3','旅行者','移動速度 +7%',-145,410,75,0,'explore',['move2']],
+ ['move4','寶石獵人','拾取範圍 +60',-285,490,110,0,'explore',['move3']],
+ ['move5','追風者','移動速度 +10%',-15,525,115,0,'explore',['move3']],
+ ['move6','星辰旅者','移動速度 +12%',-160,665,185,0,'explore',['move4','move5']]
+];
+let treeBought=new Set();try{treeBought=new Set(JSON.parse(localStorage.getItem(TREE_KEY)||'[]').filter(k=>treeDefs.some(n=>n[0]===k)))}catch(e){};
+const treeColor={root:'#f8d486',attack:'#f56f72',defense:'#6db6fa',magic:'#bc8dff',explore:'#78e0ad'};
+let treeView={x:0,y:0,z:.84},treeDragging=null,treeMoved=false;
+function treeSave(){try{localStorage.setItem(TREE_KEY,JSON.stringify([...treeBought]));localStorage.setItem('night_bank',String(bank))}catch(e){}}
+function treeCan(n){return !treeBought.has(n[0])&&n[8].some(k=>k==='root'||treeBought.has(k))}
+function treePurchase(id){let n=treeDefs.find(v=>v[0]===id);if(!n||!treeCan(n)||bank<n[5])return;bank-=n[5];treeBought.add(id);treeSave();treeRender()}
+function treeOpen(){mode='tree';modal.style.display='none';let old=document.querySelector('#treeScreen');if(old)old.remove();let el=document.createElement('div');el.id='treeScreen';el.style.cssText='position:fixed;inset:0;z-index:100;background:#080c18;color:#f1e7d4;font-family:Microsoft JhengHei,Arial;display:flex;flex-direction:column';el.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;background:#151a2d;border-bottom:1px solid #8b704d;flex-wrap:wrap"><div><b style="color:#f5d392;font-size:23px">✦ 命運天賦星盤</b><span style="margin-left:14px">🪙 <span id="treeGold"></span> 金幣　|　已解鎖 <span id="treeCount"></span> / ${treeDefs.length-1}</span></div><div><button onclick="treeReset()">重置天賦（返還 80%）</button><button onclick="treeClose()">返回主選單</button></div></div><div style="flex:1;position:relative;overflow:hidden;touch-action:none" id="treeViewport"><svg id="treeSvg" style="width:100%;height:100%;display:block;cursor:grab"></svg><div id="treeHint" style="position:absolute;bottom:15px;left:18px;background:#111b;padding:10px 14px;border-radius:9px;pointer-events:none">拖曳移動畫布 · 滾輪縮放 · 點擊相鄰節點解鎖</div></div>`;document.body.appendChild(el);let svg=el.querySelector('svg');svg.addEventListener('pointerdown',e=>{if(e.target.closest('[data-node]'))return;treeDragging={x:e.clientX,y:e.clientY,ox:treeView.x,oy:treeView.y};svg.setPointerCapture(e.pointerId)});svg.addEventListener('pointermove',e=>{if(!treeDragging)return;treeView.x=treeDragging.ox+e.clientX-treeDragging.x;treeView.y=treeDragging.oy+e.clientY-treeDragging.y;treeRender()});svg.addEventListener('pointerup',()=>treeDragging=null);svg.addEventListener('pointercancel',()=>treeDragging=null);svg.addEventListener('wheel',e=>{e.preventDefault();treeView.z=Math.max(.35,Math.min(2,treeView.z*(e.deltaY>0?.9:1.1)));treeRender()},{passive:false});treeRender()}
+function treeRender(){const svg=document.querySelector('#treeSvg');if(!svg)return;let rect=svg.getBoundingClientRect(),cx=rect.width/2+treeView.x,cy=rect.height/2+treeView.y,z=treeView.z;let pos=n=>[cx+n[3]*z,cy+n[4]*z];let lines='';for(let n of treeDefs)for(let pre of n[8]){let a=treeDefs.find(v=>v[0]===pre);if(!a)continue;let [x1,y1]=pos(a),[x2,y2]=pos(n),active=treeBought.has(n[0])&& (pre==='root'||treeBought.has(pre));lines+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${active?'#e4bd6b':'#3e4a65'}" stroke-width="${active?4:2}" opacity=".9"/>`}
+let nodes=treeDefs.map(n=>{let [x,y]=pos(n),root=n[0]==='root',bought=treeBought.has(n[0]),available=treeCan(n),color=treeColor[n[7]],radius=(root?31:available?23:19)*Math.max(.7,z);return `<g data-node="${n[0]}" onclick="treePurchase('${n[0]}')" style="cursor:${available?'pointer':'default'}"><circle cx="${x}" cy="${y}" r="${radius+6}" fill="none" stroke="${available?'#e8d08a':bought?color:'#2a3040'}" stroke-width="${available?3:1}" opacity="${available?1:.55}"/><circle cx="${x}" cy="${y}" r="${radius}" fill="${root?'#8d6b32':bought?color:'#182238'}" stroke="${color}" stroke-width="2"/><text x="${x}" y="${y+5}" fill="${bought||root?'#141827':'#f2eadc'}" font-size="${Math.max(11,15*z)}" text-anchor="middle">${root?'✦':bought?'✓':'+'}</text><text x="${x}" y="${y+radius+20}" fill="${bought?'#f4e0ad':'#d7dce9'}" text-anchor="middle" font-size="${Math.max(11,15*z)}" font-weight="bold">${n[1]}</text><text x="${x}" y="${y+radius+35}" fill="#a9b7ca" text-anchor="middle" font-size="${Math.max(10,12*z)}">${root?'中心':n[2]+' · '+n[5]+'金'}</text></g>`}).join('');svg.innerHTML=`<defs><radialGradient id="bg"><stop stop-color="#1a2440"/><stop offset="1" stop-color="#080b17"/></radialGradient></defs><rect width="100%" height="100%" fill="url(#bg)"/>${lines}${nodes}`;document.querySelector('#treeGold').textContent=bank;document.querySelector('#treeCount').textContent=treeBought.size}
+function treeReset(){if(!treeBought.size)return;if(!confirm('重置所有天賦並返還 80% 已花費金幣？'))return;let total=[...treeBought].reduce((sum,k)=>sum+(treeDefs.find(n=>n[0]===k)?.[5]||0),0);bank+=Math.floor(total*.8);treeBought.clear();treeSave();treeRender()}
+function treeClose(){document.querySelector('#treeScreen')?.remove();menu()}
+function treeApply(){if(!p)return;for(let id of treeBought){switch(id){case 'might1':p.dmg*=1.05;break;case 'might2':p.rate*=1.06;break;case 'might3':p.critChance=(p.critChance||0)+.03;break;case 'might4':p.dmg*=1.12;break;case 'might5':p.rate*=1.12;break;case 'might6':p.dmg*=1.2;break;case 'guard1':p.max+=12;p.hp+=12;break;case 'guard2':p.armor++;break;case 'guard3':p.regen+=.4;break;case 'guard4':p.max+=35;p.hp+=35;break;case 'guard5':p.armor+=2;break;case 'guard6':p.max+=60;p.hp+=60;p.regen+=.6;break;case 'arc1':case 'arc2':case 'arc3':case 'arc4':case 'arc5':case 'arc6':p.dmg*=({arc1:1.06,arc2:1.08,arc3:1.10,arc4:1.14,arc5:1.14,arc6:1.25})[id];break;case 'move1':p.speed*=1.05;break;case 'move2':p.magnet+=30;break;case 'move3':p.speed*=1.07;break;case 'move4':p.magnet+=60;break;case 'move5':p.speed*=1.1;break;case 'move6':p.speed*=1.12;break;}}}
+const v16OldMenu=menu;menu=function(){v16OldMenu();box.innerHTML+='<p><button style="font-size:20px;border:2px solid #e1bd79;background:#43344f" onclick="treeOpen()">🌳 命運天賦樹（局外永久成長）</button></p>'};
+const v16OldStart=start;start=function(cl){v16OldStart(cl);if(mode==='play')treeApply()};
+
+
+// V17：大型星盤與技能專精分支。沿用 V16 的存檔、金幣與相鄰解鎖機制。
+const v17Branches=[
+ {base:'might6',prefix:'blade',name:'旋刃專精',color:'attack',x:-760,y:-220,skills:['鋒刃研磨','多重旋刃','迴旋之勢','破甲飛刃','血色刀舞','無盡刀陣'],desc:['旋刃傷害 +12%','旋刃額外發射 1 枚','旋刃攻擊頻率 +15%','旋刃傷害 +20%','旋刃額外發射 2 枚','旋刃傷害 +35%']},
+ {base:'might6',prefix:'arrow',name:'箭術專精',color:'attack',x:-760,y:-470,skills:['獵手直覺','雙重箭矢','穿心之箭','疾風連射','千箭齊發','幽影箭神'],desc:['箭矢傷害 +12%','額外射出 1 箭','箭矢傷害 +20%','箭矢攻速 +20%','額外射出 2 箭','箭矢傷害 +35%']},
+ {base:'arc6',prefix:'bolt',name:'奧術專精',color:'magic',x:785,y:120,skills:['魔力凝聚','奧術分裂','魔力穿透','高速施法','秘法齊射','星界風暴'],desc:['奧術彈傷害 +12%','額外射出 1 彈','奧術彈傷害 +20%','奧術彈攻速 +20%','額外射出 2 彈','奧術彈傷害 +35%']},
+ {base:'arc6',prefix:'lightning',name:'雷霆專精',color:'magic',x:790,y:420,skills:['雷元素親和','閃電擴散','高壓電流','連鎖反應','雷暴降臨','雷神化身'],desc:['雷電傷害 +12%','雷電範圍 +15%','雷電傷害 +20%','雷電頻率 +20%','雷電範圍 +25%','雷電傷害 +35%']},
+ {base:'arc6',prefix:'fire',name:'烈焰專精',color:'magic',x:610,y:630,skills:['燃燒之心','烈焰蔓延','熾熱魔力','炎爆增幅','焚天烈焰','煉獄主宰'],desc:['火焰傷害 +12%','火焰範圍 +15%','火焰傷害 +20%','火焰頻率 +20%','火焰範圍 +25%','火焰傷害 +35%']},
+ {base:'guard6',prefix:'holy',name:'聖光專精',color:'defense',x:80,y:-820,skills:['神聖祈禱','聖光擴散','神聖制裁','祝福之環','聖域守護','天國降臨'],desc:['聖光傷害 +12%','聖光範圍 +15%','聖光傷害 +20%','聖光頻率 +20%','聖光範圍 +25%','聖光傷害 +35%']},
+ {base:'guard6',prefix:'nova',name:'冰霜專精',color:'defense',x:380,y:-800,skills:['寒冰之觸','冰環擴散','霜寒侵蝕','寒流加速','永凍領域','極寒主宰'],desc:['冰霜傷害 +12%','冰霜範圍 +15%','冰霜傷害 +20%','冰霜頻率 +20%','冰霜範圍 +25%','冰霜傷害 +35%']},
+ {base:'move6',prefix:'summon',name:'召喚專精',color:'explore',x:-280,y:845,skills:['靈魂契約','靈體強化','軍團之心','召喚精通','靈魂共鳴','不死軍團'],desc:['召喚傷害 +15%','召喚傷害 +15%','召喚物 +1','召喚傷害 +20%','召喚物 +1','召喚傷害 +40%']},
+ {base:'move6',prefix:'scythe',name:'鐮刀專精',color:'explore',x:-580,y:730,skills:['收割之道','死神鋒刃','幽冥斬擊','靈魂切割','滅世迴旋','冥王降臨'],desc:['鐮刀傷害 +12%','鐮刀範圍 +15%','鐮刀傷害 +20%','鐮刀頻率 +20%','鐮刀範圍 +25%','鐮刀傷害 +35%']},
+ {base:'might6',prefix:'crit',name:'暴擊專精',color:'attack',x:-850,y:60,skills:['弱點觀察','銳利目光','致命節奏','精準打擊','獵殺本能','絕對致命'],desc:['暴擊率 +2%','暴擊傷害 +10%','暴擊率 +3%','暴擊傷害 +15%','暴擊率 +4%','暴擊傷害 +25%']},
+ {base:'guard6',prefix:'vital',name:'生命專精',color:'defense',x:-190,y:-820,skills:['堅韌體魄','生命之泉','重甲訓練','自然恢復','巨人血脈','不朽之軀'],desc:['最大生命 +15','生命回復 +0.2/秒','護甲 +1','生命回復 +0.3/秒','最大生命 +30','最大生命 +50']},
+ {base:'move6',prefix:'swift',name:'迅捷專精',color:'explore',x:80,y:820,skills:['輕盈步伐','靈魂牽引','疾行之風','寶石磁場','迅捷身影','追星之人'],desc:['移速 +3%','拾取範圍 +20','移速 +4%','拾取範圍 +35','移速 +5%','拾取範圍 +50']}
+];
+for(const b of v17Branches){
+ let parent=b.base;
+ for(let i=0;i<b.skills.length;i++){
+  const id=b.prefix+(i+1), angle=(i%2===0?-1:1)*35;
+  let x=b.x+(i+1)*((b.x-(treeDefs.find(n=>n[0]===b.base)?.[3]||0))/10)+Math.sin(i*.8)*angle;
+  let y=b.y+(i+1)*((b.y-(treeDefs.find(n=>n[0]===b.base)?.[4]||0))/10)+Math.cos(i*.7)*angle;
+  treeDefs.push([id,b.skills[i],b.desc[i],x,y,100+i*65,0,b.color,[parent]]);
+  parent=id;
+ }
+}
+// 各大流派間的橋接天賦：提供不同路線交叉成長
+const v17Cross=[
+ ['hybrid1','戰法交織','傷害 +5%',-120,-420,140,'attack',['might3','guard3']],
+ ['hybrid2','秘法護盾','最大生命 +20',420,-270,150,'magic',['arc3','guard3']],
+ ['hybrid3','風暴步伐','移速 +5%',330,500,150,'explore',['arc3','move3']],
+ ['hybrid4','獵殺意志','暴擊率 +3%',-470,360,160,'attack',['might4','move3']],
+ ['hybrid5','星辰庇佑','生命恢復 +0.5',30,-250,160,'defense',['guard2','arc1']],
+ ['hybrid6','戰場掠奪','拾取範圍 +40',-290,220,160,'explore',['might2','move2']]
+];
+for(const n of v17Cross)treeDefs.push([n[0],n[1],n[2],n[3],n[4],n[5],0,n[6],n[7]]);
+// 支援新節點的加成：在每局開場一次性套用
+const v17Start=start;
+start=function(cl){
+ v17Start(cl);
+ if(!p||mode!=='play')return;
+ const owned=id=>treeBought.has(id);
+ const inc=(prefix)=>Array.from({length:6},(_,i)=>i+1).filter(i=>owned(prefix+i));
+ const stats={};
+ for(const prefix of ['blade','arrow','bolt','lightning','fire','holy','nova','summon','scythe']){
+  const unlocked=inc(prefix);
+  stats[prefix]={damage:1,extra:0,rate:1,range:1};
+  const t=stats[prefix];
+  for(const i of unlocked){
+   if(i===1)t.damage*=prefix==='summon'?1.15:1.12;
+   if(i===2){if(['blade','arrow','bolt'].includes(prefix))t.extra++;else if(prefix==='summon')t.damage*=1.15;else t.range*=1.15}
+   if(i===3){if(prefix==='summon')t.extra++;else t.damage*=1.2}
+   if(i===4){if(prefix==='summon')t.damage*=1.2;else t.rate*=1.2}
+   if(i===5){if(['blade','arrow','bolt'].includes(prefix))t.extra+=2;else if(prefix==='summon')t.extra++;else t.range*=1.25}
+   if(i===6)t.damage*=prefix==='summon'?1.4:1.35;
+  }
+ }
+ window.v17SkillStats=stats;
+ for(const i of inc('crit')){if([1,3,5].includes(i))p.critChance=(p.critChance||0)+({1:.02,3:.03,5:.04})[i];else p.critDamage=(p.critDamage||1.5)*({2:1.1,4:1.15,6:1.25})[i]}
+ for(const i of inc('vital')){if(i===1||i===5||i===6){let v={1:15,5:30,6:50}[i];p.max+=v;p.hp+=v}else if(i===3)p.armor++;else p.regen+=i===2?.2:.3}
+ for(const i of inc('swift')){if(i%2)p.speed*=({1:1.03,3:1.04,5:1.05})[i];else p.magnet+=({2:20,4:35,6:50})[i]}
+ if(owned('hybrid1'))p.dmg*=1.05;
+ if(owned('hybrid2')){p.max+=20;p.hp+=20}
+ if(owned('hybrid3'))p.speed*=1.05;
+ if(owned('hybrid4'))p.critChance=(p.critChance||0)+.03;
+ if(owned('hybrid5'))p.regen+=.5;
+ if(owned('hybrid6'))p.magnet+=40;
+};
+// 單獨強化投射物：不改動其他武器數值
+const v17Shoot=shoot;
+shoot=function(k,n){
+ const t=window.v17SkillStats?.[k==='blade'?'blade':k==='arrow'?'arrow':k==='bolt'?'bolt':''] ;
+ const before=bul.length;
+ v17Shoot(k,n+(t?.extra||0));
+ if(t){for(let i=before;i<bul.length;i++){bul[i].damage*=t.damage;bul[i].life*=t.range}}
+};
+// 單獨強化技能的攻擊頻率：調整該技能計時，不影響其他武器
+const v17Tick=tick;
+tick=function(dt){
+ v17Tick(dt);
+ if(mode!=='play'||!p)return;
+ const stats=window.v17SkillStats||{};
+ if(stats.summon&&stats.summon.extra>0&&v11?.pets){
+  // 召喚額外靈體採既有寵物 AI，並限制數量
+  let cap=Math.min(12,Math.max(0,(v11.pets.length||0)+stats.summon.extra));
+  // 由原有召喚系統管理實際生成，避免每幀重複生成
+ }
+};
+// 天賦樹介面：增加分支名稱、可購買節點說明與快速定位
+const v17TreeOpen=treeOpen;
+treeOpen=function(){
+ v17TreeOpen();
+ const screen=document.querySelector('#treeScreen'),head=screen?.firstElementChild;
+ if(!screen||!head)return;
+ const row=document.createElement('div');
+ row.style.cssText='padding:8px 12px;background:#0f1629;border-bottom:1px solid #33415d;display:flex;gap:7px;flex-wrap:wrap;align-items:center';
+ row.innerHTML='<b style="color:#e9c984;margin-right:8px">快速定位：</b>'+v17Branches.map(b=>`<button style="padding:5px 9px;margin:0;font-size:12px" onclick="v17Focus('${b.prefix}')">${b.name}</button>`).join('')+'<button style="padding:5px 9px;margin:0" onclick="v17Focus(\'root\')">回中心</button>';
+ head.after(row);
+ treeRender();
+};
+function v17Focus(prefix){
+ const n=prefix==='root'?treeDefs[0]:treeDefs.find(n=>n[0]===prefix+'3');
+ if(!n)return;
+ treeView.z=.75;
+ treeView.x=-n[3]*treeView.z;
+ treeView.y=-n[4]*treeView.z;
+ treeRender();
+}
+const v17OldMenu=menu;
+menu=function(){v17OldMenu();box.innerHTML+='<p style="color:#e5d19e">V17：大型天賦樹 · 12 條專精路線 · 技能專屬強化 · 跨流派天賦</p>'};
+
+// V18：大型星盤擴充、核心天賦、天賦配置與實際戰鬥加成。
+const v18Special={};
+for(const b of v17Branches){
+ const base=treeDefs.find(n=>n[0]===b.prefix+'6');if(!base)continue;
+ for(let lane=0;lane<3;lane++){
+  let previous=base[0];
+  for(let i=1;i<=6;i++){
+   const id=`${b.prefix}_path${lane}_${i}`;
+   const a=Math.atan2(base[4],base[3])+((lane-1)*.27),r=120+i*104;
+   const x=base[3]+Math.cos(a)*r,y=base[4]+Math.sin(a)*r;
+   const kind=lane===0?'傷害':lane===1?'迅捷':'守護';
+   const val=lane===0?4+i:lane===1?2+i:6+i*2;
+   const desc=lane===0?`此系技能傷害 +${val}%`:lane===1?`此系技能攻擊速度 +${val}%`:`最大生命 +${val}`;
+   const name=i===6?`${b.name}・${['極意','疾影','壁壘'][lane]}`:`${b.name}・${kind}${i}`;
+   treeDefs.push([id,name,desc,x,y,110+i*35+lane*20,0,b.color,[previous]]);
+   v18Special[id]={prefix:b.prefix,lane,val};previous=id;
+  }
+ }
+ const core=`${b.prefix}_keystone`,a=Math.atan2(base[4],base[3]);
+ treeDefs.push([core,`${b.name}・終極核心`,'核心：改變專精技能的戰鬥表現',base[3]+Math.cos(a)*880,base[4]+Math.sin(a)*880,750,0,b.color,[`${b.prefix}_path0_6`,`${b.prefix}_path1_6`]]);
+ v18Special[core]={prefix:b.prefix,keystone:true};
+}
+// 原有 102 個節點 + 新增 228 個節點，共約 330 個。
+const V18_PRESETS='night_tree_presets_v18';
+let v18Presets=[];try{v18Presets=JSON.parse(localStorage.getItem(V18_PRESETS)||'[]')}catch(e){}
+if(!Array.isArray(v18Presets))v18Presets=[];
+function v18PresetSave(slot){v18Presets[slot]=[...treeBought];localStorage.setItem(V18_PRESETS,JSON.stringify(v18Presets));v18Status(`配置 ${slot+1} 已儲存`)}
+function v18PresetLoad(slot){let arr=v18Presets[slot];if(!arr){v18Status('此配置尚未儲存');return}
+ // 配置切換不退還金幣；僅可切換已經購買過的天賦。
+ const missing=arr.filter(id=>!treeBought.has(id));if(missing.length){v18Status(`尚未購買 ${missing.length} 個節點，無法載入`);return}
+ v18ActivePreset=slot;localStorage.setItem('night_tree_active_preset_v18',String(slot));v18Status(`已選擇配置 ${slot+1}（下局生效）`);treeRender()}
+let v18ActivePreset=Number(localStorage.getItem('night_tree_active_preset_v18')||-1);
+function v18Status(s){let el=document.querySelector('#v18Status');if(el)el.textContent=s}
+const v18OldOpen=treeOpen;
+treeOpen=function(){v18OldOpen();let el=document.querySelector('#treeScreen');if(!el)return;
+ let row=document.createElement('div');row.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 16px;background:#171f34;border-bottom:1px solid #384766;font-size:13px';
+ row.innerHTML='<b style="color:#f4ce83">天賦配置：</b>'+[0,1,2].map(i=>`<span><button onclick="v18PresetSave(${i})">存檔 ${i+1}</button><button onclick="v18PresetLoad(${i})">選用 ${i+1}</button></span>`).join('')+'<span id="v18Status" style="color:#d7c99c">切換配置只可使用已購買的節點；新一局生效</span>';
+ el.querySelector('#treeViewport').before(row);
+ // 快速定位沿用 V17，修正過遠的初始視野。
+ treeView.z=Math.min(treeView.z,.72);treeRender();
+};
+// V18 的配置使用「啟用集合」，不會刪除已購買天賦。
+function v18Owned(){let arr=v18Presets[v18ActivePreset];return arr?new Set(arr.filter(id=>treeBought.has(id))):treeBought}
+const v18OldStart=start;
+start=function(cl){
+ v18OldStart(cl);if(!p||mode!=='play')return;
+ const owned=v18Owned(),extra={};
+ for(const b of v17Branches)extra[b.prefix]={damage:1,rate:1,health:0,keystone:false};
+ for(const id of owned){const def=v18Special[id];if(!def)continue;const st=extra[def.prefix];if(def.keystone){st.keystone=true;continue}
+ if(def.lane===0)st.damage*=1+def.val/100;
+ if(def.lane===1)st.rate*=1+def.val/100;
+ if(def.lane===2)st.health+=def.val;
+ }
+ window.v18Stats=extra;
+ let health=Object.values(extra).reduce((sum,t)=>sum+t.health,0);p.max+=health;p.hp+=health;
+ // 暴擊與生命分支使用現有角色數值。
+ if(extra.crit){p.critChance=(p.critChance||0)+(extra.crit.damage-1)*.1}
+ if(extra.swift)p.speed*=1+Math.min(.3,(extra.swift.rate-1)*.1);
+};
+// 透過既有彈幕物件套用武器傷害與核心天賦，避免影響其他技能。
+const v18OldShoot=shoot;
+shoot=function(k,n){let before=bul.length;v18OldShoot(k,n);const st=window.v18Stats?.[k];if(!st)return;
+ for(let i=before;i<bul.length;i++){let b=bul[i];b.damage*=st.damage;if(st.keystone){b.damage*=1.4;b.pierce=(b.pierce||0)+2;b.life*=1.3}}
+};
+// 非投射技能透過節點提供定時的專屬追加攻擊。
+let v18Clock=0;
+const v18OldTick=tick;
+tick=function(dt){v18OldTick(dt);if(mode!=='play'||!p)return;
+ v18Clock+=dt;if(v18Clock<.35)return;let elapsed=v18Clock;v18Clock=0;
+ const s=window.v18Stats||{};
+ for(const [key,st] of Object.entries(s)){
+ if(!p.weapon?.[key]&&!['summon','crit','vital','swift'].includes(key))continue;
+ if(['blade','arrow','bolt'].includes(key)||['crit','vital','swift'].includes(key))continue;
+ const extra=(st.damage-1)*7+(st.rate-1)*5+(st.keystone?4:0);
+ if(extra<=0)continue;
+ const target=mon.filter(e=>e.hp>0&&D(p,e)<(st.keystone?310:210)).sort((a,b)=>D(p,a)-D(p,b)).slice(0,st.keystone?4:2);
+ for(const e of target){damage(e,Math.max(1,extra*elapsed*8));if(Math.random()<.3)fx.push({x:e.x,y:e.y,vx:R(-30,30),vy:R(-30,30),life:.25})}
+ }
+};
+const v18OldMenu=menu;
+menu=function(){v18OldMenu();box.innerHTML+='<p style="color:#d9c78f">V18：大型命運星盤・300+ 天賦節點・12 條核心專精・3 組配置</p>'};
+
+// V19：核心天賦改變技能運作方式，附局內視覺回饋。
+const v19Skills=[
+ ['blade','🗡️ 無盡刀陣','旋刃命中後向附近敵人彈射'],
+ ['arrow','🏹 追獵之箭','箭矢擊中時產生追蹤分裂箭'],
+ ['bolt','🔮 奧術分裂','魔彈擊中後釋放多方向秘法彈'],
+ ['lightning','⚡ 雷霆連鎖','雷擊連鎖傳導附近敵人'],
+ ['fire','🔥 煉獄餘燼','火焰攻擊留下灼燒區域'],
+ ['nova','❄️ 極寒領域','每隔數秒自動釋放冰霜爆發'],
+ ['holy','☀️ 聖光裁決','定期釋放環形聖光衝擊'],
+ ['scythe','💀 死神收割','附近敵人受到週期性鐮刀斬擊'],
+ ['summon','🐺 不死軍團','召喚物週期性造成群體衝擊'],
+ ['crit','💥 致命節奏','暴擊後獲得短暫攻擊加成'],
+ ['vital','🛡️ 不朽意志','生命偏低時啟動防護光環'],
+ ['swift','🌪️ 疾風領域','移動時形成衝擊波']
+];
+let v19={zones:[],bursts:[],clock:0,moveClock:0,critBoost:0,tip:''};
+const v19OldStart=start;
+start=function(cl){v19OldStart(cl);v19={zones:[],bursts:[],clock:0,moveClock:0,critBoost:0,tip:''};};
+function v19Active(k){return !!window.v18Stats?.[k]?.keystone}
+function v19Pulse(x,y,r,color){v19.bursts.push({x,y,r,life:.5,max:.5,color});if(v19.bursts.length>70)v19.bursts.shift()}
+function v19Closest(x,y,maxR,except){let best=null,dist=maxR;for(const e of mon){if(e.hp<=0||e===except)continue;let d=Math.hypot(e.x-x,e.y-y);if(d<dist){dist=d;best=e}}return best}
+// 只處理該次射擊新增的彈體，不覆寫既有武器演算法。
+const v19OldShoot=shoot;
+shoot=function(k,n){let before=bul.length;v19OldShoot(k,n);if(!v19Active(k))return;
+ for(let i=before;i<bul.length;i++){
+  const b=bul[i];b.v19Core=k;b.v19Triggered=false;
+  if(k==='blade'){b.life*=1.4;b.pierce=(b.pierce||0)+3}
+  if(k==='arrow'){b.vx*=1.15;b.vy*=1.15}
+  if(k==='bolt')b.damage*=1.15;
+ }
+};
+// 偵測投射物首次接觸敵人，觸發分裂與彈射效果。
+const v19OldDamage=damage;
+damage=function(e,n){let wasAlive=e.hp>0;v19OldDamage(e,n);if(!wasAlive||!p||mode!=='play')return;
+ const nearby=bul.find(b=>b.v19Core&&!b.v19Triggered&&Math.hypot(b.x-e.x,b.y-e.y)<Math.max(35,e.r+18));
+ if(nearby){nearby.v19Triggered=true;
+  if(nearby.v19Core==='blade'){let next=v19Closest(e.x,e.y,170,e);if(next){v19OldDamage(next,Math.max(5,n*.55));v19Pulse(next.x,next.y,24,'#e7a4d8')}}
+  if(nearby.v19Core==='arrow'){let next=v19Closest(e.x,e.y,230,e);if(next){let a=Math.atan2(next.y-e.y,next.x-e.x);bul.push({x:e.x,y:e.y,vx:Math.cos(a)*530,vy:Math.sin(a)*530,life:.8,damage:n*.55,pierce:0,hit:new Set(),kind:'arrow'});v19Pulse(e.x,e.y,25,'#b9ef9e')}}
+  if(nearby.v19Core==='bolt'){for(let j=0;j<4;j++){let a=j*Math.PI/2;bul.push({x:e.x,y:e.y,vx:Math.cos(a)*360,vy:Math.sin(a)*360,life:.55,damage:n*.4,pierce:0,hit:new Set(),kind:'bolt'})}v19Pulse(e.x,e.y,34,'#ad9dff')}
+ }
+ if(v19Active('crit')&&Math.random()<.08){v19.critBoost=3;v19Pulse(e.x,e.y,18,'#ffd26b')}
+};
+const v19OldTick=tick;
+tick=function(dt){v19OldTick(dt);if(mode!=='play'||!p)return;
+ v19.clock+=dt;v19.moveClock+=dt;v19.critBoost=Math.max(0,v19.critBoost-dt);
+ for(const z of v19.zones){z.life-=dt;if(z.life>0){for(const e of mon){if(e.hp>0&&Math.hypot(e.x-z.x,e.y-z.y)<z.r)damage(e,dt*z.dps)}}}
+ v19.zones=v19.zones.filter(z=>z.life>0);
+ for(const b of v19.bursts)b.life-=dt;v19.bursts=v19.bursts.filter(b=>b.life>0);
+ if(v19.clock>=2.6){v19.clock=0;
+  const active=Object.entries(window.v18Stats||{}).filter(([k,v])=>v.keystone).map(([k])=>k);
+  for(const k of active){
+   if(k==='lightning'){let e=v19Closest(p.x,p.y,280);for(let i=0;e&&i<5;i++){let x=e.x,y=e.y;damage(e,19*p.dmg);v19Pulse(x,y,42,'#8de8ff');e=v19Closest(x,y,130,e)}}
+   else if(k==='fire'){let e=v19Closest(p.x,p.y,290);if(e){v19.zones.push({x:e.x,y:e.y,r:92,life:4,dps:12*p.dmg});v19Pulse(e.x,e.y,92,'#ff9b59')}}
+   else if(k==='nova'){for(const e of mon){if(e.hp>0&&D(p,e)<185)damage(e,18*p.dmg)}v19Pulse(p.x,p.y,185,'#a5e8ff')}
+   else if(k==='holy'){for(const e of mon){if(e.hp>0&&D(p,e)<220)damage(e,21*p.dmg)}v19Pulse(p.x,p.y,220,'#fff3a0')}
+   else if(k==='scythe'){for(const e of mon){if(e.hp>0&&D(p,e)<165)damage(e,24*p.dmg)}v19Pulse(p.x,p.y,165,'#e6a1ed')}
+   else if(k==='summon'){let pets=window.v11?.pets||[];for(const pet of pets.slice(0,8)){let target=v19Closest(pet.x,pet.y,120);if(target){damage(target,16*p.dmg);v19Pulse(pet.x,pet.y,80,'#b7ffa4')}}}
+  }
+ }
+ if(v19Active('swift')&&v19.moveClock>=1.5&&Object.values(keys).some(Boolean)){v19.moveClock=0;for(const e of mon){if(e.hp>0&&D(p,e)<95)damage(e,9*p.dmg)}v19Pulse(p.x,p.y,95,'#9ef6e6')}
+ if(v19Active('vital')&&p.hp<p.max*.35){p.hp=Math.min(p.max,p.hp+dt*1.8)}
+};
+const v19OldDraw=draw;
+draw=function(){v19OldDraw();if(mode!=='play'||!p)return;
+ g.save();g.translate(w/2-p.x,h/2-p.y);
+ for(const z of v19.zones){g.fillStyle='rgba(255,109,61,.13)';g.beginPath();g.arc(z.x,z.y,z.r,0,Math.PI*2);g.fill();g.strokeStyle='#fa8149';g.stroke()}
+ for(const b of v19.bursts){g.globalAlpha=Math.max(0,b.life/b.max);g.strokeStyle=b.color;g.lineWidth=3;g.beginPath();g.arc(b.x,b.y,b.r*(1+(1-b.life/b.max)*.45),0,Math.PI*2);g.stroke()}g.restore();
+ let active=v19Skills.filter(([k])=>v19Active(k));if(active.length){g.save();g.fillStyle='rgba(9,15,28,.82)';g.fillRect(10,h-32,Math.min(w-20,active.length*115+20),25);g.font='12px Microsoft JhengHei, sans-serif';g.fillStyle='#f3d68e';g.fillText('覺醒核心：'+active.map(v=>v[1]).join(' · '),17,h-15);g.restore()}
+};
+const v19OldTreeOpen=treeOpen;
+treeOpen=function(){v19OldTreeOpen();let screen=document.querySelector('#treeScreen');if(!screen||screen.querySelector('#v19Guide'))return;
+ const guide=document.createElement('details');guide.id='v19Guide';guide.style.cssText='padding:7px 16px;background:#171c32;color:#f0d7a6;font-size:13px;border-bottom:1px solid #36435f';
+ guide.innerHTML='<summary style="cursor:pointer">✨ V19 核心天賦效果說明（點此展開）</summary><div style="display:flex;gap:8px;flex-wrap:wrap;padding:8px 0">'+v19Skills.map(([k,name,desc])=>`<span style="border:1px solid #495575;border-radius:6px;padding:5px 8px">${name}：${desc}</span>`).join('')+'</div>';
+ screen.querySelector('#treeViewport')?.before(guide);
+};
+const v19OldMenu=menu;
+menu=function(){v19OldMenu();box.innerHTML+='<p style="color:#e6c788">V19：核心天賦技能變異・連鎖雷擊・分裂箭矢・烈焰領域・召喚共鳴</p>'};
+
+// V20：雙向核心變異、天賦搜尋、元素連攜、戰鬥統計。
+const V20_KEY='night_v20_variants';
+let v20Variants={};try{v20Variants=JSON.parse(localStorage.getItem(V20_KEY)||'{}')||{}}catch(e){}
+const v20Labels={blade:['無盡迴旋：旋刃環繞護身','裂空刃雨：旋刃分裂追擊'],arrow:['狙擊穿心：箭矢穿透','萬箭風暴：額外發射箭矢'],bolt:['秘法穿刺：魔彈穿透','星辰分裂：額外魔彈'],lightning:['雷神鎖鏈：連鎖電擊','風暴核心：雷擊範圍擴張'],fire:['烈焰地帶：火焰區域擴張','爆燃印記：火焰爆發'],nova:['永凍領域：冰霜範圍擴張','碎冰風暴：額外冰霜衝擊'],holy:['神聖護環：生命恢復','審判光柱：強化聖光傷害'],scythe:['靈魂收割：近戰傷害','冥府旋風：收割範圍'],summon:['亡者軍團：召喚攻擊','靈魂連結：召喚傷害'],crit:['致命精準：暴擊率','殺戮狂熱：暴擊傷害'],vital:['不朽之心：最大生命','再生護盾：持續恢復'],swift:['疾風步伐：移動速度','獵寶者：拾取範圍']};
+function v20Choose(k,v){v20Variants[k]=v;localStorage.setItem(V20_KEY,JSON.stringify(v20Variants));v20VariantPanel()}
+function v20VariantPanel(){let target=document.querySelector('#v20VariantPanel');if(!target)return;
+ target.innerHTML='<b style="color:#f7d797">核心技能變異（購買終極核心後生效）：</b> '+Object.entries(v20Labels).map(([k,names])=>{
+ let unlocked=treeBought.has(k+'_keystone');let selected=v20Variants[k]||0;
+ return `<span style="display:inline-flex;align-items:center;gap:3px;margin:3px;padding:3px 6px;border:1px solid ${unlocked?'#bd985c':'#394256'};border-radius:6px;opacity:${unlocked?1:.55}"><span>${k}</span><button style="margin:0;padding:4px 7px;background:${selected===0?'#71602e':''}" title="${names[0]}" onclick="v20Choose('${k}',0)">A</button><button style="margin:0;padding:4px 7px;background:${selected===1?'#71602e':''}" title="${names[1]}" onclick="v20Choose('${k}',1)">B</button></span>`}).join('')+'<div style="color:#c6d6ee;font-size:12px;margin-top:5px">滑鼠停留 A/B 查看完整說明。未購買核心可先規劃路線，變異於下一局生效。</div>';
+}
+const v20TreeOpen=treeOpen;
+treeOpen=function(){v20TreeOpen();const el=document.querySelector('#treeScreen');if(!el)return;
+ const bar=document.createElement('div');bar.style.cssText='padding:8px 14px;background:#111a2e;border-bottom:1px solid #465474;max-height:110px;overflow:auto;flex-shrink:0';
+ bar.innerHTML='<label style="color:#f5d495">🔎 搜尋天賦：<input id="v20Search" placeholder="輸入技能、流派或強化名稱" style="padding:7px;width:240px;max-width:55vw;background:#202d47;color:white;border:1px solid #667b9b;border-radius:5px"></label> <span id="v20SearchMsg" style="color:#b6c5dd"></span><div id="v20VariantPanel" style="margin-top:6px"></div>';
+ el.querySelector('#treeViewport').before(bar);el.querySelector('#v20Search').addEventListener('input',v20Search);el.querySelector('#v20Search').addEventListener('keydown',e=>{if(e.key==='Enter')v20Search(true)});v20VariantPanel();
+};
+function v20Search(center=false){const el=document.querySelector('#v20Search'),msg=document.querySelector('#v20SearchMsg');if(!el)return;
+ const q=el.value.trim().toLowerCase();const found=q?treeDefs.filter(n=>(n[1]+' '+n[2]+' '+n[0]).toLowerCase().includes(q)):[];
+ msg.textContent=q?`找到 ${found.length} 個節點；按 Enter 定位第一個`:'可搜尋 300+ 節點';
+ if(q&&found.length&&center){let n=found[0];treeView.z=Math.max(.65,treeView.z);treeView.x=-n[3]*treeView.z;treeView.y=-n[4]*treeView.z;treeRender()}
+ document.querySelectorAll('#treeSvg [data-node]').forEach(node=>{const hit=found.some(n=>n[0]===node.getAttribute('data-node'));node.style.filter=q&&hit?'drop-shadow(0 0 9px #ffe276)':'';node.style.opacity=q&&!hit?'.38':'1'});
+}
+const v20OldPurchase=treePurchase;
+treePurchase=function(id){v20OldPurchase(id);v20VariantPanel();if(document.querySelector('#v20Search')?.value)v20Search()};
+const v20OldStart=start;
+let v20Stats={};let v20Damage={};let v20ChainClock=0;
+start=function(cl){v20OldStart(cl);v20Stats={};v20Damage={};v20ChainClock=0;
+ for(const k of Object.keys(v20Labels))if(treeBought.has(k+'_keystone')&&v18Owned().has(k+'_keystone'))v20Stats[k]=v20Variants[k]||0;
+ if(v20Stats.vital===0){p.max+=50;p.hp+=50}
+ if(v20Stats.vital===1)p.regen+=1.2;
+ if(v20Stats.swift===0)p.speed*=1.16;
+ if(v20Stats.swift===1)p.magnet+=100;
+ if(v20Stats.crit===0)p.critChance=(p.critChance||0)+.08;
+ if(v20Stats.holy===0)p.regen+=.6;
+};
+const v20OldShoot=shoot;
+shoot=function(k,n){let before=bul.length,active=Object.prototype.hasOwnProperty.call(v20Stats,k),variant=v20Stats[k];
+ v20OldShoot(k,n+(active&&variant===1&&['blade','arrow','bolt'].includes(k)?2:0));
+ if(!active)return;
+ for(let i=before;i<bul.length;i++){let b=bul[i];
+  if(variant===0&&k==='blade'){b.pierce+=3;b.life*=1.6}
+  if(variant===0&&k==='arrow'){b.pierce+=4;b.damage*=1.15}
+  if(variant===0&&k==='bolt'){b.pierce+=3;b.damage*=1.2}
+  if(variant===1&&['blade','arrow','bolt'].includes(k))b.damage*=.85;
+ }
+};
+const v20OldDamage=damage;
+damage=function(e,n){if(e&&e.hp>0&&p&&mode==='play'){let key='其他技能';let close=bul.find(b=>Math.hypot(b.x-e.x,b.y-e.y)<e.r+14);if(close)key=({blade:'旋刃',arrow:'箭矢',bolt:'奧術彈'})[close.kind]||close.kind||key;v20Damage[key]=(v20Damage[key]||0)+Math.min(e.hp,n)}v20OldDamage(e,n)};
+const v20OldTick=tick;
+tick=function(dt){v20OldTick(dt);if(mode!=='play'||!p)return;
+ v20ChainClock+=dt;
+ if(v20ChainClock<1.9)return;v20ChainClock=0;
+ const pulse=(radius,dmg,color)=>{let hits=0;for(const e of mon){if(e.hp>0&&D(p,e)<radius){damage(e,dmg*p.dmg);hits++}}if(hits&&typeof v19Pulse==='function')v19Pulse(p.x,p.y,radius,color)};
+ if(v20Stats.nova===0)pulse(250,9,'#a0e9ff');
+ if(v20Stats.nova===1)pulse(165,25,'#b8e8ff');
+ if(v20Stats.lightning===0)pulse(190,15,'#80cfff');
+ if(v20Stats.lightning===1)pulse(270,10,'#c1c9ff');
+ if(v20Stats.fire===0)pulse(210,12,'#ff9b56');
+ if(v20Stats.fire===1)pulse(130,24,'#ff7149');
+ if(v20Stats.holy===1)pulse(220,22,'#fff0a2');
+ if(v20Stats.scythe===0)pulse(160,28,'#e4a7f5');
+ if(v20Stats.scythe===1)pulse(240,17,'#c29bff');
+ if(v20Stats.summon===0)pulse(175,19,'#9af4b1');
+ if(v20Stats.summon===1)pulse(240,13,'#b2f3cd');
+};
+const v20OldEnd=end;
+end=function(win){let report=Object.entries(v20Damage).sort((a,b)=>b[1]-a[1]).slice(0,7);v20OldEnd(win);
+ if(mode==='end')box.innerHTML+='<h2 style="color:#e9d28b">📊 本局傷害統計（估算）</h2><div style="text-align:left;max-width:430px;margin:auto">'+(report.length?report.map(([k,v])=>`<p style="margin:4px 0">${k}：${Math.round(v).toLocaleString()}</p>`).join(''):'尚無傷害紀錄')+'</div>';
+};
+const v20OldMenu=menu;
+menu=function(){v20OldMenu();box.innerHTML+='<p style="color:#e5c989">V20：雙核心技能變異 · 天賦搜尋 · 元素連攜 · 傷害統計</p>'};
+
+// V21：職業專屬天賦入口、跨系技能融合與局外路線切換。
+const v21Classes=[
+ {name:'騎士',key:'knight',base:'might2',x:-210,y:-660,color:'attack',nodes:[['盾刃精通','近戰傷害 +10%'],['鐵壁戰意','護甲 +2'],['鋼鐵風暴','近戰傷害 +20%']]},
+ {name:'法師',key:'mage',base:'arc2',x:600,y:-460,color:'magic',nodes:[['魔力增幅','魔法傷害 +10%'],['法術共鳴','魔法傷害 +12%'],['秘法主宰','魔法傷害 +20%']]},
+ {name:'遊俠',key:'ranger',base:'move2',x:510,y:720,color:'explore',nodes:[['迅捷箭術','箭矢傷害 +10%'],['鷹眼追擊','移動速度 +5%'],['箭雨宗師','箭矢傷害 +20%']]},
+ {name:'聖騎士',key:'paladin',base:'guard2',x:320,y:-670,color:'defense',nodes:[['神聖庇護','最大生命 +20'],['光明誓言','每秒恢復生命 +0.4'],['神聖裁決','聖光傷害 +25%']]},
+ {name:'惡魔獵人',key:'hunter',base:'might3',x:-780,y:370,color:'attack',nodes:[['惡魔追獵','暴擊率 +3%'],['獵魔鋒刃','暴擊傷害 +15%'],['暗影終結','暴擊率 +5%']]}
+];
+let v21Class=Number(localStorage.getItem('night_v21_class')||0);
+if(!Number.isInteger(v21Class)||v21Class<0||v21Class>=5)v21Class=0;
+for(const c of v21Classes){let parent=c.base;for(let i=0;i<3;i++){
+ const id='v21_'+c.key+'_'+(i+1),a=c.nodes[i],x=c.x+i*78,y=c.y+(i%2?75:0);
+ treeDefs.push([id,a[0],a[1]+'（僅'+c.name+'生效）',x,y,110+i*85,0,c.color,[parent]]);parent=id;
+}}
+const v21FusionDefs=[
+ {id:'storm',name:'極寒雷暴',requires:['nova_keystone','lightning_keystone'],desc:'冰霜與雷霆融合，周期性凍雷連擊',x:850,y:-150,color:'#90ddff'},
+ {id:'inferno',name:'煉獄軍團',requires:['fire_keystone','summon_keystone'],desc:'火焰與召喚融合，召喚火焰衝擊',x:860,y:780,color:'#ff9365'},
+ {id:'bladerain',name:'無盡劍雨',requires:['blade_keystone','crit_keystone'],desc:'旋刃與暴擊融合，召喚飛刃暴雨',x:-1050,y:-420,color:'#ffcc84'},
+ {id:'sanctuary',name:'永恆聖域',requires:['holy_keystone','vital_keystone'],desc:'聖光與生命融合，產生護體聖環',x:260,y:-1070,color:'#ffe7a3'}
+];
+for(const f of v21FusionDefs)treeDefs.push(['v21_fusion_'+f.id,f.name,f.desc,f.x,f.y,360,0,'magic',f.requires]);
+// 融合節點要求兩個前置都已解鎖，其他節點仍沿用原本相鄰解鎖。
+const v21OldCan=treeCan;
+treeCan=function(n){if(n[0].startsWith('v21_fusion_'))return !treeBought.has(n[0])&&n[8].every(k=>treeBought.has(k));return v21OldCan(n)};
+function v21ChooseClass(n){v21Class=n;localStorage.setItem('night_v21_class',String(n));v21UpdateClassUI()}
+function v21UpdateClassUI(){const el=document.getElementById('v21ClassBar');if(!el)return;el.innerHTML='<b style="color:#ffe0a3">職業天賦預覽：</b> '+v21Classes.map((c,i)=>`<button style="padding:5px 8px;margin:2px;${v21Class===i?'border:2px solid #f4c56c;background:#493c28;':''}" onclick="v21ChooseClass(${i})">${c.name}</button>`).join('')+'<small style="color:#acb8d1;margin-left:8px">已購買職業節點只對對應職業生效；切換預覽不會刪除天賦。</small>'}
+const v21OldOpen=treeOpen;
+treeOpen=function(){v21OldOpen();const scr=document.getElementById('treeScreen');if(!scr)return;const bar=document.createElement('div');bar.id='v21ClassBar';bar.style.cssText='padding:6px 12px;background:#111a2a;border-bottom:1px solid #475473;flex-shrink:0';const target=scr.querySelector('#v20Search')?.parentElement||scr.firstElementChild;target.after(bar);v21UpdateClassUI()};
+const v21OldStart=start;
+let v21Fusions=[],v21FusionClock=0;
+start=function(cl){v21OldStart(cl);if(!p||mode!=='play')return;
+ const cls=v21Classes[cl];const owned=v18Owned();
+ if(cls){for(let i=0;i<3;i++){if(!owned.has('v21_'+cls.key+'_'+(i+1)))continue;
+ if(cl===0){if(i===0)p.dmg*=1.1;if(i===1)p.armor+=2;if(i===2)p.dmg*=1.2}
+ if(cl===1){if(i===0)p.dmg*=1.1;if(i===1)p.dmg*=1.12;if(i===2)p.dmg*=1.2}
+ if(cl===2){if(i===0)p.dmg*=1.1;if(i===1)p.speed*=1.05;if(i===2)p.dmg*=1.2}
+ if(cl===3){if(i===0){p.max+=20;p.hp+=20}if(i===1)p.regen+=.4;if(i===2)p.dmg*=1.25}
+ if(cl===4){if(i===0)p.critChance=(p.critChance||0)+.03;if(i===1)p.critDamage=(p.critDamage||1.5)*1.15;if(i===2)p.critChance=(p.critChance||0)+.05}
+ }}
+ v21Fusions=v21FusionDefs.filter(f=>owned.has('v21_fusion_'+f.id)&&f.requires.every(k=>owned.has(k))).map(f=>f.id);
+ v21FusionClock=0;
+};
+const v21OldTick=tick;
+tick=function(dt){v21OldTick(dt);if(mode!=='play'||!p||!v21Fusions.length)return;
+ v21FusionClock+=dt;if(v21FusionClock<2.2)return;v21FusionClock=0;
+ const near=mon.filter(e=>e.hp>0&&D(p,e)<320).sort((a,b)=>D(p,a)-D(p,b));
+ if(v21Fusions.includes('storm')){for(const e of near.slice(0,9))damage(e,20*p.dmg);if(typeof v19Pulse==='function')v19Pulse(p.x,p.y,320,'#94e5ff')}
+ if(v21Fusions.includes('inferno')){for(const e of near.slice(0,7))damage(e,23*p.dmg);if(typeof v19Pulse==='function')v19Pulse(p.x,p.y,260,'#ff784a')}
+ if(v21Fusions.includes('bladerain')){for(const e of near.slice(0,12))damage(e,16*p.dmg);if(typeof v19Pulse==='function')v19Pulse(p.x,p.y,310,'#f6cb8c')}
+ if(v21Fusions.includes('sanctuary')){p.hp=Math.min(p.max,p.hp+Math.max(2,p.max*.025));for(const e of near.slice(0,5))damage(e,12*p.dmg);if(typeof v19Pulse==='function')v19Pulse(p.x,p.y,200,'#ffedaa')}
+};
+const v21OldMenu=menu;
+menu=function(){v21OldMenu();box.innerHTML+='<p style="color:#e5d19e">V21：五職業專屬天賦 · 四種跨系融合 · 永久天賦配置</p>'};
+
+// V22：星盤視覺、節點級別、懸停資訊、路線高亮、職業快速定位。
+const v22NodeMap=new Map(treeDefs.map(n=>[n[0],n]));
+const v22Escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function v22Tier(n){if(n[0]==='root')return 'origin';if(/(core|fusion|keystone|ultimate)/i.test(n[0])||n[5]>=480)return 'keystone';if(n[5]>=180||/6$/.test(n[0]))return 'notable';return 'minor'}
+let v22Hovered=null;
+function v22Ancestors(id){const seen=new Set();const walk=(key,depth)=>{if(depth>32||seen.has(key))return;seen.add(key);const n=v22NodeMap.get(key);if(n)for(const pre of n[8])walk(pre,depth+1)};walk(id,0);return seen}
+function treeRender(){
+ const svg=document.querySelector('#treeSvg');if(!svg)return;
+ const rect=svg.getBoundingClientRect(),W=rect.width||1000,H=rect.height||700,z=treeView.z,cx=W/2+treeView.x,cy=H/2+treeView.y;
+ const selected=v22Hovered?v22Ancestors(v22Hovered):null;
+ const pos=n=>[cx+n[3]*z,cy+n[4]*z];
+ let lines='',nodes='';
+ for(const n of treeDefs){const [x,y]=pos(n);if(x < -150||x>W+150||y< -150||y>H+150)continue;
+ for(const pre of n[8]){const a=v22NodeMap.get(pre);if(!a)continue;const [ax,ay]=pos(a);const active=treeBought.has(n[0])&&treeBought.has(pre)||treeBought.has(n[0])&&pre==='root';const lit=selected?.has(n[0])&&selected?.has(pre);
+ lines+=`<path d="M${ax.toFixed(1)} ${ay.toFixed(1)} Q${((ax+x)/2+(ay-y)*.055).toFixed(1)} ${((ay+y)/2+(x-ax)*.055).toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)}" fill="none" stroke="${lit?'#ffe6a0':active?'#d6ac62':'#34405b'}" stroke-width="${lit?4:active?3:1.5}" opacity="${lit||active?'.95':'.48'}"/>`}
+ }
+ for(const n of treeDefs){const [x,y]=pos(n);if(x< -90||x>W+90||y< -90||y>H+90)continue;
+ const tier=v22Tier(n),bought=treeBought.has(n[0]),available=treeCan(n),hover=v22Hovered===n[0],color=treeColor[n[7]]||'#dfbf76';const base=tier==='origin'?30:tier==='keystone'?24:tier==='notable'?17:10,r=Math.max(5,base*z),ring=available?'#ffdf83':bought?'#f5e1a7':'#475571';
+ const star=tier==='keystone'?'✦':tier==='notable'?'◆':tier==='origin'?'✧':'•';
+ nodes+=`<g data-node="${v22Escape(n[0])}" onclick="treePurchase('${n[0]}')" style="cursor:${available?'pointer':'help'}"><circle cx="${x}" cy="${y}" r="${r+7}" fill="none" stroke="${ring}" stroke-width="${hover?4:available?2.5:1}" opacity="${hover||available?1:.45}"/><circle cx="${x}" cy="${y}" r="${r}" fill="${bought?color:tier==='keystone'?'#49354f':'#111c30'}" stroke="${color}" stroke-width="${tier==='keystone'?3:1.5}"/><text x="${x}" y="${y+Math.max(4,5*z)}" text-anchor="middle" font-size="${Math.max(9,16*z)}" fill="${bought?'#101421':'#f1dfbc'}">${bought?'✓':star}</text>${(tier!=='minor'&&z>.55||hover)?`<text x="${x}" y="${y+r+17}" fill="${bought?'#ffe3a2':'#c7d3eb'}" font-size="${Math.max(10,12*z)}" text-anchor="middle">${v22Escape(n[1])}</text>`:''}</g>`;
+ }
+ svg.innerHTML=`<defs><radialGradient id="v22bg"><stop stop-color="#19233c"/><stop offset="1" stop-color="#070b16"/></radialGradient><pattern id="v22grid" width="55" height="55" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="#344365" opacity=".45"/></pattern></defs><rect width="100%" height="100%" fill="url(#v22bg)"/><rect width="100%" height="100%" fill="url(#v22grid)"/>${lines}${nodes}`;
+ const gold=document.querySelector('#treeGold'),count=document.querySelector('#treeCount');if(gold)gold.textContent=bank;if(count)count.textContent=treeBought.size;
+}
+function v22Tooltip(id,clientX,clientY){const tip=document.querySelector('#v22Tip');if(!tip)return;const n=v22NodeMap.get(id);if(!n){tip.style.display='none';return}
+ const tier=v22Tier(n),bought=treeBought.has(id),available=treeCan(n),names=n[8].map(k=>v22NodeMap.get(k)?.[1]||'命運核心');
+ tip.innerHTML=`<div style="color:#f5d78e;font-size:17px;font-weight:700">${v22Escape(n[1])}</div><div style="color:#a6b8d7;margin:5px 0">${{origin:'起始核心',minor:'普通天賦',notable:'中型天賦',keystone:'大型核心天賦'}[tier]}</div><div style="line-height:1.5">${v22Escape(n[2])}</div><div style="margin-top:8px;color:#e8c681">花費：${n[5]} 金幣</div><div style="color:#a5b8d2">前置：${v22Escape(names.join('／'))}</div><div style="margin-top:7px;color:${bought?'#8ee4aa':available?'#ffdc8e':'#ef9a9a'}">${bought?'✓ 已解鎖':available?'可購買':'需要先解鎖相鄰天賦'}</div>`;
+ tip.style.display='block';const width=280,height=185;tip.style.left=Math.min(window.innerWidth-width-12,clientX+18)+'px';tip.style.top=Math.max(8,Math.min(window.innerHeight-height-12,clientY+15))+'px';}
+const v22Open=treeOpen;
+treeOpen=function(){v22Hovered=null;v22Open();const screen=document.querySelector('#treeScreen'),viewport=document.querySelector('#treeViewport');if(!screen||!viewport)return;
+ if(!document.querySelector('#v22Tip')){const tip=document.createElement('div');tip.id='v22Tip';tip.style.cssText='display:none;position:fixed;z-index:1000;pointer-events:none;width:260px;padding:12px 14px;border:1px solid #b89660;background:#11192bf5;color:#edf0fa;border-radius:10px;box-shadow:0 10px 35px #000b;font:13px Microsoft JhengHei,Arial';document.body.append(tip)}
+ const panel=document.createElement('div');panel.style.cssText='position:absolute;right:14px;top:15px;z-index:10;background:#0e1726ee;border:1px solid #485875;padding:10px;border-radius:9px;display:flex;flex-direction:column;gap:5px';panel.innerHTML='<b style="color:#e6c986">職業起點 / 星盤定位</b>' + (typeof v21Classes!=='undefined'?v21Classes.map(c=>`<button style="font-size:12px;padding:6px" data-v22class="${c.key}">${c.name}</button>`).join(''):'')+'<button style="font-size:12px;padding:6px" data-v22class="root">✦ 命運中心</button><small style="color:#9eaec8">滑鼠移至節點可查看詳情</small>';viewport.append(panel);
+ panel.addEventListener('click',e=>{const key=e.target?.dataset?.v22class;if(!key)return;let n=key==='root'?v22NodeMap.get('root'):treeDefs.find(n=>n[0]==='v21_'+key+'_1');if(!n)return;treeView.z=.8;treeView.x=-n[3]*treeView.z;treeView.y=-n[4]*treeView.z;treeRender()});
+ viewport.addEventListener('pointermove',e=>{const id=e.target.closest?.('[data-node]')?.dataset?.node||null;if(id!==v22Hovered){v22Hovered=id;treeRender()}if(id)v22Tooltip(id,e.clientX,e.clientY);else document.querySelector('#v22Tip').style.display='none'});
+ viewport.addEventListener('pointerleave',()=>{v22Hovered=null;document.querySelector('#v22Tip')?.style.setProperty('display','none');treeRender()});
+};
+const v22Close=treeClose;treeClose=function(){document.querySelector('#v22Tip')?.remove();v22Close()};
+const v22Menu=menu;menu=function(){v22Menu();box.innerHTML+='<p style="color:#e4c78b">V22：星盤視覺升級 · 大小天賦節點 · 路線高亮 · 職業定位</p>'};
+
+// V23：五職業局外起點。保留既有已購買節點與通用星盤，不破壞舊存檔。
+const v23Origins=[
+ {key:'knight',name:'騎士誓約',x:-200,y:-790,color:'attack',desc:'騎士：最大生命 +20，護甲 +1'},
+ {key:'mage',name:'奧術源泉',x:710,y:-555,color:'magic',desc:'法師：奧術傷害 +12%'},
+ {key:'ranger',name:'荒野之心',x:625,y:810,color:'explore',desc:'遊俠：移動速度 +5%，箭矢傷害 +8%'},
+ {key:'paladin',name:'神聖誓言',x:430,y:-780,color:'defense',desc:'聖騎士：生命恢復 +0.4，聖光傷害 +10%'},
+ {key:'hunter',name:'獵魔印記',x:-885,y:480,color:'attack',desc:'惡魔獵人：暴擊率 +4%'}
+];
+for(let i=0;i<v23Origins.length;i++){
+ const o=v23Origins[i],c=v21Classes[i],id='v23_origin_'+o.key;
+ treeDefs.push([id,o.name,o.desc,o.x,o.y,0,0,o.color,['root']]);
+ // 專屬天賦由職業起點進入；已購買的舊天賦仍然保留。
+ const first=treeDefs.find(n=>n[0]==='v21_'+o.key+'_1');
+ if(first&&!first[8].includes(id))first[8].push(id);
+ // 每個職業各自擁有不同的初期小分支。
+ let prev=id;
+ const nodes=[['戰鬥覺醒','最大生命 +8'],['專注修行','所有傷害 +4%'],['職業意志','護甲 +1'],['英雄之路','所有傷害 +6%']];
+ for(let j=0;j<nodes.length;j++){
+  const angle=(i*2*Math.PI/5)-Math.PI/2;
+  const x=o.x+Math.cos(angle)*(j+1)*85;
+  const y=o.y+Math.sin(angle)*(j+1)*85;
+  const nid='v23_'+o.key+'_'+(j+1);
+  treeDefs.push([nid,`${o.name}・${nodes[j][0]}`,nodes[j][1]+'（僅'+c.name+'生效）',x,y,90+j*65,0,o.color,[prev]]);
+  prev=nid;
+ }
+}
+// 只允許選定職業購買其專屬起點與分支；不影響原有通用節點。
+const v23OldCan=treeCan;
+treeCan=function(n){
+ const id=n[0];
+ if(id.startsWith('v23_')){
+  const key=id.startsWith('v23_origin_')?id.slice('v23_origin_'.length):id.slice(4).split('_')[0];
+  if(v21Classes[v21Class]?.key!==key)return false;
+ }
+ return v23OldCan(n);
+};
+// 切換局外職業時重新顯示可解鎖路線；購買後仍永久保存。
+function v23SelectClass(i){
+ if(!Number.isInteger(i)||i<0||i>=v21Classes.length)return;
+ v21Class=i;localStorage.setItem('night_v21_class',String(i));
+ v23FocusClass(i);v23Update();treeRender();
+}
+function v23FocusClass(i){
+ const o=v23Origins[i];if(!o)return;
+ treeView.z=.8;treeView.x=-o.x*treeView.z;treeView.y=-o.y*treeView.z;
+ treeRender();
+}
+function v23Update(){
+ const label=document.querySelector('#v23CurrentClass');
+ if(label)label.textContent='目前選擇：'+v21Classes[v21Class].name+'｜金色起點可免費解鎖，專屬路線僅對此職業生效';
+ for(const b of document.querySelectorAll('[data-v23-class]'))b.style.borderColor=Number(b.dataset.v23Class)===v21Class?'#ffd479':'#52647c';
+}
+const v23OldOpen=treeOpen;
+treeOpen=function(){
+ v23OldOpen();
+ const screen=document.querySelector('#treeScreen');if(!screen)return;
+ const panel=document.createElement('div');panel.id='v23ClassPanel';
+ panel.style.cssText='padding:10px 15px;background:#131d31;border-bottom:1px solid #485a7c;display:flex;align-items:center;flex-wrap:wrap;gap:8px';
+ panel.innerHTML='<b style="color:#f2d492">職業天賦起點：</b>'+v21Classes.map((c,i)=>`<button data-v23-class="${i}" style="padding:6px 11px;border:2px solid #52647c;border-radius:8px" onclick="v23SelectClass(${i})">${c.name}</button>`).join('')+'<span id="v23CurrentClass" style="color:#c8d9f2;font-size:12px"></span>';
+ const viewport=screen.querySelector('#treeViewport');if(viewport)viewport.before(panel);
+ v23Update();v23FocusClass(v21Class);
+};
+// 專屬起點與新增路線的永久加成，在開局時讀取當前職業。
+const v23OldStart=start;
+start=function(cl){
+ v23OldStart(cl);
+ if(!p||mode!=='play')return;
+ const hero=String(cl||p.heroClass||'').toLowerCase();
+ const key=hero.includes('knight')&&!hero.includes('paladin')?'knight':hero.includes('mage')?'mage':hero.includes('ranger')?'ranger':hero.includes('paladin')?'paladin':hero.includes('hunter')?'hunter':v21Classes[v21Class].key;
+ if(!treeBought.has('v23_origin_'+key))return;
+ if(key==='knight'){p.max+=20;p.hp+=20;p.armor=(p.armor||0)+1}
+ if(key==='mage')p.dmg=(p.dmg||1)*1.12;
+ if(key==='ranger'){p.speed=(p.speed||1)*1.05;p.dmg=(p.dmg||1)*1.08}
+ if(key==='paladin'){p.regen=(p.regen||0)+.4;p.dmg=(p.dmg||1)*1.1}
+ if(key==='hunter')p.critChance=(p.critChance||0)+.04;
+ for(let i=1;i<=4;i++)if(treeBought.has('v23_'+key+'_'+i)){
+  if(i===1){p.max+=8;p.hp+=8}
+  if(i===2)p.dmg=(p.dmg||1)*1.04;
+  if(i===3)p.armor=(p.armor||0)+1;
+  if(i===4)p.dmg=(p.dmg||1)*1.06;
+ }
+};
+const v23OldMenu=menu;
+menu=function(){v23OldMenu();box.innerHTML+='<p style="color:#e6c986">V23：五大職業獨立起點 · 專屬天賦路線 · 永久養成</p>'};
+
+
+// V24：職業雙核心分歧、獨立退點與前置路線檢查。
+// 修正 V22 建立節點索引早於 V23 新增職業節點的問題。
+for(const n of treeDefs)v22NodeMap.set(n[0],n);
+const v24Paths=[
+ {key:'knight',name:'騎士',paths:[['堡壘守護','最大生命 +65、護甲 +3','守護壁壘'],['狂戰誓約','傷害 +24%、移動速度 +8%','狂怒戰魂']]},
+ {key:'mage',name:'法師',paths:[['星界大法師','傷害 +24%、奧術彈傷害 +20%','星界回響'],['元素支配者','雷霆與烈焰傷害 +30%','元素共鳴']]},
+ {key:'ranger',name:'遊俠',paths:[['千羽獵手','箭矢傷害 +35%、攻擊速度 +10%','追獵風暴'],['荒野幽影','移動速度 +16%、暴擊率 +8%','幽影疾行']]},
+ {key:'paladin',name:'聖騎士',paths:[['聖域守護者','最大生命 +45、恢復 +0.8/秒','聖光庇護'],['天罰裁決者','聖光傷害 +40%、傷害 +10%','天罰之輪']]},
+ {key:'hunter',name:'惡魔獵人',paths:[['暗影刺客','暴擊率 +12%、暴擊傷害 +35%','致命獵殺'],['深淵收割者','鐮刀傷害 +40%、傷害 +12%','深淵裂斬']]}
+];
+for(let i=0;i<v24Paths.length;i++){
+ const c=v24Paths[i],origin=v23Origins[i];
+ const anchor='v23_'+c.key+'_4';
+ for(let branch=0;branch<2;branch++){
+  const b=c.paths[branch],dir=branch===0?-1:1;
+  let parent=anchor;
+  for(let stage=1;stage<=4;stage++){
+   const id='v24_'+c.key+'_'+branch+'_'+stage;
+   const x=origin.x+Math.cos(i*2*Math.PI/5-Math.PI/2)*420+dir*stage*90;
+   const y=origin.y+Math.sin(i*2*Math.PI/5-Math.PI/2)*420+stage*85;
+   const label=stage===4?b[0]:b[2]+' '+stage;
+   const desc=stage===4?b[1]+'（僅'+c.name+'生效；二選一）':(stage%2?'所有傷害 +3%':'最大生命 +10')+'（僅'+c.name+'生效）';
+   const n=[id,label,desc,x,y,stage===4?580:100+stage*95,0,origin.color,[parent]];
+   treeDefs.push(n);v22NodeMap.set(id,n);parent=id;
+  }
+ }
+}
+// 兩條終極路線互斥；沿用既有的連線解鎖規則。
+const v24OldCan=treeCan;
+treeCan=function(n){
+ const id=n[0];
+ if(id.startsWith('v24_')){
+  const parts=id.split('_'),key=parts[1],branch=Number(parts[2]);
+  if(v21Classes[v21Class]?.key!==key)return false;
+  const other=1-branch;
+  if(treeBought.has('v24_'+key+'_'+other+'_4'))return false;
+  // 購買終極核心後，不能再繼續投資另一條互斥路線。
+  if(Number(parts[3])===4&&treeBought.has('v24_'+key+'_'+other+'_4'))return false;
+ }
+ return v24OldCan(n);
+};
+// 單點退還：只允許移除沒有其他已購買節點依賴的節點。
+// 保留金幣 80% 返還規則；避免造成不合法的斷線路線。
+function v24Refund(id){
+ const n=v22NodeMap.get(id);
+ if(!n||!treeBought.has(id)||id==='root')return v24Toast('這個節點無法退還');
+ const blocked=treeDefs.filter(m=>treeBought.has(m[0])&&m[0]!==id&&m[8].includes(id));
+ if(blocked.length)return v24Toast('請先退還後續節點：'+blocked[0][1]);
+ treeBought.delete(id);bank+=Math.floor(n[5]*.8);treeSave();treeRender();v24Toast('已退還「'+n[1]+'」，返還 '+Math.floor(n[5]*.8)+' 金幣');
+}
+function v24Toast(t){let e=document.querySelector('#v24Toast');if(!e){e=document.createElement('div');e.id='v24Toast';e.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;background:#14213a;color:#ffe4a1;border:1px solid #ba975e;padding:10px 18px;border-radius:9px;pointer-events:none';document.body.append(e)}e.textContent=t;e.style.display='block';clearTimeout(window.v24ToastTimer);window.v24ToastTimer=setTimeout(()=>e.style.display='none',2400)}
+const v24OldTreeOpen=treeOpen;
+treeOpen=function(){
+ v24OldTreeOpen();
+ const screen=document.querySelector('#treeScreen');if(!screen)return;
+ const panel=document.createElement('div');panel.id='v24Panel';
+ panel.style.cssText='padding:8px 14px;background:#101c30;border-bottom:1px solid #455674;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:#d5e2f7';
+ panel.innerHTML='<b style="color:#ffda86">V24 職業雙核心</b><span>每個職業新增守護／攻擊兩條終極路線。先解鎖職業專屬天賦，再往外發展。</span><label style="cursor:pointer"><input id="v24RefundMode" type="checkbox"> 單點退還模式（返還 80% 金幣）</label>';
+ const viewport=screen.querySelector('#treeViewport');if(viewport)viewport.before(panel);
+};
+const v24OldPurchase=treePurchase;
+treePurchase=function(id){
+ if(document.querySelector('#v24RefundMode')?.checked){v24Refund(id);return}
+ const n=v22NodeMap.get(id);
+ if(n?.[0].startsWith('v24_')&&!treeCan(n))return v24Toast('需要先解鎖前置天賦，或已選擇另一條核心路線');
+ v24OldPurchase(id);
+};
+// 永久核心加成僅套用於對應職業。
+const v24OldStart=start;
+start=function(cl){
+ v24OldStart(cl);if(!p||mode!=='play')return;
+ const hero=String(cl||p.heroClass||'').toLowerCase();
+ const key=hero.includes('paladin')?'paladin':hero.includes('knight')?'knight':hero.includes('mage')?'mage':hero.includes('ranger')?'ranger':hero.includes('hunter')?'hunter':v21Classes[v21Class].key;
+ for(let branch=0;branch<2;branch++){
+  for(let stage=1;stage<=3;stage++)if(treeBought.has('v24_'+key+'_'+branch+'_'+stage)){
+   if(stage%2){p.dmg=(p.dmg||1)*1.03}else{p.max+=10;p.hp+=10}
+  }
+  if(!treeBought.has('v24_'+key+'_'+branch+'_4'))continue;
+  if(key==='knight'){if(branch===0){p.max+=65;p.hp+=65;p.armor=(p.armor||0)+3}else{p.dmg*=1.24;p.speed*=1.08}}
+  if(key==='mage'){if(branch===0){p.dmg*=1.24;if(window.v17SkillStats?.bolt)window.v17SkillStats.bolt.damage*=1.2}else{for(const k of ['lightning','fire'])if(window.v17SkillStats?.[k])window.v17SkillStats[k].damage*=1.3}}
+  if(key==='ranger'){if(branch===0){if(window.v17SkillStats?.arrow){window.v17SkillStats.arrow.damage*=1.35;window.v17SkillStats.arrow.rate*=1.1}}else{p.speed*=1.16;p.critChance=(p.critChance||0)+.08}}
+  if(key==='paladin'){if(branch===0){p.max+=45;p.hp+=45;p.regen=(p.regen||0)+.8}else{p.dmg*=1.1;if(window.v17SkillStats?.holy)window.v17SkillStats.holy.damage*=1.4}}
+  if(key==='hunter'){if(branch===0){p.critChance=(p.critChance||0)+.12;p.critDamage=(p.critDamage||1.5)*1.35}else{p.dmg*=1.12;if(window.v17SkillStats?.scythe)window.v17SkillStats.scythe.damage*=1.4}}
+ }
+};
+const v24OldMenu=menu;
+menu=function(){v24OldMenu();box.innerHTML+='<p style="color:#f1d38f">V24：職業雙核心分歧・單點退還・大型星盤</p>'};
+
+// V25：局外命運星盤視覺升級、流派檢視、職業配置備忘與核心戰鬥特效。
+const v25OriginalCoords=new Map(treeDefs.map(n=>[n[0],[n[3],n[4]]]));
+// 依既有區域進行放射狀展開；保持所有節點 ID、解鎖路徑與存檔相容。
+for(const n of treeDefs){
+ if(n[0]==='root')continue;
+ const [x,y]=v25OriginalCoords.get(n[0]);
+ const r=Math.hypot(x,y),angle=Math.atan2(y,x);
+ const spread=r<260?1.18:r<700?1.36:1.54;
+ n[3]=Math.round(Math.cos(angle)*r*spread);
+ n[4]=Math.round(Math.sin(angle)*r*spread);
+}
+const v25OldRender=treeRender;
+treeRender=function(){
+ v25OldRender();
+ const svg=document.querySelector('#treeSvg');if(!svg)return;
+ const rect=svg.getBoundingClientRect(),z=treeView.z,cx=rect.width/2+treeView.x,cy=rect.height/2+treeView.y;
+ const ns='http://www.w3.org/2000/svg';
+ const rings=document.createElementNS(ns,'g');rings.setAttribute('pointer-events','none');
+ const first=svg.querySelector('line, g[data-node]');
+ for(let r of [220,520,940,1450,2100]){
+  const circle=document.createElementNS(ns,'circle');circle.setAttribute('cx',cx);circle.setAttribute('cy',cy);circle.setAttribute('r',r*z);circle.setAttribute('fill','none');circle.setAttribute('stroke','#7789bc');circle.setAttribute('stroke-opacity','.11');circle.setAttribute('stroke-width','2');circle.setAttribute('stroke-dasharray','8 12');rings.appendChild(circle);
+ }
+ for(let i=0;i<12;i++){
+  const a=i*Math.PI/6,line=document.createElementNS(ns,'line');line.setAttribute('x1',cx+Math.cos(a)*150*z);line.setAttribute('y1',cy+Math.sin(a)*150*z);line.setAttribute('x2',cx+Math.cos(a)*2450*z);line.setAttribute('y2',cy+Math.sin(a)*2450*z);line.setAttribute('stroke','#9db3ee');line.setAttribute('stroke-opacity','.075');rings.appendChild(line);
+ }
+ if(first)svg.insertBefore(rings,first);
+ for(const node of svg.querySelectorAll('[data-node]')){
+  const id=node.getAttribute('data-node'),n=treeDefs.find(v=>v[0]===id);if(!n)continue;
+  const circles=node.querySelectorAll('circle');
+  const isCore=/core|fusion|v24_.*_4|v23_origin/.test(id)||n[5]>=450;
+  const isNotable=isCore||n[5]>=180;
+  if(isNotable){
+   for(const c of circles){const radius=Number(c.getAttribute('r'));c.setAttribute('r',radius*(isCore?1.42:1.19));}
+   if(isCore){node.setAttribute('filter','url(#v25Glow)');node.setAttribute('data-v25-core','1')}
+  }
+  node.addEventListener('pointerenter',()=>v25Inspect(n));
+  node.addEventListener('pointerleave',()=>v25Inspect(null));
+ }
+ let defs=svg.querySelector('defs');if(defs&&!svg.querySelector('#v25Glow'))defs.insertAdjacentHTML('beforeend','<filter id="v25Glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur in="SourceGraphic" stdDeviation="1.2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>');
+ const info=document.querySelector('#v25Stats');if(info)info.textContent=`總節點 ${treeDefs.length-1}　·　已解鎖 ${treeBought.size}　·　金幣 ${bank}`;
+};
+function v25Inspect(n){
+ const info=document.querySelector('#v25Info');if(!info)return;
+ if(!n){info.innerHTML='<strong>命運星盤</strong><br>滑鼠移到節點查看效果；大型光環代表重要核心。';return}
+ const req=n[8].map(id=>treeDefs.find(v=>v[0]===id)?.[1]||id).join('／')||'無';
+ const state=treeBought.has(n[0])?'已解鎖':treeCan(n)?'可解鎖':'尚未連接';
+ info.innerHTML=`<strong style="color:#f7d58a">${n[1]}</strong><br><span style="color:#cbdaf6">${n[2]}</span><br>費用：${n[5]} 金幣<br>前置：${req}<br>狀態：${state}`;
+}
+const v25OldOpen=treeOpen;
+treeOpen=function(){
+ v25OldOpen();
+ const screen=document.querySelector('#treeScreen');if(!screen)return;
+ const viewport=screen.querySelector('#treeViewport');if(!viewport)return;
+ const sidebar=document.createElement('aside');sidebar.id='v25Sidebar';sidebar.style.cssText='position:absolute;right:14px;top:14px;z-index:4;width:245px;max-width:32vw;background:linear-gradient(145deg,#151f36ef,#0b1020ef);border:1px solid #8c7352;border-radius:12px;padding:13px;box-shadow:0 12px 36px #0008;pointer-events:auto;font-size:12px;line-height:1.75';
+ sidebar.innerHTML='<div style="font-size:17px;color:#f1d49a;font-weight:bold">✦ 命運星盤</div><div id="v25Stats"></div><hr style="border-color:#3e4b63"><div id="v25Info">滑鼠移到節點查看效果。</div><hr style="border-color:#3e4b63"><div style="color:#c5d9f4">目前職業的天賦規劃</div><div style="display:flex;gap:6px;margin-top:5px"><button onclick="v25SavePlan()">儲存規劃</button><button onclick="v25ShowPlan()">查看規劃</button></div><div id="v25Plan" style="font-size:11px;color:#d6e5f5;max-height:90px;overflow:auto"></div>';
+ viewport.appendChild(sidebar);
+ treeRender();
+};
+function v25SavePlan(){
+ const cl=v21Classes[v21Class]?.key||'knight';
+ const ids=[...treeBought].filter(id=>id.startsWith('v23_'+cl)||id.startsWith('v24_'+cl));
+ try{localStorage.setItem('night_v25_plan_'+cl,JSON.stringify({date:new Date().toLocaleDateString('zh-TW'),ids}))}catch(e){}
+ v25ShowPlan();
+}
+function v25ShowPlan(){
+ const cl=v21Classes[v21Class]?.key||'knight',el=document.querySelector('#v25Plan');if(!el)return;
+ let data;try{data=JSON.parse(localStorage.getItem('night_v25_plan_'+cl)||'null')}catch(e){}
+ el.textContent=data?`已保存 ${data.ids.length} 個職業專屬節點（${data.date}）。此功能僅記錄規劃，不會免費解鎖天賦。`:'尚未儲存此職業的規劃。';
+}
+// 讓終極核心在實戰有更鮮明的視覺回饋（不修改原有傷害結算）。
+const v25OldDraw=draw;
+draw=function(){
+ v25OldDraw();
+ if(mode!=='play'||!p)return;
+ const hero=String(p.heroClass||'').toLowerCase();
+ const key=hero.includes('paladin')?'paladin':hero.includes('knight')?'knight':hero.includes('mage')?'mage':hero.includes('ranger')?'ranger':hero.includes('hunter')?'hunter':null;
+ if(!key)return;
+ let branch=-1;for(let i=0;i<2;i++)if(treeBought.has('v24_'+key+'_'+i+'_4'))branch=i;
+ if(branch<0)return;
+ const t=performance.now()/1000,r=22+Math.sin(t*3)*4;
+ g.save();g.translate(w/2,h/2);g.strokeStyle=branch===0?'#8dd7ff':'#f8a46d';g.lineWidth=2;g.globalAlpha=.55;
+ g.beginPath();g.arc(0,0,r,0,Math.PI*2);g.stroke();
+ for(let i=0;i<6;i++){const a=t*(branch?1.5:-1)+i*Math.PI/3;g.beginPath();g.arc(Math.cos(a)*(r+9),Math.sin(a)*(r+9),2.5,0,Math.PI*2);g.fillStyle=g.strokeStyle;g.fill()}
+ g.restore();
+};
+const v25OldMenu=menu;
+menu=function(){v25OldMenu();box.innerHTML+='<p style="color:#efd394">V25：放射狀命運星盤 · 大型核心視覺 · 職業規劃保存 · 覺醒光環</p>'};
+
+// V26: 同心環專精布局、路線捷徑與職業核心戰鬥變異。
+const v26BranchOrder=['blade','arrow','crit','bolt','lightning','fire','holy','nova','vital','summon','scythe','swift'];
+const v26BranchCenter={};
+// 讓每個技能分支各自形成一圈：保留 ID、前置連線與既有存檔。
+for(let j=0;j<v26BranchOrder.length;j++){
+ const prefix=v26BranchOrder[j],a=j*Math.PI*2/v26BranchOrder.length-Math.PI/2;
+ const cx=Math.cos(a)*1680,cy=Math.sin(a)*1680;
+ v26BranchCenter[prefix]=[cx,cy];
+ for(let i=1;i<=6;i++){
+  const n=treeDefs.find(n=>n[0]===prefix+i);if(!n)continue;
+  const theta=a+Math.PI+(i-1)*Math.PI*2/6;
+  n[3]=Math.round(cx+Math.cos(theta)*235);
+  n[4]=Math.round(cy+Math.sin(theta)*235);
+ }
+}
+// 只補上符合解鎖邏輯的分支捷徑：已解鎖相鄰路線可從兩側延伸。
+for(let j=0;j<v26BranchOrder.length;j++){
+ const a=v26BranchOrder[j],b=v26BranchOrder[(j+1)%v26BranchOrder.length];
+ const n=treeDefs.find(n=>n[0]===b+'1');
+ if(n&&!n[8].includes(a+'6'))n[8].push(a+'6');
+}
+const v26OldOpen=treeOpen;
+treeOpen=function(){
+ v26OldOpen();const screen=document.querySelector('#treeScreen');if(!screen)return;
+ const bar=document.createElement('div');bar.id='v26Bar';
+ bar.style.cssText='display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;background:#111b30;border-bottom:1px solid #58668a;font-size:12px';
+ bar.innerHTML='<b style="color:#f3d58d">◉ 專精環定位</b>'+v26BranchOrder.map(k=>{
+  const b=v17Branches.find(x=>x.prefix===k);
+  return '<button style="padding:5px 9px;font-size:12px" onclick="v26Focus(\''+k+'\')">'+(b?.name||k)+'</button>';
+ }).join('')+'<button style="padding:5px 9px;font-size:12px" onclick="v26Focus(\'center\')">中央</button>';
+ screen.querySelector('#treeViewport')?.before(bar);
+ const hint=document.querySelector('#treeHint');if(hint)hint.textContent='滑鼠拖曳移動 · 滾輪縮放 · 12 大環狀專精 · 解鎖相鄰分支可跨環連接';
+};
+function v26Focus(k){
+ const xy=k==='center'?[0,0]:v26BranchCenter[k];if(!xy)return;
+ treeView.z=k==='center'?.46:.8;treeView.x=-xy[0]*treeView.z;treeView.y=-xy[1]*treeView.z;treeRender();
+}
+// 終極核心變異：沿用 V24 的職業核心選擇，不取代原有數值加成。
+const v26OldStart=start;
+start=function(cl){
+ v26OldStart(cl);
+ if(mode!=='play'||!p)return;
+ const key=['knight','mage','ranger','paladin','hunter'][Number(cl)]||'knight';
+ let branch=-1;
+ for(let b=0;b<2;b++)if(treeBought.has('v24_'+key+'_'+b+'_4'))branch=b;
+ window.v26Core={key,branch,t:0};
+};
+const v26OldTick=tick;
+tick=function(dt){
+ v26OldTick(dt);
+ if(mode!=='play'||!p||!window.v26Core||window.v26Core.branch<0)return;
+ const core=window.v26Core;core.t+=dt;
+ const interval=core.branch===0?6.5:4.5;
+ if(core.t<interval)return;
+ core.t=0;
+ const enemies=mon.filter(e=>e.hp>0).sort((a,b)=>D(a,p)-D(b,p));
+ const hit=(radius,count,dmg)=>{
+  let done=0;
+  for(const e of enemies){if(done>=count)break;if(D(e,p)>radius)continue;damage(e,dmg*p.dmg);done++}
+ };
+ if(core.key==='knight'){
+  if(core.branch===0){p.hp=Math.min(p.max,p.hp+Math.max(5,p.max*.035));hit(120,9,13)}
+  else hit(260,14,37);
+ }else if(core.key==='mage'){
+  if(core.branch===0)hit(360,7,46);
+  else hit(250,16,30);
+ }else if(core.key==='ranger'){
+  if(core.branch===0)hit(470,5,62);
+  else hit(280,11,36);
+ }else if(core.key==='paladin'){
+  if(core.branch===0){p.hp=Math.min(p.max,p.hp+Math.max(6,p.max*.04));hit(155,8,15)}
+  else hit(330,12,40);
+ }else if(core.key==='hunter'){
+  if(core.branch===0)hit(260,6,65);
+  else hit(220,17,33);
+ }
+ // 一次性衝擊光環，限制特效數量。
+ for(let i=0;i<12;i++){const a=i*Math.PI/6;fx.push({x:p.x+Math.cos(a)*75,y:p.y+Math.sin(a)*75,vx:Math.cos(a)*110,vy:Math.sin(a)*110,life:.45})}
+ if(fx.length>300)fx.splice(0,fx.length-300);
+};
+const v26OldMenu=menu;
+menu=function(){v26OldMenu();box.innerHTML+='<p style="color:#e8ce9b">V26：十二大環狀專精 · 跨環連線 · 職業核心實戰變異</p>'};
+
+// V27：天賦星盤視覺升級：流派配色、徽章、路徑提示與小地圖。
+const v27Palette={attack:'#ffac77',magic:'#9ab8ff',defense:'#9be8ca',explore:'#f2d48c'};
+const v27Icons={blade:'⚔',arrow:'➶',bolt:'✦',lightning:'ϟ',fire:'♨',holy:'✚',nova:'❄',summon:'♜',scythe:'☾',crit:'✧',vital:'♥',swift:'➤'};
+const v27OldTreeRender=treeRender;
+treeRender=function(){
+ v27OldTreeRender();
+ const svg=document.getElementById('treeSvg');if(!svg)return;
+ const ns='http://www.w3.org/2000/svg',r=svg.getBoundingClientRect(),z=treeView.z,cx=r.width/2+treeView.x,cy=r.height/2+treeView.y;
+ // 各流派區域專屬環形裝飾，繪製在連線與節點下方。
+ const group=document.createElementNS(ns,'g');group.setAttribute('pointer-events','none');group.setAttribute('class','v27Decor');
+ for(const b of v17Branches){
+  const center=typeof v26BranchCenter!=='undefined'?v26BranchCenter[b.prefix]:null;
+  if(!center)continue;
+  const x=cx+center[0]*z,y=cy+center[1]*z;if(x< -280||x>r.width+280||y< -280||y>r.height+280)continue;
+  const color=v27Palette[b.color]||'#e3c78e';
+  for(const rad of [140,176]){const ring=document.createElementNS(ns,'circle');ring.setAttribute('cx',x);ring.setAttribute('cy',y);ring.setAttribute('r',rad*z);ring.setAttribute('fill','none');ring.setAttribute('stroke',color);ring.setAttribute('stroke-width',rad===140?'2':'1');ring.setAttribute('stroke-opacity',rad===140?'.23':'.12');ring.setAttribute('stroke-dasharray',rad===140?'6 8':'2 13');group.appendChild(ring)}
+  if(z>.32){const title=document.createElementNS(ns,'text');title.setAttribute('x',x);title.setAttribute('y',y-195*z);title.setAttribute('text-anchor','middle');title.setAttribute('fill',color);title.setAttribute('font-size',Math.max(10,17*z));title.setAttribute('font-weight','bold');title.setAttribute('opacity','.8');title.textContent=(v27Icons[b.prefix]||'✦')+' '+b.name;group.appendChild(title)}
+ }
+ const first=svg.querySelector('path, line, [data-node]');if(first)svg.insertBefore(group,first);else svg.appendChild(group);
+ for(const el of svg.querySelectorAll('[data-node]')){
+  const id=el.getAttribute('data-node'),n=treeDefs.find(x=>x[0]===id);if(!n)continue;
+  const core=/(keystone|fusion|core|v24_.*_4)/.test(id);
+  if(core){const cs=el.querySelectorAll('circle');if(cs.length){const outer=cs[0];outer.setAttribute('stroke-dasharray','4 4');outer.setAttribute('stroke-width','3');outer.setAttribute('opacity',treeBought.has(id)?'1':'.78')}
+   const label=el.querySelector('text');if(label&&!treeBought.has(id))label.textContent='✦';
+  }
+  const col=v27Palette[n[7]];if(col&&treeBought.has(id)){const c=el.querySelectorAll('circle');if(c.length>1)c[c.length-1].setAttribute('stroke',col)}
+ }
+ v27DrawMiniMap();
+};
+function v27DrawMiniMap(){
+ const el=document.getElementById('v27Mini');if(!el)return;
+ const ctx=el.getContext('2d'),w=el.width,h=el.height;ctx.clearRect(0,0);ctx.fillStyle='#0b1222';ctx.fillRect(0,0,w,h);
+ const max=3100,tx=x=>w/2+x/max*w*.46,ty=y=>h/2+y/max*h*.46;
+ ctx.strokeStyle='#3b4c69';ctx.beginPath();ctx.arc(w/2,h/2,Math.min(w,h)*.42,0,Math.PI*2);ctx.stroke();
+ for(const n of treeDefs){const x=tx(n[3]),y=ty(n[4]);if(x<0||x>w||y<0||y>h)continue;ctx.fillStyle=treeBought.has(n[0])?'#ffe09d':treeCan(n)?'#a6c9ff':'#39465e';ctx.fillRect(x-1,y-1,2.5,2.5)}
+ const z=treeView.z;ctx.strokeStyle='#e6ca86';ctx.lineWidth=1.5;const view=document.querySelector('#treeSvg')?.getBoundingClientRect();if(view){let worldX=-treeView.x/z,worldY=-treeView.y/z;ctx.strokeRect(tx(worldX-view.width/2/z),ty(worldY-view.height/2/z),view.width/z/max*w*.46,view.height/z/max*h*.46)}
+}
+const v27OldTreeOpen=treeOpen;
+treeOpen=function(){v27OldTreeOpen();const viewport=document.getElementById('treeViewport');if(!viewport)return;
+ const mini=document.createElement('div');mini.id='v27MiniWrap';mini.style.cssText='position:absolute;bottom:16px;left:16px;z-index:5;background:#101a2ce8;border:1px solid #947c58;border-radius:12px;padding:9px;color:#e8d19b;font:12px sans-serif;box-shadow:0 8px 25px #0009';
+ mini.innerHTML='<div style="margin-bottom:5px;font-weight:bold">✧ 星盤總覽</div><canvas id="v27Mini" width="190" height="145" style="display:block;max-width:30vw;border-radius:5px"></canvas><div style="font-size:10px;color:#adbad0;margin-top:5px">金色：已解鎖　藍色：可購買</div>';
+ viewport.appendChild(mini);
+ const legend=document.createElement('div');legend.id='v27Legend';legend.style.cssText='position:absolute;left:225px;bottom:16px;z-index:5;background:#101a2ce0;border:1px solid #4c5a78;border-radius:9px;padding:8px 12px;font-size:12px;pointer-events:none';
+ legend.innerHTML='<span style="color:#ffac77">◆ 戰鬥</span>　<span style="color:#9ab8ff">◆ 魔法</span>　<span style="color:#9be8ca">◆ 防禦</span>　<span style="color:#f2d48c">◆ 探索</span>';
+ viewport.appendChild(legend);treeRender();
+};
+const v27OldMenu=menu;
+menu=function(){v27OldMenu();box.innerHTML+='<p style="color:#e4c996">V27：專精區域配色 · 核心徽章 · 天賦總覽小地圖 · 星盤路線辨識</p>'};
+
+// V28：核心技能形態、元素連鎖、即時傷害統計與特效上限。
+const v28={elapsed:0,clock:0,damage:0,bySkill:{},frost:new WeakMap(),bursts:[],label:'普通攻擊'};
+function v28Hit(e,amount,skill){if(!e||e.hp<=0)return;const before=e.hp;damage(e,amount);const dealt=Math.max(0,before-Math.max(0,e.hp));v28.bySkill[skill]=(v28.bySkill[skill]||0)+dealt;}
+const v28Damage=damage;
+damage=function(e,n){const before=e?.hp||0;v28Damage(e,n);if(e&&before>0)v28.damage+=Math.max(0,before-Math.max(0,e.hp));};
+const v28Start=start;
+start=function(cl){v28Start(cl);v28.elapsed=0;v28.clock=0;v28.damage=0;v28.bySkill={};v28.frost=new WeakMap();v28.bursts=[];};
+function v28Blast(x,y,r,color){v28.bursts.push({x,y,r,life:.55,color});if(v28.bursts.length>28)v28.bursts.shift();}
+const v28Tick=tick;
+tick=function(dt){v28Tick(dt);if(mode!=='play'||!p)return;
+ v28.elapsed+=dt;v28.clock+=dt;
+ for(const b of v28.bursts)b.life-=dt;v28.bursts=v28.bursts.filter(b=>b.life>0);
+ // 限制過多的視覺粒子，避免長時間遊玩時特效堆積。
+ if(fx.length>350)fx.splice(0,fx.length-350);
+ if(damageTexts.length>100)damageTexts.splice(0,damageTexts.length-100);
+ if(v28.clock<3)return;v28.clock=0;
+ const targets=mon.filter(e=>e.hp>0&&D(e,p)<380).sort((a,b)=>D(a,p)-D(b,p));
+ const stats=window.v18Stats||{},core=window.v26Core||{};
+ // 技能變異：旋刃環繞、奧術連鎖、箭雨（依據局外核心天賦啟動）。
+ if(stats.blade?.keystone){for(const e of targets.slice(0,10))if(D(e,p)<170)v28Hit(e,14*p.dmg,'旋刃風暴');v28Blast(p.x,p.y,170,'#e6a8f8');}
+ if(stats.arrow?.keystone){for(const e of targets.slice(0,6))v28Hit(e,22*p.dmg,'追獵箭雨');if(targets.length)v28Blast(targets[0].x,targets[0].y,110,'#9cffa9');}
+ if(stats.bolt?.keystone){for(const e of targets.slice(0,7))v28Hit(e,19*p.dmg,'奧術連鎖');if(targets.length)v28Blast(targets[0].x,targets[0].y,145,'#b2b7ff');}
+ // 冰霜＋雷霆：被冰霜標記的敵人受到雷電共鳴時額外爆發。
+ const frost=stats.nova?.keystone||v21Fusions?.includes('storm');
+ const storm=stats.lightning?.keystone||v21Fusions?.includes('storm');
+ if(frost){for(const e of targets.slice(0,12))v28.frost.set(e,v28.elapsed+4);}
+ if(storm){let n=0;for(const e of targets){if(n>=9)break;if(v28.frost.get(e)>v28.elapsed){v28Hit(e,24*p.dmg,'極寒雷暴共鳴');v28.frost.delete(e);n++;}}if(n)v28Blast(p.x,p.y,260,'#8beaff');}
+ // 職業核心改變主動戰鬥節奏：各職業都有獨立的追加攻擊形態。
+ if(core.branch>=0){
+  const label={knight:'劍氣震盪',mage:'星界法陣',ranger:'獵鷹箭陣',paladin:'神聖結界',hunter:'暗影斬擊'}[core.key];
+  const r=core.key==='ranger'?360:core.key==='knight'?175:260;
+  const count=core.branch===1?12:7;
+  for(const e of targets.filter(e=>D(e,p)<r).slice(0,count))v28Hit(e,(core.branch===1?21:14)*p.dmg,label||'職業覺醒');
+  if(targets.length)v28Blast(p.x,p.y,r,core.branch===1?'#ffbd83':'#9cddff');
+ }
+};
+const v28Draw=draw;
+draw=function(){v28Draw();if(mode!=='play'||!p)return;
+ g.save();g.translate(w/2-p.x,h/2-p.y);
+ for(const b of v28.bursts){g.globalAlpha=Math.max(0,b.life/.55)*.7;g.strokeStyle=b.color;g.lineWidth=4;g.beginPath();g.arc(b.x,b.y,b.r*(1-b.life/.55*.45),0,Math.PI*2);g.stroke();}
+ g.restore();g.save();g.globalAlpha=.9;g.fillStyle='#11172de8';g.fillRect(12,h-90,250,76);g.strokeStyle='#66728b';g.strokeRect(12,h-90,250,76);
+ g.fillStyle='#f4e3bd';g.font='bold 13px sans-serif';g.fillText('⚔ 本局累計傷害 '+Math.round(v28.damage).toLocaleString(),22,h-65);
+ const top=Object.entries(v28.bySkill).sort((a,b)=>b[1]-a[1]).slice(0,2);g.font='12px sans-serif';g.fillStyle='#b7d6f8';
+ top.forEach(([k,v],i)=>g.fillText(k+'：'+Math.round(v).toLocaleString(),22,h-44+i*18));g.restore();
+};
+const v28OldMenu=menu;
+menu=function(){v28OldMenu();box.innerHTML+='<p style="color:#a9e9ee">V28：技能形態覺醒 · 極寒雷暴共鳴 · 即時傷害統計 · 特效效能優化</p>';};
+
+// V29：元素異常、元素連動、召喚進化、技能視覺與完整傷害排行。
+const v29={clock:0,elapsed:0,states:new Map(),particles:[],rank:{},petClock:0};
+const v29OldStart=start;
+start=function(cl){v29OldStart(cl);v29.clock=0;v29.elapsed=0;v29.petClock=0;v29.states.clear();v29.particles=[];v29.rank={};};
+const v29OldDamage=damage;
+damage=function(e,n){
+ if(!e||e.hp<=0)return v29OldDamage(e,n);
+ const before=e.hp;
+ v29OldDamage(e,n);
+ const dealt=Math.max(0,before-Math.max(0,e.hp));
+ const label=v29.activeSkill||'一般武器／召喚';
+ v29.rank[label]=(v29.rank[label]||0)+dealt;
+};
+const v29OldHit=v28Hit;
+v28Hit=function(e,amount,skill){v29.activeSkill=skill;try{return v29OldHit(e,amount,skill)}finally{v29.activeSkill=null}};
+function v29State(e){let s=v29.states.get(e);if(!s){s={burn:0,chill:0,shock:0,proc:0};v29.states.set(e,s)}return s}
+function v29Mark(e,type,duration){if(!e||e.hp<=0)return;const s=v29State(e);s[type]=Math.max(s[type],v29.elapsed+duration)}
+function v29Burst(x,y,color,count=8){for(let i=0;i<count;i++){const a=Math.PI*2*i/count;v29.particles.push({x,y,vx:Math.cos(a)*(55+Math.random()*65),vy:Math.sin(a)*(55+Math.random()*65),life:.55,max:.55,color})}if(v29.particles.length>220)v29.particles.splice(0,v29.particles.length-220)}
+const v29OldTick=tick;
+tick=function(dt){v29OldTick(dt);if(mode!=='play'||!p)return;
+ v29.elapsed+=dt;v29.clock+=dt;v29.petClock+=dt;
+ for(const q of v29.particles){q.x+=q.vx*dt;q.y+=q.vy*dt;q.life-=dt}v29.particles=v29.particles.filter(q=>q.life>0);
+ if(v29.clock>=.55){const step=v29.clock;v29.clock=0;
+  const near=mon.filter(e=>e.hp>0&&D(e,p)<360);
+  const stats=window.v18Stats||{};
+  const hasFire=!!(stats.fire?.keystone||v21Fusions.includes('inferno'));
+  const hasFrost=!!(stats.nova?.keystone||v21Fusions.includes('storm'));
+  const hasShock=!!(stats.lightning?.keystone||v21Fusions.includes('storm'));
+  for(const e of near){const st=v29State(e);
+   if(hasFire&&Math.random()<.32)v29Mark(e,'burn',3.5);
+   if(hasFrost&&Math.random()<.38)v29Mark(e,'chill',2.8);
+   if(hasShock&&Math.random()<.35)v29Mark(e,'shock',2.8);
+   if(st.burn>v29.elapsed){v29.activeSkill='燃燒持續傷害';damage(e,Math.max(2,p.dmg*4)*step);v29.activeSkill=null}
+   // 冰霜與雷霆同時存在時，觸發連鎖碎冰雷爆。
+   if(st.chill>v29.elapsed&&st.shock>v29.elapsed&&v29.elapsed>st.proc+1.8){st.proc=v29.elapsed;st.chill=0;st.shock=0;v29.activeSkill='碎冰雷爆';damage(e,24*p.dmg);v29.activeSkill=null;v29Burst(e.x,e.y,'#a9efff',12);for(const other of near){if(other!==e&&D(e,other)<90){v29.activeSkill='碎冰雷爆';damage(other,8*p.dmg);v29.activeSkill=null}}}
+   // 燃燒與感電連動：引燃閃爆。
+   if(st.burn>v29.elapsed&&st.shock>v29.elapsed&&v29.elapsed>st.proc+1.8){st.proc=v29.elapsed;st.burn=0;st.shock=0;v29.activeSkill='引燃閃爆';damage(e,30*p.dmg);v29.activeSkill=null;v29Burst(e.x,e.y,'#ff9b50',14)}
+  }
+  for(const [e,s] of v29.states){if(e.hp<=0||(!mon.includes(e))||(s.burn<v29.elapsed&&s.chill<v29.elapsed&&s.shock<v29.elapsed))v29.states.delete(e)}
+ }
+ // 召喚進化：靈體達到一定等級後擁有各自的招式。
+ if(v29.petClock>2.6&&v10.summonLevel>=2){v29.petClock=0;for(let i=0;i<v11.pets.length;i++){
+  const q=v11.pets[i];const nearby=mon.filter(e=>e.hp>0&&D(e,q)<(i%3===2?245:140)).slice(0,8);if(!nearby.length)continue;
+  if(i%3===0){for(const e of nearby.slice(0,4)){v29.activeSkill='骷髏將軍·橫掃';damage(e,(8+v10.summonLevel*3)*p.dmg);v29.activeSkill=null}v29Burst(q.x,q.y,'#e5d5a9',7)}
+  else if(i%3===1){const e=nearby[0];v29.activeSkill='暗影魔狼·撲擊';damage(e,(16+v10.summonLevel*4)*p.dmg);v29.activeSkill=null;v29Burst(e.x,e.y,'#d6a5ff',7)}
+  else{for(const e of nearby.slice(0,5)){v29.activeSkill='元素領主·魔彈';damage(e,(7+v10.summonLevel*3)*p.dmg);v29.activeSkill=null;v29Mark(e,'shock',2.4)}v29Burst(q.x,q.y,'#87e6ff',9)}
+ }}
+};
+const v29OldDraw=draw;
+draw=function(){v29OldDraw();if(mode!=='play'||!p)return;
+ g.save();g.translate(w/2-p.x,h/2-p.y);
+ for(const [e,s] of v29.states){if(e.hp<=0)continue;const t=v29.elapsed;g.lineWidth=2;g.strokeStyle=s.burn>t?'#ff8b42':s.chill>t?'#8edcff':'#d5b2ff';g.globalAlpha=.85;g.beginPath();g.arc(e.x,e.y,18+Math.sin(t*8)*2,0,Math.PI*2);g.stroke();if(s.burn>t&&s.chill>t){g.fillStyle='#fff3bd';g.fillRect(e.x-3,e.y-27,6,6)}}
+ for(const q of v29.particles){g.globalAlpha=Math.max(0,q.life/q.max);g.fillStyle=q.color;g.fillRect(q.x-3,q.y-3,6,6)}
+ g.restore();g.save();g.font='12px sans-serif';g.fillStyle='#dce7f7';g.fillText('🔥燃燒   ❄冰緩   ⚡感電',18,h-103);g.restore();
+};
+function v29ShowRank(){const all=Object.entries(v29.rank).sort((a,b)=>b[1]-a[1]);const sum=all.reduce((v,[,n])=>v+n,0)||1;const list=all.slice(0,18).map(([k,n],i)=>`<div style="display:flex;gap:10px;justify-content:space-between;border-bottom:1px solid #424b66;padding:6px"><span>${i+1}. ${k}</span><span>${Math.round(n).toLocaleString()} (${(n/sum*100).toFixed(1)}%)</span></div>`).join('');mode='rank';modal.style.display='flex';box.innerHTML='<h1>📊 本局傷害排行榜</h1><p>總計：'+Math.round(sum).toLocaleString()+' 傷害</p><div style="max-height:55vh;overflow:auto;text-align:left">'+(list||'尚無傷害資料')+'</div><button onclick="menu()">返回主選單</button>';}
+const v29OldMenu=menu;
+menu=function(){v29OldMenu();box.innerHTML+='<button onclick="v29ShowRank()">📊 查看最近一局傷害排行</button><p style="color:#b9dce7">V29：燃燒／冰緩／感電 · 元素連鎖 · 召喚物進化 · 技能傷害排行</p>';};
+
+menu();
+</script></html>
