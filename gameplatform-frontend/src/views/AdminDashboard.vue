@@ -1,4 +1,5 @@
 <script setup>
+import WorkspacePager from '../components/WorkspacePager.vue'
 
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -289,14 +290,8 @@ onUnmounted(() => {
       <p v-if="rows.length" class="mobile-table-hint">
         左右滑動表格，可查看負責狀態與操作。
       </p>
-      <div class="pager unified-pager">
-        <button v-if="page > 0" :disabled="page === 0" @click="page--">上一頁</button>
-        <span>
-          第 {{ page + 1 }} 頁
-        </span>
-        <button v-if="(page + 1) * 30 < total" :disabled="(page + 1) * 30 >= total" @click="page++">下一頁</button>
-      </div>
     </section>
+    <WorkspacePager :page="page" :total="total" :size="30" :busy="loading || !!busy" @change="page = $event" />
     <p class="work-explanation">轉案預設由原客服繼續負責，會列在「我處理中的案件」。</p>
   </div>
 </template>

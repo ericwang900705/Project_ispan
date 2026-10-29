@@ -1,4 +1,5 @@
 <script setup>
+import WorkspacePager from '../components/WorkspacePager.vue'
 import { canSupport, canUseTickets, homeFor, roleName } from '../permissions'
 
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
@@ -111,7 +112,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="page tickets-page support-case-page" :class="{ 'member-case-workspace': ['MEMBER', 'PUBLISHER'].includes(session.user?.role) }">
+  <div class="page tickets-page support-case-page"
+    :class="{ 'member-case-workspace': ['MEMBER', 'PUBLISHER'].includes(session.user?.role) }">
     <!-- 後台採精簡標題列，不套用共用標題卡片的背景及大面積留白。 -->
     <header v-if="canSupport(session.user?.role)" class="case-admin-heading">
       <div>
@@ -136,83 +138,85 @@ onUnmounted(() => {
 
     </section>
 
-    <p v-if="['MEMBER', 'PUBLISHER'].includes(session.user?.role)" class="member-case-faq-link">找下載、更新或付款的操作說明？<RouterLink to="/faq">查看常見問題 →</RouterLink></p>
+    <p v-if="['MEMBER', 'PUBLISHER'].includes(session.user?.role)" class="member-case-faq-link">找下載、更新或付款的操作說明？
+      <RouterLink to="/faq">查看常見問題 →</RouterLink>
+    </p>
 
-    <section class="case-toolbar">
+    <div class="case-search-panel" :class="{ 'staff-case-filters': canSupport(session.user?.role) }">
+      <section class="case-toolbar">
 
-      <!-- 搜尋案件 -->
-      <div class="toolbar-search">
-        <span class="toolbar-label">搜尋案件</span>
+        <!-- 搜尋案件 -->
+        <div class="toolbar-search">
+          <span class="toolbar-label">搜尋案件</span>
 
-        <SearchBar ref="searchBar" :busy="loading" label="搜尋案件" :placeholder="canSupport(session.user?.role)
-          ? '案件編號、標題、摘要或會員名稱'
-          : '案件編號、標題或摘要'" @search="searchNow" />
+          <SearchBar ref="searchBar" :busy="loading" label="搜尋案件" :placeholder="canSupport(session.user?.role)
+            ? '案件編號、標題、摘要或會員名稱'
+            : '案件編號、標題或摘要'" @search="searchNow" />
+        </div>
+
+        <!-- 案件狀態 -->
+        <label class="case-status-filter">
+          <span>案件狀態</span>
+
+          <select v-model="status">
+            <option value="">全部狀態</option>
+            <option value="OPEN">待處理</option>
+            <option value="IN_PROGRESS">處理中</option>
+            <option value="CLOSED">已結案</option>
+          </select>
+        </label>
+
+      </section>
+
+      <div v-if="canSupport(session.user?.role)" class="ticket-filters admin-filters">
+
+
+        <label>
+          <span>案件分類</span>
+          <select v-model="categoryId">
+            <option value="">全部分類</option>
+            <option v-for="c in visibleCategories" :key="c.id" :value="c.id">
+              {{ c.name }}
+            </option>
+          </select>
+        </label>
+
+        <label>
+          <span>優先程度</span>
+          <select v-model="priority">
+            <option value="">全部優先程度</option>
+            <option value="URGENT">緊急</option>
+            <option value="HIGH">高</option>
+            <option value="NORMAL">一般</option>
+            <option value="LOW">低</option>
+          </select>
+        </label>
+
+        <label>
+          <span>等待對象</span>
+          <select v-model="waitingFor">
+            <option value="">全部</option>
+            <option value="ADMIN">等待客服</option>
+            <option value="MEMBER">等待會員</option>
+          </select>
+        </label>
+
+        <label>
+          <span>顯示順序</span>
+          <select v-model="sortBy">
+            <option value="NEWEST">最新案件優先</option>
+            <option value="OLDEST">等待最久優先</option>
+            <option value="PRIORITY">緊急程度優先</option>
+          </select>
+        </label>
+
+        <div class="case-filter-actions">
+          <button type="button" class="secondary clear-filter" @click="clearFilters">
+            <UiIcon name="refresh" />清除篩選
+          </button>
+        </div>
       </div>
 
-      <!-- 案件狀態 -->
-      <label class="case-status-filter">
-        <span>案件狀態</span>
-
-        <select v-model="status">
-          <option value="">全部狀態</option>
-          <option value="OPEN">待處理</option>
-          <option value="IN_PROGRESS">處理中</option>
-          <option value="CLOSED">已結案</option>
-        </select>
-      </label>
-
-    </section>
-
-    <div v-if="canSupport(session.user?.role)" class="ticket-filters admin-filters">
-      <label>
-        <span>分類名稱搜尋</span>
-        <input v-model="categorySearch" type="search" placeholder="輸入退款、付款、帳號…" />
-      </label>
-
-      <label>
-        <span>案件分類</span>
-        <select v-model="categoryId">
-          <option value="">全部分類</option>
-          <option v-for="c in visibleCategories" :key="c.id" :value="c.id">
-            {{ c.name }}
-          </option>
-        </select>
-      </label>
-
-      <label>
-        <span>優先程度</span>
-        <select v-model="priority">
-          <option value="">全部優先程度</option>
-          <option value="URGENT">緊急</option>
-          <option value="HIGH">高</option>
-          <option value="NORMAL">一般</option>
-          <option value="LOW">低</option>
-        </select>
-      </label>
-
-      <label>
-        <span>等待對象</span>
-        <select v-model="waitingFor">
-          <option value="">全部</option>
-          <option value="ADMIN">等待客服</option>
-          <option value="MEMBER">等待會員</option>
-        </select>
-      </label>
-
-      <label>
-        <span>顯示順序</span>
-        <select v-model="sortBy">
-          <option value="NEWEST">最新案件優先</option>
-          <option value="OLDEST">等待最久優先</option>
-          <option value="PRIORITY">緊急程度優先</option>
-        </select>
-      </label>
-
-      <div class="case-filter-actions">
-        <button type="button" class="secondary clear-filter" @click="clearFilters">
-          <UiIcon name="refresh" />清除篩選
-        </button>
-      </div>
     </div>
 
     <p v-if="search" class="search-hint">
@@ -282,31 +286,115 @@ onUnmounted(() => {
       </div>
     </section>
 
-    <div class="pager unified-pager">
-      <button v-if="page > 0" :disabled="page === 0" @click="page--">
-        上一頁
-      </button>
-      <span>第 {{ page + 1 }} 頁</span>
-      <button v-if="rows.length >= 30" :disabled="rows.length < 30" @click="page++">
-        下一頁
-      </button>
-    </div>
+    <WorkspacePager :page="page" :more="rows.length >= 30" :busy="loading" @change="page = $event" />
   </div>
 </template>
 
 <style scoped>
-.member-case-workspace .case-toolbar { padding: 20px; gap: 20px; border: 1px solid #3b507a; border-radius: 16px; background: #142141; box-shadow: 0 8px 25px #03071822; }
-.member-case-workspace :is(.toolbar-label,.case-status-filter > span) { color: #d3dff4; font-size: 13px; font-weight: 650; }
-.member-case-workspace :deep(.support-search-row) { display: flex; gap: 10px; align-items: stretch; }
-.member-case-workspace :deep(.support-search input), .member-case-workspace .case-status-filter select { min-width: 0; min-height: 48px; padding: 12px 14px; border: 1px solid #566c95; border-radius: 11px; background: #0c1830; color: #f1f5ff; font-size: 14px; }
-.member-case-workspace :deep(.support-search input) { flex: 1; width: 100%; }.member-case-workspace :deep(.support-search input::placeholder) { color: #a8bbdb; }
-.member-case-workspace :deep(.support-search input:focus-visible), .member-case-workspace .case-status-filter select:focus-visible { outline: 2px solid #e9c376; outline-offset: 2px; }
-.member-case-workspace :deep(.support-search .search-button) { min-height: 48px; padding: 11px 22px; border: 1px solid #e7bd68; border-radius: 11px; background: #e7bd68; color: #18203a; font-weight: 750; }
-.member-case-workspace :deep(.support-search .search-button:hover:not(:disabled)) { background: #f4d28a; }.member-case-workspace :deep(.support-search .clear-button) { min-height: 44px; padding: 10px 14px; border: 1px solid #52698e; border-radius: 10px; background: #263755; color: #e6efff; }
-@media(max-width:640px) { .member-case-workspace :deep(.support-search-row) { flex-wrap: wrap; }.member-case-workspace :deep(.support-search input) { flex-basis: 100%; }.member-case-workspace .case-toolbar { padding: 16px; } }
+.member-case-workspace .case-toolbar {
+  padding: 20px;
+  gap: 20px;
+  border: 1px solid #3b507a;
+  border-radius: 16px;
+  background: #142141;
+  box-shadow: 0 8px 25px #03071822;
+}
 
-.member-case-faq-link { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 18px; margin: 20px 0; border: 1px solid #344775; border-radius: 12px; color: #c7d3eb; background: #152044; font-size: 14px; }
-.member-case-faq-link a { color: #f1cc7f; text-decoration: none; font-weight: 650; }
+.member-case-workspace :is(.toolbar-label, .case-status-filter > span) {
+  color: #d3dff4;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.member-case-workspace :deep(.support-search-row) {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.member-case-workspace :deep(.support-search input),
+.member-case-workspace .case-status-filter select {
+  min-width: 0;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid #566c95;
+  border-radius: 11px;
+  background: #0c1830;
+  color: #f1f5ff;
+  font-size: 14px;
+}
+
+.member-case-workspace :deep(.support-search input) {
+  flex: 1;
+  width: 100%;
+}
+
+.member-case-workspace :deep(.support-search input::placeholder) {
+  color: #a8bbdb;
+}
+
+.member-case-workspace :deep(.support-search input:focus-visible),
+.member-case-workspace .case-status-filter select:focus-visible {
+  outline: 2px solid #e9c376;
+  outline-offset: 2px;
+}
+
+.member-case-workspace :deep(.support-search .search-button) {
+  min-height: 48px;
+  padding: 11px 22px;
+  border: 1px solid #e7bd68;
+  border-radius: 11px;
+  background: #e7bd68;
+  color: #18203a;
+  font-weight: 750;
+}
+
+.member-case-workspace :deep(.support-search .search-button:hover:not(:disabled)) {
+  background: #f4d28a;
+}
+
+.member-case-workspace :deep(.support-search .clear-button) {
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #52698e;
+  border-radius: 10px;
+  background: #263755;
+  color: #e6efff;
+}
+
+@media(max-width:640px) {
+  .member-case-workspace :deep(.support-search-row) {
+    flex-wrap: wrap;
+  }
+
+  .member-case-workspace :deep(.support-search input) {
+    flex-basis: 100%;
+  }
+
+  .member-case-workspace .case-toolbar {
+    padding: 16px;
+  }
+}
+
+.member-case-faq-link {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 18px;
+  margin: 20px 0;
+  border: 1px solid #344775;
+  border-radius: 12px;
+  color: #c7d3eb;
+  background: #152044;
+  font-size: 14px;
+}
+
+.member-case-faq-link a {
+  color: #f1cc7f;
+  text-decoration: none;
+  font-weight: 650;
+}
+
 .support-case-page .case-admin-heading {
   display: flex;
   align-items: center;
@@ -963,10 +1051,132 @@ onUnmounted(() => {
     width: 100%;
   }
 }
+
+/* 桌面版將搜尋及全部篩選合併成一張橫向工具列，窄螢幕再換行。 */
+body.staff-workspace .support-ui .support-case-page .staff-case-filters {
+  display: grid;
+  grid-template-columns: minmax(210px, 2fr) repeat(6, minmax(100px, 1fr)) auto;
+  align-items: end;
+  gap: 14px;
+  padding: 24px;
+  margin-bottom: 24px;
+  border: 1px solid #c5d9e7;
+  border-radius: 16px;
+  background: #f6fbff;
+  box-shadow: 0 5px 18px #294e7010;
+}
+
+body.staff-workspace .support-ui .support-case-page .staff-case-filters>.case-toolbar,
+body.staff-workspace .support-ui .support-case-page .staff-case-filters>.admin-filters {
+  display: contents;
+}
+
+body.staff-workspace .support-ui .support-case-page .staff-case-filters label,
+body.staff-workspace .support-ui .support-case-page .staff-case-filters .toolbar-search {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  grid-column: auto;
+  align-self: end;
+}
+
+body.staff-workspace .support-ui .support-case-page .staff-case-filters :is(input, select) {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  margin: 0;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  font-size: 13px;
+}
+
+body.staff-workspace .support-ui .support-case-page .staff-case-filters .toolbar-search :deep(.support-search-row) {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+}
+
+body.staff-workspace .support-ui .support-case-page .staff-case-filters .toolbar-search :deep(input) {
+  flex: 1;
+  width: 0;
+}
+
+body.staff-workspace .support-ui .support-case-page .staff-case-filters .toolbar-search :deep(button) {
+  flex: none;
+  height: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+body.staff-workspace .support-ui .support-case-page .staff-case-filters .case-filter-actions {
+  grid-column: auto;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+body.staff-workspace .support-ui .support-case-page .staff-case-filters .case-filter-actions .clear-filter {
+  padding: 0 14px;
+  width: auto;
+  white-space: nowrap;
+}
+
+@media(max-width:1399px) {
+  body.staff-workspace .support-ui .support-case-page .staff-case-filters {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media(max-width:900px) {
+  body.staff-workspace .support-ui .support-case-page .staff-case-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 18px;
+  }
+
+  body.staff-workspace .support-ui .support-case-page .staff-case-filters .toolbar-search {
+    grid-column: 1 / -1;
+  }
+}
+
+@media(max-width:540px) {
+  body.staff-workspace .support-ui .support-case-page .staff-case-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+body.staff-workspace .support-ui .support-case-page .staff-case-filters .case-toolbar .toolbar-search {
+  grid-column: auto;
+}
+
+body.staff-workspace .support-ui .support-case-page .staff-case-filters :is(.toolbar-label, label > span) {
+  height: 20px;
+  line-height: 20px;
+}
+
+body.staff-workspace .support-ui .support-case-page .staff-case-filters .toolbar-search :deep(.support-search) {
+  padding: 0;
+  margin: 0;
+  height: 44px;
+}
+
+body.staff-workspace .support-ui .support-case-page .staff-case-filters .toolbar-search :deep(.support-search-row) {
+  height: 44px;
+}
+
+@media(max-width:900px) {
+  body.staff-workspace .support-ui .support-case-page .staff-case-filters .case-toolbar .toolbar-search {
+    grid-column: 1 / -1;
+  }
+}
 </style>
 <style>
 /* 後台與發行商分頁統一樣式：僅渲染可翻頁的方向，第一頁不顯示上一頁、末頁不顯示下一頁。 */
-:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager {
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -976,32 +1186,35 @@ onUnmounted(() => {
   padding: 8px 12px;
   min-height: 56px;
 }
-:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button {
+
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager>button {
   appearance: none;
   min-height: 38px;
   min-width: 76px;
   padding: 8px 16px;
   border: 1px solid #c6dcec;
   border-radius: 9px;
-  background: rgba(255,255,255,.96);
+  background: rgba(255, 255, 255, .96);
   color: #305674;
   font-weight: 500;
   box-shadow: none;
   line-height: 1.3;
   cursor: pointer;
 }
-:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button:hover:not(:disabled) {
+
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager>button:hover:not(:disabled) {
   background: #f0f7ff;
   border-color: #8eb8d3;
 }
-:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > button:disabled {
+
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager>button:disabled {
   opacity: .5;
   cursor: not-allowed;
 }
-:where(.management-pagination,.publisher-pagination,.sx-pager,.pager).unified-pager > span {
+
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager>span {
   color: #355673;
   font-size: 14px;
   white-space: nowrap;
 }
-
 </style>

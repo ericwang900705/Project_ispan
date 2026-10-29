@@ -68,6 +68,7 @@ async function googleLogin({ idToken, nonce }) {
 
       <!-- 帳號相關連結靠右 -->
       <nav class="member-login-links">
+        <RouterLink v-if="!session.user" :to="{ path: '/faq', query: { topic: 'account' } }">登入遇到問題？</RouterLink>
         <RouterLink to="/member/register">
           建立會員帳號
         </RouterLink>

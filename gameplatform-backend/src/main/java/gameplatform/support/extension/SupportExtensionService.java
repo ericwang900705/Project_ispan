@@ -77,10 +77,12 @@ public class SupportExtensionService {
         "%");
   }
 
-  private static int offset(int page) {
+  private static int offset(int page) { return offset(page, 20); }
+
+  private static int offset(int page, int size) {
     if (page < 0 || page > 100000)
       throw bad("頁碼不正確");
-    return page * 20;
+    return page * size;
   }
 
   private static String scopeColumn(String scope) {
@@ -150,9 +152,11 @@ public class SupportExtensionService {
     return Objects.requireNonNull(holder.getKey()).longValue();
   }
 
-  private Map<String, Object> page(List<Map<String, Object>> rows) {
-    boolean more = rows.size() > 20;
-    var result = new ArrayList<>(rows.subList(0, Math.min(20, rows.size())));
+  private Map<String, Object> page(List<Map<String, Object>> rows) { return page(rows, 20); }
+
+  private Map<String, Object> page(List<Map<String, Object>> rows, int size) {
+    boolean more = rows.size() > size;
+    var result = new ArrayList<>(rows.subList(0, Math.min(size, rows.size())));
     return Map.of("items", result, "hasMore", more);
   }
 
@@ -515,6 +519,7 @@ public class SupportExtensionService {
       int page) {
     String table = contentTable(kind);
     boolean faq = kind.equals("faqs");
+    int pageSize = faq && !management ? 10 : 20;
     if (management)
       permissions.requireHighestAdmin(actor);
     else if (!faq)
@@ -536,7 +541,8 @@ public class SupportExtensionService {
         " LIKE ? ESCAPE '!')";
     args.add(term(q));
     args.add(term(q));
-    args.add(offset(page));
+    Long total = management ? db.queryForObject("SELECT COUNT(*) FROM dbo." + table + " x" + where, Long.class, args.toArray()) : null;
+    args.add(offset(page, pageSize));
     String select = "x." +
         (faq ? "faq_id" : "template_id") +
         " AS id,x." +
@@ -554,10 +560,12 @@ public class SupportExtensionService {
             where +
             " ORDER BY x.sort_order,x." +
             (faq ? "faq_id" : "template_id") +
-            " DESC OFFSET ? ROWS FETCH NEXT 21 ROWS ONLY",
+            " DESC OFFSET ? ROWS FETCH NEXT " + (pageSize + 1) + " ROWS ONLY",
         args.toArray());
     rows.forEach(r -> r.put("id", String.valueOf(r.get("id"))));
-    return page(rows);
+    var result = new LinkedHashMap<String, Object>(page(rows, pageSize));
+    if (total != null) result.put("total", total);
+    return result;
   }
 
   public Object saveContent(

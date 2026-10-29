@@ -1,11 +1,12 @@
 <script setup>
 import DatePicker from '../components/DatePicker.vue'
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api } from '../api'
 
 const data = ref(null), from = ref(''), to = ref(''), gameId = ref(''), loading = ref(false), error = ref('')
 let run = 0
+const ready = ref(false)
 const money = v => new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 2 }).format(Number(v || 0))
 const maximum = computed(() => Math.max(1, ...(data.value?.daily || []).map(x => Number(x.paid_amount))))
 async function load(initial = false) {
@@ -41,7 +42,8 @@ function exportCsv() {
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
   const link = document.createElement('a'); link.href = url; link.download = `HERO_銷售報表_${report.from}_${report.to}.csv`; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
-onMounted(() => load(true))
+watch([gameId, from, to], () => { if (ready.value && from.value && to.value && from.value <= to.value) load() })
+onMounted(async () => { await load(true); ready.value = true })
 onUnmounted(() => { run++ })
 </script>
 <template>

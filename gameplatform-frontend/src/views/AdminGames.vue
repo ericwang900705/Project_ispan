@@ -1,4 +1,5 @@
 <script setup>
+import WorkspacePager from '../components/WorkspacePager.vue'
 import PublisherBuildLink from '../components/PublisherBuildLink.vue'
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
@@ -80,7 +81,7 @@ onBeforeUnmount(() => { alive = false; run++; detailRun++ })
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     <form v-if="!historyMode" class="management-search" @submit.prevent="clearDetail(); load(true)">
       <label>遊戲名稱<input v-model="keyword" placeholder="搜尋已送審的遊戲名稱" maxlength="100" :disabled="busy"></label>
-      <label v-if="!pendingMode">遊戲狀態<select v-model="status" :disabled="busy">
+      <label v-if="!pendingMode">遊戲狀態<select v-model="status" :disabled="busy" @change="clearDetail(); load(true)">
           <option value="">全部已送審狀態</option>
           <option v-for="(name, key) in labels" :key="key" :value="key">{{ name }}</option>
         </select></label>
@@ -214,12 +215,7 @@ onBeforeUnmount(() => { alive = false; run++; detailRun++ })
         <p>從左側清單選擇遊戲，查看介紹、版本與宣傳素材。</p>
       </article>
     </div>
-    <nav class="management-pagination unified-pager" aria-label="遊戲列表分頁"><button v-if="page > 0"
-        :disabled="!page || loading || busy" @click="page--; clearDetail(); load()">上一頁</button><span>{{ page + 1 }} /
-        {{
-          Math.max(1, Math.ceil(total / 10))
-        }}</span><button v-if="(page + 1) * 10 < total" :disabled="(page + 1) * 10 >= total || loading || busy"
-        @click="page++; clearDetail(); load()">下一頁</button></nav>
+    <WorkspacePager :page="page" :total="total" :size="10" :busy="loading || busy" @change="page = $event; clearDetail(); load()" />
   </section>
 </template>
 

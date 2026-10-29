@@ -1,4 +1,5 @@
 <script setup>
+import WorkspacePager from '../components/WorkspacePager.vue'
 import { ref, computed, watch, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { api, timeText } from '../api'
@@ -145,13 +146,7 @@ function website(value) {
         </tbody>
       </table>
     </div>
-    <nav class="management-pagination unified-pager" aria-label="申請列表分頁"><button v-if="page > 0"
-        :disabled="page === 0 || loading || busy" @click="page--; selected = null">上一頁</button><span>{{ page + 1 }} / {{
-          Math.max(1, Math.ceil(filtered.length /
-            10))
-        }}</span><button v-if="(page + 1) * 10 < filtered.length"
-        :disabled="(page + 1) * 10 >= filtered.length || loading || busy" @click="page++; selected = null">下一頁</button>
-    </nav>
+    <WorkspacePager :page="page" :total="filtered.length" :size="10" :busy="loading || busy" @change="page = $event; selected = null" />
     <section v-if="selected" ref="actionPanel" tabindex="-1" class="management-panel publisher-application-detail"
       aria-labelledby="publisher-detail-title">
       <div class="management-section-heading">

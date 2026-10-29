@@ -1,4 +1,5 @@
 <script setup>
+import WorkspacePager from '../components/WorkspacePager.vue'
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { api, timeText } from '../api'
 import '../styles/admin-management.css'
@@ -64,12 +65,12 @@ onBeforeUnmount(() => { alive = false; generation++ })
     <p v-if="message" class="management-notice" role="status">{{ message }}</p>
     <form class="management-search" @submit.prevent="load(true)">
       <label>搜尋會員<input v-model="keyword" maxlength="100" placeholder="會員編號、帳號或電子信箱" :disabled="busy"></label>
-      <label>帳號狀態<select v-model="status" :disabled="busy">
+      <label>帳號狀態<select v-model="status" :disabled="busy" @change="load(true)">
           <option value="">全部</option>
           <option value="ACTIVE">可使用</option>
           <option value="LOCKED">停權／鎖定中</option>
         </select></label>
-      <label>會員類型<select v-model="type" :disabled="busy">
+      <label>會員類型<select v-model="type" :disabled="busy" @change="load(true)">
           <option value="">全部</option>
           <option value="MEMBER">一般會員</option>
           <option value="PUBLISHER">發行商</option>
@@ -121,12 +122,7 @@ onBeforeUnmount(() => { alive = false; generation++ })
         </tbody>
       </table>
     </div>
-    <nav class="management-pagination unified-pager" aria-label="會員列表分頁"><button v-if="page > 0"
-        :disabled="page === 0 || loading || busy" @click="page--; load()">上一頁</button><span>{{ page + 1 }} / {{
-          Math.max(1, Math.ceil(total / 10))
-        }}</span><button v-if="(page + 1) * 10 < total" :disabled="(page + 1) * 10 >= total || loading || busy"
-        @click="page++; load()">下一頁</button>
-    </nav>
+    <WorkspacePager :page="page" :total="total" :size="10" :busy="loading || busy" @change="page = $event; load()" />
     <form v-if="selected" ref="actionPanel" class="management-panel" @submit.prevent="submit">
       <h2>{{ action === 'suspend' ? '確認停權' : '確認恢復使用' }}</h2>
       <p>{{ selected.username }}（#{{ selected.memberId }}）</p>

@@ -30,6 +30,30 @@ onBeforeUnmount(cleanup)
 .workspace-modal-wide { width: min(1220px,100%); }.workspace-modal-header { display: flex; flex-shrink: 0; justify-content: space-between; align-items: flex-start; gap: 18px; padding: 22px 26px; border-bottom: 1px solid #d5e1ea; background: #f3f7fb; }.workspace-modal-header span { font-size: 10px; letter-spacing: 1.5px; font-weight: 700; color: #657f95; }.workspace-modal-header h2 { margin: 6px 0 0; font-size: 23px; line-height: 1.4; color: #223e58; overflow-wrap: anywhere; }
 .workspace-modal-close { display: grid; place-items: center; min-width: 38px; height: 38px; border: 1px solid #baccd9; border-radius: 10px; color: #345873; background: white; cursor: pointer; }.workspace-modal-close:hover:not(:disabled) { background: #e6eef6; }.workspace-modal-close:disabled { opacity: .5; cursor: wait; }.workspace-modal-close:focus-visible { outline: 2px solid #258caa; outline-offset: 3px; }
 .workspace-modal-content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 24px 26px; }.workspace-modal-content :deep(.management-panel) { padding: 0; margin: 0; border: 0; background: transparent; box-shadow: none; }.workspace-modal-content :deep(.management-panel > h2) { display: none; }.workspace-modal-content :deep(.management-table-wrap) { max-width: 100%; overflow-x: auto; }
-.publisher-modal-workspace .workspace-modal { background: #edf3f8; color: #274760; }.publisher-modal-workspace .workspace-modal-header { background: #e4edf4; }
+/* 發行商草稿編輯視窗沿用工作區深藍底，表單與預覽各有獨立層次。 */
+.publisher-modal-workspace .workspace-modal { background: #101930; color: #e4ebfa; border-color: #465a85; }
+.publisher-modal-workspace .workspace-modal-header { background: #172442; border-bottom-color: #3a4d73; }
+.publisher-modal-workspace .workspace-modal-header h2 { color: #f1e0bb; }.publisher-modal-workspace .workspace-modal-header span { color: #a8bad7; }
+.publisher-modal-workspace .workspace-modal-close { background: #263756; color: #e4edff; border-color: #4c628a; }
+.publisher-modal-workspace .workspace-modal-content { padding: 24px; }
+.publisher-modal-workspace :deep(.publisher-store-layout) { gap: 24px; align-items: start; }
+.publisher-modal-workspace :deep(.publisher-store-fields) { min-width: 0; background: transparent; border: 0; padding: 0; }
+.publisher-modal-workspace :deep(.publisher-edit-section) { padding: 22px; margin-bottom: 18px; border: 1px solid #354c76; border-radius: 13px; background: #172541; }
+.publisher-modal-workspace :deep(.publisher-edit-section h3) { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin: 0 0 20px; color: #e7d1a4; font-size: 17px; }
+.publisher-modal-workspace :deep(.publisher-draft-label) { padding: 4px 10px; border-radius: 20px; color: #b8e7da; background: #224b4c; font-size: 11px; }
+.publisher-modal-workspace :deep(.publisher-edit-section label) { color: #dbe5f7; line-height: 1.6; }
+.publisher-modal-workspace :deep(.publisher-edit-section input:not([type=checkbox]):not([type=radio]):not([type=file])),
+.publisher-modal-workspace :deep(.publisher-edit-section textarea), .publisher-modal-workspace :deep(.publisher-edit-section select) { min-height: 44px; border: 1px solid #4c6389; border-radius: 9px; background: #0d1931; color: #eef3ff; padding: 11px 13px; box-sizing: border-box; color-scheme: dark; }
+.publisher-modal-workspace :deep(.publisher-edit-section input::placeholder), .publisher-modal-workspace :deep(.publisher-edit-section textarea::placeholder) { color: #92a6c9; }
+.publisher-modal-workspace :deep(.muted), .publisher-modal-workspace :deep(.publisher-description-footer), .publisher-modal-workspace :deep(.publisher-media-note) { color: #aebfda; }
+.publisher-modal-workspace :deep(.publisher-live-preview) { overflow: hidden; padding: 22px; border: 1px solid #41587e; border-radius: 13px; background: #14213d; color: #e8eefc; }
+.publisher-modal-workspace :deep(.publisher-live-preview h2), .publisher-modal-workspace :deep(.publisher-preview-description h3) { color: #e5d2ad; }
+.publisher-modal-workspace :deep(.publisher-preview-summary), .publisher-modal-workspace :deep(.publisher-preview-description p) { color: #c9d7ed; }
+.publisher-modal-workspace :deep(.publisher-image-placeholder) { background: #0b1730; color: #a8b9d5; border-color: #3d5379; }
+.publisher-modal-workspace :deep(.publisher-editor-actions) { gap: 12px; padding: 16px 0 0; }
+.publisher-modal-workspace :deep(.publisher-editor-actions button) { min-height: 46px; padding: 12px 20px; border-radius: 9px; }
+.publisher-modal-workspace :deep(.publisher-editor-actions .primary) { background: #dbb975; color: #19223a; border: 1px solid #dbb975; }
+.publisher-modal-workspace :deep(.publisher-editor-actions .secondary) { background: #273a5c; color: #e4ecfa; border: 1px solid #52698f; }
+.publisher-modal-workspace :deep(.hero-calendar label) { color: #24445d; }
 @media(max-width:640px) { .workspace-modal-backdrop { padding: 12px; }.workspace-modal { max-height: calc(100dvh - 24px); border-radius: 13px; }.workspace-modal-header { padding: 18px; }.workspace-modal-content { padding: 18px; }.workspace-modal-header h2 { font-size: 20px; } }
 </style>

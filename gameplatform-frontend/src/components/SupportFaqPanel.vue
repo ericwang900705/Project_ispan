@@ -2,8 +2,9 @@
 // 公開 FAQ：搜尋已發布資料、切換分類與頁面，不把草稿或後台內容放到前台。
 import { ref, onMounted, onBeforeUnmount, useId } from 'vue'
 import { api, session } from '../api'
-import { useRouter } from 'vue-router'
+import { useRouter, RouterLink } from 'vue-router'
 import UiIcon from './UiIcon.vue'
+import WorkspacePager from './WorkspacePager.vue'
 const props = defineProps({ standalone: Boolean })
 const router = useRouter(), prefix = useId()
 const query = ref(''), category = ref(''), categories = ref([]), rows = ref([])
@@ -14,14 +15,14 @@ let run = 0, alive = true
 async function load(reset = false) {
   if (reset) page.value = 0
   const id = ++run, term = query.value.trim()
-  loading.value = true; error.value = ''
+  loading.value = true; error.value = ''; expanded.value = null
   try {
     const params = new URLSearchParams({ q: term, page: page.value })
     if (category.value) params.set('categoryId', category.value)
     const value = await api('/public/faqs?' + params)
     if (alive && id === run) {
       rows.value = value.items; more.value = value.hasMore
-      expanded.value = value.items[0]?.id ?? null; appliedQuery.value = term
+      expanded.value = null; appliedQuery.value = term
     }
   } catch (e) { if (alive && id === run) error.value = e.message }
   finally { if (alive && id === run) loading.value = false }
@@ -57,14 +58,18 @@ onBeforeUnmount(() => { alive = false; run++ })
       <article v-for="row in rows" :key="row.id" class="sx-faq-row" :class="{ 'is-expanded': expanded === row.id }">
         <button type="button" :id="`${prefix}-question-${row.id}`" :aria-expanded="expanded === row.id" :aria-controls="`${prefix}-answer-${row.id}`" @click="expanded = expanded === row.id ? null : row.id"><span class="faq-question-text"><small v-if="row.categoryName">{{ row.categoryName }}</small><strong>{{ row.title }}</strong></span><span class="faq-expand-symbol" aria-hidden="true">{{ expanded === row.id ? '−' : '＋' }}</span></button>
         <p v-show="expanded === row.id" :id="`${prefix}-answer-${row.id}`" :aria-labelledby="`${prefix}-question-${row.id}`">{{ row.content }}</p>
+        <RouterLink v-if="expanded === row.id && /Google/i.test(row.title)" class="faq-google-link" :to="session.user ? '/member/profile' : { path: '/member/login', query: { redirect: '/member/profile' } }">{{ session.user ? '前往個人資料與 Google 綁定 →' : '登入後前往 Google 綁定 →' }}</RouterLink>
       </article>
       <div v-if="!loading && !rows.length" class="faq-empty"><UiIcon name="search" /><h3>暫時找不到符合的問題</h3><p>試試較短的關鍵字，或清除分類後重新搜尋。</p><button type="button" class="faq-reset" @click="clear">查看全部問題</button></div>
     </div>
-    <nav v-if="page || more" class="faq-pagination" aria-label="常見問題分頁"><button type="button" :disabled="!page || loading" @click="page--; load()">上一頁</button><span>第 {{ page + 1 }} 頁</span><button type="button" :disabled="!more || loading" @click="page++; load()">下一頁</button></nav>
+    <WorkspacePager v-if="page || more" :page="page" :size="10" :more="more" :busy="loading" @change="page = $event; load()" />
     <footer class="faq-contact"><div><strong>還是沒有找到答案？</strong><p>告訴我們遇到的情況，客服會協助你。</p></div><button type="button" class="faq-contact-button" @click="contact"><UiIcon name="chat" />{{ session.user ? '詢問線上客服' : '登入後聯絡客服' }}<UiIcon name="arrow" /></button></footer>
   </section>
 </template>
 <style scoped>
+.faq-google-link { display: inline-flex; margin: 0 0 18px; padding: 10px 14px; border: 1px solid #6a6c71; border-radius: 9px; color: #f1cf89; background: #2a3652; text-decoration: none; font-size: 13px; }
+.faq-google-link:hover { background: #35476b; border-color: #d7b472; }
+
 .faq-polished { padding: clamp(20px, 3vw, 34px); margin: 26px 0; color: #eaf0ff; border: 1px solid #384c78; border-radius: 22px; background: linear-gradient(135deg,#172447,#101934); box-shadow: 0 16px 48px #05091c2b; }
 .faq-search-heading { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }.faq-search-symbol { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 15px; background: #e5b95618; color: #edc976; flex-shrink: 0; }.faq-search-heading h2 { margin: 0; font-size: clamp(20px,2.5vw,25px); color: #f3f6ff; }.faq-search-heading p { margin: 7px 0 0; color: #b9c7e3; font-size: 14px; line-height: 1.6; }
 .faq-search { display: flex; align-items: stretch; gap: 10px; }.faq-query { display: flex; flex: 1; min-width: 0; align-items: center; gap: 12px; padding: 0 14px; min-height: 54px; border: 1px solid #546990; border-radius: 12px; background: #0c1630; color: #a5b9dd; box-sizing: border-box; }.faq-query:focus-within { border-color: #e8be67; box-shadow: 0 0 0 3px #e8be6718; }.faq-query input { min-width: 0; flex: 1; width: 100%; padding: 15px 0; border: 0; border-radius: 0; outline: 0; box-shadow: none; background: transparent; color: #f5f7ff; font-size: 15px; }.faq-query input::placeholder { color: #9cafd2; }.faq-query > .ui-icon { width: 20px; }

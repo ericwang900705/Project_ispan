@@ -1,4 +1,5 @@
 <script setup>
+import WorkspacePager from '../components/WorkspacePager.vue'
 import { ref, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { api } from '../api'
@@ -110,14 +111,7 @@ onUnmounted(() => { run++; clearInterval(timer) })
           </button>
         </div>
       </article>
-      <div class="publisher-pagination unified-pager">
-        <button v-if="page > 0" :disabled="!page || loading || busy" @click="changePage(-1)">上一頁</button>
-        <span>
-          {{ page + 1 }} / {{ Math.max(1, Math.ceil((data?.total || 0) / 20)) }}
-        </span>
-        <button v-if="data && (page + 1) * 20 < data.total"
-          :disabled="!data || (page + 1) * 20 >= data.total || loading || busy" @click="changePage(1)">下一頁</button>
-      </div>
+      <WorkspacePager :page="page" :total="data?.total || 0" :size="20" :busy="loading || busy" @change="changePage($event - page)" />
     </section>
   </section>
 </template>

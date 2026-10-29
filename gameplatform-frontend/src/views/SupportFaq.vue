@@ -11,10 +11,10 @@ const accountTopic = computed(() => route.query.topic === 'account')
 </script>
 <template>
   <main class="page sx-faq-page faq-center-page">
-    <header class="faq-page-hero"><div><span class="faq-page-kicker"><UiIcon name="headset" />HERO 客服中心</span><h1>常見問題</h1><p>從下載更新到訂單付款，先找到適合你的操作說明。</p></div><div class="faq-hero-actions"><RouterLink class="faq-account-entry" :to="{ path: '/faq', query: { topic: 'account' } }">登入遇到問題？</RouterLink><RouterLink class="faq-case-entry" :to="session.user ? '/member/support' : { path: '/member/login', query: { redirect: '/member/support' } }"><UiIcon name="file" />我的案件<UiIcon name="arrow" /></RouterLink></div></header>
-    <SupportAccountHelp v-if="accountTopic" />
+    <header class="faq-page-hero"><div><span class="faq-page-kicker"><UiIcon name="headset" />HERO 客服中心</span><h1>常見問題</h1><p>從下載更新到訂單付款，先找到適合你的操作說明。</p></div><div class="faq-hero-actions"><RouterLink v-if="!session.user" class="faq-account-entry" :to="{ path: '/faq', query: { topic: 'account' } }">登入遇到問題？</RouterLink><RouterLink class="faq-case-entry" :to="session.user ? '/member/support' : { path: '/member/login', query: { redirect: '/member/support' } }"><UiIcon name="file" />我的案件<UiIcon name="arrow" /></RouterLink></div></header>
+    <SupportAccountHelp v-if="!session.user && accountTopic" />
     <SupportFaqPanel standalone />
-    <SupportAccountHelp v-if="!accountTopic" />
+    <SupportAccountHelp v-if="!session.user && !accountTopic" />
   </main>
 </template>
 <style scoped>

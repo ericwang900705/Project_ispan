@@ -1,19 +1,19 @@
 <script setup>
+import WorkspacePager from '../components/WorkspacePager.vue'
 import WorkspaceModal from '../components/WorkspaceModal.vue'
 import DatePicker from '../components/DatePicker.vue'
 import SearchableSelect from '../components/SearchableSelect.vue'
 import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue'
-import { useRoute, useRouter, RouterLink } from 'vue-router'
+import { useRoute, RouterLink } from 'vue-router'
 import { api, session } from '../api'
 import { hasPermission } from '../permissions'
 import { backofficeModules, managementLabels } from '../backoffice-modules'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import '../styles/admin-management.css'
-const route = useRoute(), router = useRouter(), commentView = ref('pending')
+const route = useRoute(), commentView = ref('pending')
 const commentPage = computed(() => route.meta.workspaceModule === 'comments')
 const area = computed(() => commentPage.value ? (commentView.value === 'reviews' ? 'reviews' : 'review-reports') : route.meta.workspaceModule)
 const config = computed(() => backofficeModules[area.value])
-function changeCommentView(view) { router.replace({ path: '/admin/comments', query: view === 'pending' ? {} : { view } }) }
 const rows = ref([]), total = ref(0), page = ref(0), query = ref(''), status = ref(''), loading = ref(false), busy = ref(false), error = ref(''), message = ref('')
 const selected = ref(null), detail = ref(null), editing = ref(false), reason = ref(''), decision = ref('HIDDEN')
 const moderationInfo = ref(null)
@@ -90,15 +90,15 @@ const orderLabels = { order_no: '訂單編號', username: '會員', order_status
                 :class="{ active: area === 'login-logs' }">會員登入紀錄</RouterLink>
         </nav>
         <nav v-if="commentPage" class="management-tabs comment-tabs" aria-label="評論與檢舉分類">
-            <button :class="{ active: commentView === 'pending' }" @click="changeCommentView('pending')">待處理檢舉</button>
-            <button :class="{ active: commentView === 'reports' }" @click="changeCommentView('reports')">全部檢舉</button>
-            <button :class="{ active: commentView === 'reviews' }" @click="changeCommentView('reviews')">全部評論</button>
+            <RouterLink to="/admin/comments" replace :class="{ active: commentView === 'pending' }" :aria-current="commentView === 'pending' ? 'page' : undefined">待處理檢舉</RouterLink>
+            <RouterLink to="/admin/comments?view=reports" replace :class="{ active: commentView === 'reports' }" :aria-current="commentView === 'reports' ? 'page' : undefined">全部檢舉</RouterLink>
+            <RouterLink to="/admin/comments?view=reviews" replace :class="{ active: commentView === 'reviews' }" :aria-current="commentView === 'reviews' ? 'page' : undefined">全部評論</RouterLink>
         </nav>
         <p v-if="error" class="error" role="alert">{{ error }}</p>
         <p v-if="message" class="management-notice" role="status">{{ message }}</p>
         <form class="management-search" @submit.prevent="load(true)"><label>搜尋<input v-model="query" maxlength="100"
                     :disabled="busy" placeholder="輸入名稱、帳號或編號"></label><label v-if="config.states">狀態<select
-                    v-model="status" aria-label="狀態" :disabled="busy || (commentPage && commentView === 'pending')">
+                    v-model="status" aria-label="狀態" @change="load(true)" :disabled="busy || (commentPage && commentView === 'pending')">
                     <option value="">全部</option>
                     <option v-for="item in config.states" :value="item" :key="item">{{ text(item) }}</option>
                 </select></label>
@@ -133,10 +133,7 @@ const orderLabels = { order_no: '訂單編號', username: '會員', order_status
                 </tbody>
             </table>
         </div>
-        <nav class="management-pagination unified-pager" aria-label="列表分頁"><button v-if="page > 0"
-                :disabled="!page || busy || loading" @click="page--; load()">上一頁</button><span>{{ page + 1 }} / {{
-                    Math.max(1, Math.ceil(total / 20)) }}</span><button v-if="(page + 1) * 20 < total"
-                :disabled="(page + 1) * 20 >= total || busy || loading" @click="page++; load()">下一頁</button></nav>
+        <WorkspacePager :page="page" :total="total" :size="20" :busy="loading || busy" @change="page = $event; load()" />
         <WorkspaceModal :open="editing || !!selected" :title="modalTitle" :busy="busy" @close="closePanel">
           <p v-if="error" class="error" role="alert">{{ error }}</p>
           <p v-if="busy && !detail && ['orders','refunds'].includes(area)" role="status">正在載入訂單明細…</p>
@@ -321,30 +318,7 @@ const orderLabels = { order_no: '訂單編號', username: '會員', order_status
 }
 </style>
 
-<style scoped>
-.comment-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 6px;
-    margin-bottom: 24px;
-}
 
-.comment-tabs button {
-    border: 0;
-    border-radius: 8px;
-    padding: 10px 18px;
-    font-weight: 600;
-    color: #36566b;
-    background: transparent;
-}
-
-.comment-tabs button.active {
-    background: #fff;
-    color: #075f76;
-    box-shadow: 0 2px 7px #214b6315;
-}
-</style>
 
 <style>
 /* 後台與發行商分頁統一樣式：僅渲染可翻頁的方向，第一頁不顯示上一頁、末頁不顯示下一頁。 */

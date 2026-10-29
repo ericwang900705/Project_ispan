@@ -1,4 +1,5 @@
 <script setup>
+import WorkspacePager from '../components/WorkspacePager.vue'
 import SupportContext from '../components/SupportContext.vue'
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -405,6 +406,7 @@ onUnmounted(() => {
     <!-- 客服工作區 -->
     <div class="admin-layout support-expanded" :class="{ 'transfer-open': modal }">
       <!-- 左側聊天室列表 -->
+      <div class="room-sidebar-column">
       <aside class="room-sidebar">
         <div class="room-filters">
           <SearchBar label="搜尋聊天室" placeholder="編號、會員名稱或訊息" @search="searchNow" />
@@ -430,6 +432,7 @@ onUnmounted(() => {
 
         </div>
 
+        <div class="room-results">
         <!-- 沒有聊天室 -->
         <p v-if="!rooms.length" class="empty">
           目前沒有符合條件的對話
@@ -476,18 +479,11 @@ onUnmounted(() => {
           </small>
         </button>
 
-        <!-- 分頁 -->
-        <div class="pager unified-pager">
-
-          <button v-if="page > 0" :disabled="page === 0" @click="page--">
-            上一頁
-          </button>
-
-          <button v-if="rooms.length >= 30" :disabled="rooms.length < 30" @click="page++">
-            下一頁
-          </button>
         </div>
+        <!-- 分頁 -->
       </aside>
+        <WorkspacePager :page="page" :more="rooms.length >= 30" :busy="busy || !!modal" :dock="false" @change="page = $event" />
+      </div>
 
       <!-- 右側聊天室內容 -->
       <section class="admin-discussion">
@@ -792,6 +788,13 @@ onUnmounted(() => {
 
 </template>
 <style>
+/* 聊天清單獨立捲動，分頁列固定留在清單底部，不影響右側訊息輸入。 */
+.support-ui .admin-layout .room-sidebar-column { display: flex; flex-direction: column; min-width: 0; height: min(760px, calc(100dvh - 210px)); min-height: 420px; }
+.support-ui .admin-layout .room-sidebar { display: flex; flex-direction: column; flex: 1; min-height: 0; height: auto; padding-bottom: 0; }
+.support-ui .admin-layout .room-sidebar .room-filters { flex: none; }
+.support-ui .admin-layout .room-sidebar .room-results { flex: 1; min-height: 0; overflow-y: auto; }
+.support-ui .admin-layout .room-sidebar .workspace-pager { flex: none; }
+
 /* 後台與發行商分頁統一樣式：僅渲染可翻頁的方向，第一頁不顯示上一頁、末頁不顯示下一頁。 */
 :where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager {
   display: flex;

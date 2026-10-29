@@ -1,6 +1,7 @@
 <script setup>
+import WorkspacePager from '../components/WorkspacePager.vue'
 // 退款專用工作頁：只列退款申請，集中核對、完成退款或回覆無法退款。
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { api, session, timeText } from '../api'
 import { hasPermission } from '../permissions'
@@ -12,17 +13,20 @@ const rows = ref([]), total = ref(0), loading = ref(false), busy = ref(false)
 const error = ref(''), notice = ref(''), selected = ref(null), action = ref('')
 const reason = ref(''), reference = ref(''), confirmed = ref(false), dialogError = ref('')
 const supportNote = ref('')
+let generation = 0, alive = true
+onBeforeUnmount(() => { alive = false; generation++ })
 const states = { PENDING: '待處理', REFUNDED: '已退款', REJECTED: '無法退款' }
 const isTest = computed(() => selected.value?.payment_environment === 'TEST')
 const money = n => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(Number(n || 0))
 async function load() {
-  if (loading.value) return
+  const run = ++generation
   loading.value = true; error.value = ''
   try {
     const data = await api(`/backoffice/refund-requests?q=${encodeURIComponent(q.value.trim())}&status=${status.value}&page=${page.value}`)
+    if (!alive || run !== generation) return
     rows.value = data.items; total.value = data.total
-  } catch (e) { error.value = e.message; rows.value = []; total.value = 0 }
-  finally { loading.value = false }
+  } catch (e) { if (alive && run === generation) { error.value = e.message; rows.value = []; total.value = 0 } }
+  finally { if (alive && run === generation) loading.value = false }
 }
 function search() { page.value = 0; load() }
 function clear() { q.value = ''; status.value = ''; search() }
@@ -69,7 +73,7 @@ onMounted(load)
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     <form class="management-search refund-search" @submit.prevent="search">
       <label>搜尋<input v-model="q" maxlength="100" placeholder="會員帳號、訂單編號或案件編號"></label>
-      <label>申請狀態<select v-model="status" aria-label="申請狀態"><option value="">全部</option><option v-for="(label, code) in states" :key="code" :value="code">{{ label }}</option></select></label>
+      <label>申請狀態<select v-model="status" aria-label="申請狀態" :disabled="busy" @change="search"><option value="">全部</option><option v-for="(label, code) in states" :key="code" :value="code">{{ label }}</option></select></label>
       <div class="refund-filter-actions"><button class="primary" :disabled="loading">搜尋</button><button type="button" class="secondary" :disabled="loading" @click="clear">清除篩選</button><button type="button" class="secondary" :disabled="loading" @click="load">重新整理</button></div>
     </form>
     <p class="list-scope">{{ loading ? '載入中…' : `共 ${total} 筆退款申請，分頁顯示` }}</p>
@@ -83,7 +87,7 @@ onMounted(load)
         </tr><tr v-if="!loading && !rows.length"><td colspan="6" class="refund-empty">目前沒有符合條件的退款申請。</td></tr></tbody>
       </table>
     </div>
-    <nav class="management-pagination unified-pager" aria-label="退款申請分頁"><button v-if="page > 0" :disabled="loading || page === 0" @click="paginate(-1)">上一頁</button><span>{{ page + 1 }} / {{ Math.max(1, Math.ceil(total / 20)) }}</span><button v-if="(page + 1) * 20 < total" :disabled="loading || (page + 1) * 20 >= total" @click="paginate(1)">下一頁</button></nav>
+    <WorkspacePager :page="page" :total="total" :size="20" :busy="loading || busy" @change="paginate($event - page)" />
     <Teleport to="body"><div v-if="selected" class="refund-dialog-backdrop support-ui" @click.self="close" @keydown.esc="close">
       <section class="refund-review-dialog" role="dialog" aria-modal="true" aria-labelledby="refund-review-title" tabindex="-1">
         <header><div><span class="management-eyebrow">REFUND REVIEW</span><h2 id="refund-review-title">{{ action === 'REFUND' ? '確認退款' : action === 'REJECT' ? '無法退款' : action === 'SUPPORT' ? '請會員補充資料' : '退款申請明細' }}</h2></div><button type="button" class="secondary" :disabled="busy" aria-label="關閉退款視窗" @click="close">✕</button></header>
@@ -141,7 +145,7 @@ onMounted(load)
 .refund-layout-v2 .management-heading-count { flex: none; min-width: 120px; text-align: center; }
 .refund-layout-v2 .refund-search {
   display: grid;
-  grid-template-columns: minmax(0, 1.8fr) minmax(220px, .9fr);
+  grid-template-columns: minmax(220px, 1.8fr) minmax(160px, .9fr) auto;
   align-items: end;
   gap: 18px 22px;
   margin: 0 0 22px;
@@ -171,17 +175,17 @@ onMounted(load)
   font-size: 14px;
 }
 .refund-layout-v2 .refund-filter-actions {
-  grid-column: 1 / -1;
+  grid-column: auto;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
   gap: 10px;
-  padding-top: 4px;
+  padding-top: 0;
 }
 .refund-layout-v2 .refund-filter-actions button {
   min-width: 88px;
-  min-height: 40px;
+  min-height: 44px;
   margin: 0;
   padding: 8px 16px;
   border-radius: 8px;
@@ -249,6 +253,7 @@ onMounted(load)
 @media (max-width: 960px) {
   .refund-layout-v2 { padding-inline: 18px; }
   .refund-layout-v2 .refund-search { grid-template-columns: minmax(0, 1fr) minmax(180px, .7fr); }
+  .refund-layout-v2 .refund-filter-actions { grid-column: 1 / -1; }
 }
 @media (max-width: 640px) {
   .refund-layout-v2 { padding: 18px 12px 32px; }
@@ -280,6 +285,10 @@ td small { display: block; color: #688195; font-size: 11px; margin-top: 5px; }
 .refund-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 14px; }.refund-final-result { padding: 12px; background: #edf6fa; border-radius: 10px; }
 @media(max-width:850px) { .refund-search { grid-template-columns: 1fr 1fr; }.refund-filter-actions { grid-column: 1 / -1; } }
 @media(max-width:520px) { .refund-search { grid-template-columns: 1fr; }.refund-dialog-backdrop { padding: 12px; }.refund-review-dialog { padding: 20px; max-height: calc(100dvh - 24px); }.refund-summary { grid-template-columns: 1fr; }.refund-review-dialog h2 { font-size: 21px; } }
+/* 搜尋按鈕與欄位同高，避免共用按鈕樣式將按鈕縮小。 */
+body.staff-workspace .support-ui .refund-requests-page .refund-search .refund-filter-actions button {
+  height: 44px; min-height: 44px; box-sizing: border-box; white-space: nowrap;
+}
 </style>
 
 <style>

@@ -1,4 +1,5 @@
 <script setup>
+import WorkspacePager from '../components/WorkspacePager.vue'
 // 最高管理員維護共用回覆及 FAQ；以版本欄位防止覆蓋他人的更新。
 import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
@@ -10,6 +11,7 @@ const rows = ref([]),
   categories = ref([]),
   page = ref(0),
   more = ref(false),
+  total = ref(null),
   loading = ref(false),
   busy = ref(false),
   error = ref(''),
@@ -64,6 +66,7 @@ async function load(reset = false) {
     if (alive && id === run) {
       rows.value = result.items
       more.value = result.hasMore
+      total.value = result.total ?? null
     }
   } catch (e) {
     if (alive && id === run) error.value = e.message
@@ -163,11 +166,6 @@ onBeforeUnmount(() => {
         <p v-if="!loading && !rows.length" class="sx-empty">
           目前尚無內容。
         </p>
-        <div class="sx-pager unified-pager">
-          <button v-if="page > 0" :disabled="!page || loading || busy" @click="page--; load()">上一頁</button>
-          <span>{{ page + 1 }}</span>
-          <button v-if="more" :disabled="!more || loading || busy" @click="page++; load()">下一頁</button>
-        </div>
       </div>
       <form v-if="editing" class="sx-content-editor" @submit.prevent="save">
         <h2>{{ selected ? '編輯內容' : '新增內容' }}</h2>
@@ -209,6 +207,7 @@ onBeforeUnmount(() => {
         </div>
       </form>
     </div>
+    <WorkspacePager :page="page" :total="total" :size="20" :more="more" :busy="loading || busy" @change="page = $event; load()" />
   </section>
 </template>
 

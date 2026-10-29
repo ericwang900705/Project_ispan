@@ -1,4 +1,5 @@
 <script setup>
+import WorkspacePager from '../components/WorkspacePager.vue'
 import WorkspaceModal from '../components/WorkspaceModal.vue'
 import PublisherBuildLink from '../components/PublisherBuildLink.vue'
 import { computed, ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
@@ -51,6 +52,17 @@ const labels = {
   COMING_SOON: '即將上架',
   OFF_SHELF: '已下架'
 }
+// 不同工作頁的遊戲狀態白名單，同時交由後端套用至清單及總筆數。
+const modeStates = {
+  edit: ['DRAFT'],
+  offShelf: ['PUBLISHED', 'PENDING_OFF_SHELF'],
+  preview: ['DRAFT', 'PENDING_REVIEW', 'COMING_SOON', 'PUBLISHED'],
+  publish: ['DRAFT', 'PENDING_REVIEW', 'COMING_SOON', 'PUBLISHED'],
+  history: ['DRAFT', 'PENDING_REVIEW', 'COMING_SOON', 'PUBLISHED'],
+  buyers: ['PUBLISHED']
+}
+const allowedStates = computed(() => modeStates[mode.value] || Object.keys(labels))
+const statusOptions = computed(() => allowedStates.value.map(code => ({ code, label: labels[code] })))
 const tick = ref(Date.now())
 const clockOffset = ref(0)
 const dialog = ref(null)
@@ -140,7 +152,7 @@ async function load() {
   const run = ++listRun
   loading.value = true
   try {
-    const result = await api('/workspace/publisher/games?' + new URLSearchParams({ page: String(page.value), size: String(pageSize.value), ...appliedFilters.value }))
+    const result = await api('/workspace/publisher/games?' + new URLSearchParams({ page: String(page.value), size: String(pageSize.value), ...appliedFilters.value, status: mode.value === 'edit' ? 'DRAFT' : appliedFilters.value.status, mode: mode.value }))
     if (run !== listRun) return
     items.value = result.items; total.value = result.total
     if (!items.value.length && page.value > 0) { page.value--; return load() }
@@ -155,7 +167,10 @@ async function choose(id) {
   detailLoading.value = true
   selected.value = null; error.value = ''
   try {
-    const game = await api('/workspace/publisher/games/' + id); if (run === detailRun) assign(game)
+    const game = await api('/workspace/publisher/games/' + id); if (run === detailRun) {
+      if (!allowedStates.value.includes(game.status)) throw Error('此頁不提供這個狀態的遊戲，請從清單選擇。')
+      assign(game)
+    }
   } catch (e) {
     if (run === detailRun) error.value = e.message
   } finally { if (run === detailRun) detailLoading.value = false }
@@ -178,10 +193,11 @@ function select(game) {
     }
   })
 }
-function search() { page.value = 0; appliedFilters.value = { q: q.value.trim(), status: filterable.value ? statusFilter.value : '' }; load() }
-function clearSearch() { q.value = ''; statusFilter.value = ''; search() }
+function search() { error.value = ''; if (filterable.value) { detailRun++; selected.value = null; detailLoading.value = false }; page.value = 0; appliedFilters.value = { q: q.value.trim(), status: filterable.value ? statusFilter.value : '' }; load() }
+function clearSearch() { q.value = ''; if (statusFilter.value) statusFilter.value = ''; else search() }
+watch(statusFilter, () => { if (filterable.value) search() })
 function openGameEditor(game) {
-  if (busy.value) return
+  if (busy.value || game.status !== 'DRAFT') return
   gameEditorOpen.value = true
   if (String(route.query.game) === String(game.game_id)) choose(game.game_id)
   else select(game)
@@ -330,18 +346,20 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
     <div class="publisher-management-layout">
       <div class="publisher-management-main">
         <p v-if="error" class="error" role="alert">{{ error }}</p>
+        <form v-if="mode !== 'new'" class="publisher-panel publisher-game-search publisher-search-refined" @submit.prevent="search">
+              <label class="publisher-query-label">搜尋遊戲<input v-model="q" maxlength="100" aria-label="搜尋我的遊戲" placeholder="輸入遊戲名稱" :disabled="loading || busy"></label>
+              <label v-if="filterable" class="publisher-status-filter">遊戲狀態<select v-model="statusFilter" aria-label="遊戲狀態篩選" :disabled="loading || busy" ><option value="">全部狀態</option><option v-for="item in statusOptions" :key="item.code" :value="item.code">{{ item.label }}</option></select></label>
+              <div class="publisher-search-actions"><button class="primary" :disabled="loading || busy"><UiIcon name="search" />搜尋</button><button type="button" class="secondary" :disabled="loading || busy" @click="clearSearch">清除篩選</button></div>
+            </form>
         <div class="publisher-work-columns"
           :class="{ 'publisher-create': mode === 'new', 'publisher-editing': mode === 'new', 'publisher-edit-list': mode === 'edit' }">
           <section v-if="mode !== 'new'" class="publisher-panel publisher-list-panel">
             <header class="publisher-panel-heading">
-              <h2>遊戲清單</h2>
+              <h2>{{ mode === 'edit' ? '可修改的遊戲草稿' : '遊戲清單' }}</h2>
               <span>{{ total }} 款</span>
             </header>
-            <form class="publisher-game-search publisher-search-refined" @submit.prevent="search">
-              <label class="publisher-query-label">搜尋遊戲<input v-model="q" maxlength="100" aria-label="搜尋我的遊戲" placeholder="輸入遊戲名稱" :disabled="loading || busy"></label>
-              <label v-if="filterable" class="publisher-status-filter">遊戲狀態<select v-model="statusFilter" aria-label="遊戲狀態篩選" :disabled="loading || busy" @change="search"><option value="">全部狀態</option><option v-for="(label, key) in labels" :key="key" :value="key">{{ label }}</option></select></label>
-              <div class="publisher-search-actions"><button class="primary" :disabled="loading || busy"><UiIcon name="search" />搜尋</button><button type="button" class="secondary" :disabled="loading || busy" @click="clearSearch">清除篩選</button></div>
-            </form>
+
+            <p v-if="mode === 'edit'" class="publisher-draft-hint"><UiIcon name="edit" />僅顯示草稿，點「修改」編輯遊戲內容並查看即時預覽。</p>
             <p v-if="loading" role="status">載入中…</p>
             <p v-else-if="!items.length" class="muted">目前沒有符合條件的遊戲。</p>
             <div v-for="game in items" :key="game.game_id" class="publisher-game-row"
@@ -365,15 +383,9 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
                 人購買
               </span>
               </button>
-              <button v-if="mode === 'edit'" type="button" class="publisher-edit-launch primary" :disabled="busy || !['DRAFT','OFF_SHELF'].includes(game.status)" @click="openGameEditor(game)"><UiIcon name="edit" />修改</button>
+              <button v-if="mode === 'edit'" type="button" class="publisher-edit-launch primary" :disabled="busy || game.status !== 'DRAFT'" @click="openGameEditor(game)"><UiIcon name="edit" />修改</button>
             </div>
-            <div class="publisher-pagination unified-pager">
-              <button :disabled="page === 0 || loading || busy" @click="page--; load()">上一頁</button>
-              <span>
-                第 {{ page + 1 }} / {{ Math.max(1, Math.ceil(total / pageSize)) }} 頁 · 每頁 {{ pageSize }} 款
-              </span>
-              <button :disabled="(page + 1) * pageSize >= total || loading || busy" @click="page++; load()">下一頁</button>
-            </div>
+            <WorkspacePager :page="page" :total="total" :size="pageSize" :busy="loading || busy" @change="page = $event; load()" />
           </section>
           <section v-if="mode !== 'edit'" class="publisher-panel publisher-editor">
             <template v-if="mode === 'new' || selected">
@@ -555,8 +567,8 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     <p v-if="detailLoading" role="status">正在載入遊戲資料…</p>
     <template v-else-if="selected">
-      <p v-if="!editable" class="publisher-pending">此遊戲目前不可修改。已上架遊戲可到版本管理新增版本；草稿或可編輯的下架遊戲才可修改商品資料。</p>
-      <form class="publisher-form" ref="editorForm" @submit.prevent="submitEditor"><PublisherStoreEditor v-model:form="form" v-model:tag-ids="tagIds" v-model:media="media" :tags="allTags" :disabled="!editable" :busy="busy" @uploading="uploading = $event" /></form>
+      <p v-if="selected.status !== 'DRAFT'" class="publisher-pending">修改遊戲頁僅提供草稿編輯。</p>
+      <form class="publisher-form" ref="editorForm" @submit.prevent="submitEditor"><PublisherStoreEditor v-model:form="form" v-model:tag-ids="tagIds" v-model:media="media" :tags="allTags" :disabled="selected.status !== 'DRAFT'" :busy="busy" @uploading="uploading = $event" /></form>
     </template>
   </WorkspaceModal>
   <PublisherDialog :open="!!dialog" :busy="busy" :elevated="gameEditorOpen"
@@ -593,12 +605,37 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
 </template>
 
 <style scoped>
-/* 搜尋與篩選採各自欄位及固定間距，按鈕不與輸入框相黏。 */
-.publisher-games .publisher-panel .publisher-search-refined { display: flex; flex-wrap: wrap; align-items: end; gap: 14px; margin: 18px 0 22px; padding: 16px; border: 1px solid #c8d8e6; border-radius: 12px; background: #f1f6fa; }
-.publisher-search-refined label { display: grid; gap: 8px; min-width: 0; font-size: 12px; color: #43627b; font-weight: 650; }.publisher-query-label { flex: 1 1 220px; }.publisher-status-filter { flex: 0 1 180px; }.publisher-games .publisher-search-refined :is(input,select) { width: 100%; min-height: 44px; box-sizing: border-box; padding: 11px 13px; border: 1px solid #9fb6cb; border-radius: 9px; background: #fff; color: #25445f; font-size: 14px; }.publisher-search-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }.publisher-search-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 11px 18px; margin: 0; white-space: nowrap; }.publisher-search-actions .ui-icon { width: 17px; height: 17px; }
+.publisher-draft-hint { display: flex; align-items: center; gap: 10px; padding: 14px 16px; margin: 8px 0 20px; border: 1px solid #425883; border-radius: 10px; background: #1c2b51; color: #ccd9ee; line-height: 1.7; }
+.publisher-draft-hint .ui-icon { width: 18px; height: 18px; flex: none; color: #e4c07e; }
+body.cart-portal .publisher-games .publisher-edit-list .publisher-game-row { margin-bottom: 12px; border-radius: 12px; border: 1px solid #3c5280; background: linear-gradient(110deg,#1a2851,#14203f); }
+body.cart-portal .publisher-games .publisher-edit-list .publisher-game-row:hover { border-color: #bd9b63; box-shadow: 0 4px 18px #0002; }
+body.cart-portal .publisher-games .publisher-edit-list .publisher-game-select { padding: 20px; }
+body.cart-portal .publisher-games .publisher-edit-list .publisher-edit-launch { margin-right: 20px; min-width: 92px; background: #d8b677; border: 1px solid #d8b677; color: #17213c; border-radius: 9px; }
+
+/* 搜尋工具列沿用新增遊戲的深藍與金色，桌面欄位保持單行。 */
+.publisher-games .publisher-search-refined {
+  display: grid; grid-template-columns: minmax(150px,1fr) minmax(130px,.65fr) auto;
+  align-items: end; gap: 16px; margin: 18px 0 22px; padding: 20px;
+  border: 1px solid #3e5186; border-radius: 12px; background: #182255;
+}
+.publisher-games .publisher-search-refined:not(:has(.publisher-status-filter)) { grid-template-columns: minmax(150px,1fr) auto; }
+.publisher-games .publisher-search-refined label { display: grid; gap: 9px; min-width: 0; margin: 0; font-size: 13px; color: #d6dff2; font-weight: 600; }
+body.cart-portal .publisher-games .publisher-search-refined :is(input,select) {
+  width: 100%; min-width: 0; height: 44px; box-sizing: border-box; margin: 0; padding: 10px 13px;
+  border: 1px solid #506599; border-radius: 8px; background: #101936; color: #f0f3ff; font-size: 14px; color-scheme: dark;
+}
+.publisher-games .publisher-search-refined input::placeholder { color: #a6b6d5; }
+.publisher-games .publisher-search-refined :is(input,select):focus-visible { outline: 2px solid #d4ae68; outline-offset: 2px; }
+.publisher-games .publisher-search-actions { display: flex; flex-wrap: nowrap; gap: 10px; }
+body.cart-portal .publisher-games .publisher-search-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 44px; min-height: 44px; padding: 10px 15px; margin: 0; white-space: nowrap; border-radius: 8px; }
+body.cart-portal .publisher-games .publisher-search-actions .primary { background: #d7b36c; color: #17213d; border: 1px solid #d7b36c; }
+body.cart-portal .publisher-games .publisher-search-actions .secondary { background: #24335e; color: #e7ecfa; border: 1px solid #526591; }
+.publisher-search-actions .ui-icon { width: 16px; height: 16px; }
+@media(max-width:700px) { .publisher-games .publisher-search-refined { grid-template-columns: 1fr; padding: 16px; }.publisher-games .publisher-search-refined:not(:has(.publisher-status-filter)) { grid-template-columns: 1fr; }.publisher-games .publisher-search-actions { justify-content: flex-end; } }
+
 .publisher-games .publisher-game-row { display: flex; align-items: center; gap: 14px; padding: 0; }.publisher-game-select { display: flex; flex: 1; align-items: center; justify-content: space-between; gap: 14px; min-width: 0; width: 100%; padding: 16px; border: 0; border-radius: inherit; background: transparent; text-align: left; color: inherit; cursor: pointer; }.publisher-game-select .publisher-game-info { min-width: 0; }.publisher-game-select strong { overflow-wrap: anywhere; }.publisher-edit-launch { display: inline-flex; align-items: center; gap: 7px; min-height: 42px; padding: 10px 17px; margin-right: 16px; white-space: nowrap; }.publisher-edit-launch .ui-icon { width: 17px; height: 17px; }
 .publisher-games .publisher-edit-list { grid-template-columns: minmax(0,1fr); }.publisher-games .publisher-edit-list .publisher-list-panel { max-height: none; overflow: visible; }
-@media(max-width:650px) { .publisher-games .publisher-panel .publisher-search-refined { padding: 13px; gap: 12px; }.publisher-query-label,.publisher-status-filter { flex-basis: 100%; }.publisher-search-actions { width: 100%; }.publisher-search-actions button { flex: 1; }.publisher-game-select { padding: 13px 10px; }.publisher-edit-launch { margin-right: 9px; padding: 9px 12px; } }
+@media(max-width:650px) { .publisher-games .publisher-search-refined { padding: 13px; gap: 12px; }.publisher-query-label,.publisher-status-filter { flex-basis: 100%; }.publisher-search-actions { width: 100%; }.publisher-search-actions button { flex: 1; }.publisher-game-select { padding: 13px 10px; }.publisher-edit-launch { margin-right: 9px; padding: 9px 12px; } }
 
 .publisher-version-note { padding: 14px; border: 1px solid #b5ccd9; border-radius: 10px; background: #eef6fa; line-height: 1.8; color: #244157; }
 .publisher-resource-card fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
