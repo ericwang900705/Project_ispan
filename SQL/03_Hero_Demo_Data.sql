@@ -39,12 +39,12 @@ BEGIN TRY
  DECLARE @AdminId INT=CONVERT(INT,SCOPE_IDENTITY());
  CREATE TABLE #MiniNames(name NVARCHAR(150) PRIMARY KEY,price DECIMAL(10,2),genre NVARCHAR(50),cover VARCHAR(40),description NVARCHAR(500));
  INSERT #MiniNames VALUES
- (N'貪食蛇',49,N'策略','snake.svg',N'方向鍵或 WASD 引導貪食蛇，吃下食物並挑戰最高分。'),
- (N'數字合成 2048',49,N'策略','2048.svg',N'合併相同數字，挑戰 2048。支援方向鍵與手機滑動。'),
- (N'踩地雷',49,N'策略','minesweeper.svg',N'根據數字線索找出安全格子，左鍵翻開、右鍵插旗。'),
- (N'打磚塊',69,N'動作冒險','breakout.svg',N'移動擋板反彈球，清除所有磚塊。'),
- (N'記憶翻牌',49,N'策略','memory.svg',N'記住卡片位置，一次翻兩張，配對所有圖案。'),
- (N'火柴人格鬥：霓虹對決',99,N'動作冒險','stickman.svg',N'霓虹競技場火柴人格鬥；A／D 移動、W 跳、J 拳、K 踢、L 防禦、U 氣功波。');
+ (N'貪食蛇',147,N'策略','snake.svg',N'方向鍵或 WASD 引導貪食蛇，吃下食物並挑戰最高分。'),
+ (N'數字合成 2048',147,N'策略','2048.svg',N'合併相同數字，挑戰 2048。支援方向鍵與手機滑動。'),
+ (N'踩地雷',147,N'策略','minesweeper.svg',N'根據數字線索找出安全格子，左鍵翻開、右鍵插旗。'),
+ (N'打磚塊',207,N'動作冒險','breakout.svg',N'移動擋板反彈球，清除所有磚塊。'),
+ (N'記憶翻牌',147,N'策略','memory.svg',N'記住卡片位置，一次翻兩張，配對所有圖案。'),
+ (N'火柴人格鬥：霓虹對決',297,N'動作冒險','stickman.svg',N'霓虹競技場火柴人格鬥；A／D 移動、W 跳、J 拳、K 踢、L 防禦、U 氣功波。');
 
  IF (SELECT COUNT(*) FROM dbo.games g JOIN #MiniNames n ON n.name=g.game_name AND g.member_id=@PublisherId)<>6
   THROW 51424,N'六款小遊戲尚未齊全，請先執行 02。',1;

@@ -48,14 +48,14 @@ public class ShopController {
         return shop.coupons(a);
     }
 
-    public record PlayTimeInput(Integer minutes) {
+    public record PlayTimeInput(Integer minutes, String batchId) {
     }
 
     // CART 分支採用分鐘增量回報；維持整合專題的 JWT 身分檢查。
     @PostMapping("/member-games/{memberId}/{gameId}/play")
     public Object recordPlay(Actor a, @PathVariable int memberId, @PathVariable int gameId,
             @RequestBody PlayTimeInput input) {
-        return shop.recordPlay(a, memberId, gameId, input == null ? null : input.minutes());
+        return shop.recordPlay(a, memberId, gameId, input == null ? null : input.minutes(), input == null ? null : input.batchId());
     }
 
     @GetMapping("/member-games/{memberId}")

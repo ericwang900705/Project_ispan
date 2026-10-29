@@ -1,11 +1,12 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { useCartStore } from '@/cart/stores/cart'
 import { discountLabel } from '@/cart/stores/coupons'
 import { useOrdersStore } from '@/cart/stores/orders'
 
 const store = useOrdersStore()
-const route = useRoute()
+const route = useRoute(), router = useRouter(), cart = useCartStore()
 // 優惠券在訂單層級呈現；明細只顯示遊戲金額，不顯示折扣分攤的小數。
 const money = value => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(Number(value) || 0)
 function orderCoupons(order) {
@@ -105,13 +106,37 @@ async function refreshOrdersWhenVisible() {
   catch(e) { paymentError.value = e.message }
   finally { refreshing = false }
 }
+// 回傳頁的 payment 參數只作提示，成功與否一律以自己的訂單資料確認。
+async function verifyPaymentReturn() {
+  if (!route.query.payment) return
+  const trade = typeof route.query.tradeNo === 'string' ? route.query.tradeNo : ''
+  paymentNotice.value = '正在核對付款結果…'
+  try {
+    if (!/^[A-Za-z0-9]{1,30}$/.test(trade)) throw Error('付款回傳尚未確認，請從下方訂單按「更新付款狀態」核對。')
+    let order = await cart.fetchPaymentOrder(trade)
+    openId.value = order.orderId; tab.value = 'all'
+    if (order.orderStatus === 'PENDING') {
+      await store.syncPayment(order.orderId)
+      order = store.orders.find(item => item.orderId === order.orderId) || order
+    }
+    if (order.orderStatus === 'PAID') paymentNotice.value = '付款已確認，此訂單已付款。'
+    else if (order.orderStatus === 'REFUNDED') paymentNotice.value = '此訂單已退款。'
+    else if (order.orderStatus === 'PENDING') paymentNotice.value = '此訂單尚待確認付款，可稍後按「更新付款狀態」再次核對。'
+    else paymentNotice.value = '此訂單目前狀態：' + (STATUS_LABELS[order.orderStatus] || order.orderStatus) + '。如已付款請聯絡客服核對。'
+  } catch (e) {
+    paymentNotice.value = ''; paymentError.value = e.message || '暫時無法確認付款，請稍後更新付款狀態。'
+  } finally {
+    const { payment, tradeNo, ...query } = route.query
+    await router.replace({ query })
+  }
+}
 function expandRefundOrder() {
   const value = String(route.query.refundOrder || '')
   if (/^[1-9]\d*$/.test(value)) { tab.value = 'all'; openId.value = Number(value) }
 }
 watch(() => route.query.refundOrder, expandRefundOrder)
 onMounted(() => {
-  store.fetchOrders().then(expandRefundOrder).catch(e => { paymentError.value = e.message })
+  store.fetchOrders().then(async () => { expandRefundOrder(); await verifyPaymentReturn() }).catch(e => { paymentError.value = e.message })
   document.addEventListener('visibilitychange', refreshOrdersWhenVisible)
   window.addEventListener('focus', refreshOrdersWhenVisible)
   orderRefreshTimer = setInterval(() => { if (store.orders.some(o => o.orderStatus === 'PENDING')) refreshOrdersWhenVisible() }, 10000)

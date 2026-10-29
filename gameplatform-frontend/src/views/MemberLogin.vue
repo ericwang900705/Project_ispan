@@ -62,7 +62,7 @@ async function googleLogin({ idToken, nonce }) {
 
       <!-- 保留原本登入功能 -->
       <fieldset :disabled="busy" class="google-password-form">
-        <LoginForm area="member" />
+        <LoginForm area="member" @busy-change="busy = $event" />
       </fieldset>
       <p class="google-divider"><span>或使用 Google 帳號</span></p>
       <GoogleSignInButton :busy="busy" @credential="googleLogin" />

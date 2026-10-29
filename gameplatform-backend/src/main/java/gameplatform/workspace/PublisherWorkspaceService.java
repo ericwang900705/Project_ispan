@@ -38,7 +38,7 @@ public class PublisherWorkspaceService {
         this.entities = entities;
     }
 
-    public record GameInput(@NotBlank @Size(max = 150) String name, @NotNull @PositiveOrZero BigDecimal price,
+    public record GameInput(@NotBlank @Size(max = 150) String name, @NotNull @PositiveOrZero @Digits(integer = 8, fraction = 0, message = "遊戲售價必須是整數，最多 8 位數") BigDecimal price,
             @Size(max = 20000) String description, @Size(max = 500) String coverUrl, LocalDateTime releaseDate) {
     }
 
@@ -242,6 +242,8 @@ public class PublisherWorkspaceService {
         boolean published = "PUBLISHED".equals(current.get("status"));
         if (!published && !Set.of("DRAFT", "OFF_SHELF").contains(current.get("status")))
             throw new Problem(409, "此遊戲狀態目前無法修改標籤");
+        if (published && input.tagIds().isEmpty())
+            throw new Problem(400, "已上架遊戲至少需要一個標籤，不可全部取消");
         // 不變更標籤不消耗修改次數。
         var oldTags = db.queryForList("SELECT tag_id FROM dbo.game_tags WHERE game_id=?", Integer.class, id);
         if (new java.util.HashSet<>(oldTags).equals(new java.util.HashSet<>(input.tagIds()))) return game(a, id);

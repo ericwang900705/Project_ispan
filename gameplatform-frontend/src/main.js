@@ -23,6 +23,11 @@ const storeRoutes = cartRoutes.map(route => ({
         member: ['ShoppingCart', 'Orders', 'MemberGames', 'Coupons', 'PlayGame'].includes(route.name)
     }
 }))
+// 前後台分頁名稱；合併模式依目前路由區分。
+const updatePageTitle = route => {
+    const staffPage = frontendArea === 'staff' || (frontendArea === 'combined' && /^\/(admin|staff|support)(?:\/|$)/.test(route.path))
+    document.title = staffPage ? 'HERO 後台管理' : 'HERO 遊戲平台'
+}
 const routes = [
     { path: '/admin/comments', component: () => import('./views/AdminOperations.vue'), meta: { staff: true, permission: 'COMMENT_REVIEW', workspaceModule: 'comments' } },
     { path: '/admin/reviews', redirect: '/admin/comments?view=reviews' },
@@ -227,6 +232,7 @@ const router = createRouter({
     routes
 })
 await restore()
+router.afterEach(updatePageTitle)
 router.beforeEach(async to => {
     if (session.user && !['MEMBER', 'PUBLISHER'].includes(session.user.role)) {
         try { await refreshUser() }

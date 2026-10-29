@@ -2,7 +2,10 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 export default defineConfig(({ mode }) => ({
-  plugins: [vue()],
+  plugins: [vue(), {
+    name: 'hero-page-title',
+    transformIndexHtml: html => html.replace(/<title>.*?<\/title>/, `<title>${mode === 'staff' ? 'HERO 後台管理' : 'HERO 遊戲平台'}</title>`)
+  }],
   // 兩個開發伺服器使用各自的依賴快取，避免同時啟動時互相重建。
   cacheDir: fileURLToPath(new URL(`./node_modules/.vite/${mode}`, import.meta.url)),
   resolve: { alias: {"@": fileURLToPath(new URL("./src",import.meta.url))} },

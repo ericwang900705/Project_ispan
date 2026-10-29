@@ -1,0 +1,22 @@
+package gameplatform.shop;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import jakarta.servlet.http.HttpServletRequest;
+import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
+import gameplatform.support.model.*;
+/** 無 H2：付款回傳、鎖定查詢與重試去重。 */
+class FlowResilienceTests {
+ final Actor member=new Actor(7,"MEMBER","audit","");
+ final String batch="4e4f2e11-1111-4222-8333-444444444444";
+ @Test void callbackFailureRedirectsUnverified(){var payment=mock(PaymentService.class);var req=mock(HttpServletRequest.class);when(req.getRequestURI()).thenReturn("/api/payment/result");var input=Map.of("MerchantTradeNo","EC123");when(payment.callback(input,false)).thenThrow(new Problem(404,"找不到會員"));when(payment.redirect("unverified","EC123")).thenReturn(java.net.URI.create("http://localhost/#/orders?payment=unverified"));var response=new PaymentController(payment,null).result(input,req);assertEquals(303,response.getStatusCode().value());assertTrue(response.getHeaders().getLocation().toString().contains("unverified"));verify(payment,never()).redirect(eq("success"),anyString());}
+ @Test void validCallbackPreservesVerifiedStatus(){var payment=mock(PaymentService.class);var req=mock(HttpServletRequest.class);when(req.getRequestURI()).thenReturn("/api/payment/result");var input=Map.of("MerchantTradeNo","RP123");when(payment.callback(input,false)).thenReturn("success");when(payment.redirect("success","RP123")).thenReturn(java.net.URI.create("http://localhost/#/orders?payment=success"));assertEquals(303,new PaymentController(payment,null).result(input,req).getStatusCode().value());verify(payment).redirect("success","RP123");}
+ @Test void notifyStillPropagatesFailure(){var payment=mock(PaymentService.class);var req=mock(HttpServletRequest.class);when(req.getRequestURI()).thenReturn("/api/payment/notify");var input=Map.of("MerchantTradeNo","EC123");var error=new Problem(503,"database unavailable");when(payment.callback(input,false)).thenThrow(error);assertSame(error,assertThrows(Problem.class,()->new PaymentController(payment,null).notify(input,req)));}
+ @Test void existenceQueriesAvoidUpdateCountDependency(){var db=mock(JdbcTemplate.class);when(db.queryForList(contains("FROM members WITH (UPDLOCK,ROWLOCK)"),eq(7))).thenReturn(List.of(Map.of("member_id",7)));when(db.queryForList(contains("FROM orders WITH (UPDLOCK,ROWLOCK)"),eq(42))).thenReturn(List.of(Map.of("order_id",42)));var service=new ShopService(db);service.lockMember(7);service.lockOrder(42);verify(db,never()).update(anyString(),anyInt());}
+ @Test void retriedBatchOnlyAddsMinutesOnce(){var db=mock(JdbcTemplate.class);var persisted=new AtomicBoolean(false);when(db.queryForList(contains("FROM members WITH (UPDLOCK,ROWLOCK)"),eq(7))).thenReturn(List.of(Map.of("member_id",7)));when(db.queryForList(contains("FROM playtime_sync_batches"),eq(7),eq(3),eq(batch))).thenAnswer(i->persisted.get()?List.of(Map.of("minutes",2)):List.of());when(db.queryForList(contains("SELECT g.game_name"),eq(7),eq(3))).thenReturn(List.of(Map.of("game_name","踩地雷")));when(db.update(startsWith("UPDATE member_games SET total_play_minutes"),eq(2),any(java.time.LocalDateTime.class),eq(7),eq(3))).thenReturn(1);when(db.update(startsWith("INSERT INTO playtime_sync_batches"),eq(7),eq(3),eq(batch),eq(2))).thenAnswer(i->{persisted.set(true);return 1;});var service=new ShopService(db);assertEquals(2,service.recordPlay(member,7,3,2,batch).get("minutesAdded"));assertEquals(0,service.recordPlay(member,7,3,2,batch).get("minutesAdded"));verify(db,times(1)).update(startsWith("UPDATE member_games SET total_play_minutes"),eq(2),any(java.time.LocalDateTime.class),eq(7),eq(3));assertEquals(409,assertThrows(Problem.class,()->service.recordPlay(member,7,3,3,batch)).httpStatus());}
+ @Test void invalidOwnerAndBatchDoNotWrite(){var db=mock(JdbcTemplate.class);var service=new ShopService(db);assertEquals(403,assertThrows(Problem.class,()->service.recordPlay(member,8,3,2,batch)).httpStatus());assertEquals(400,assertThrows(Problem.class,()->service.recordPlay(member,7,3,2,"bad")).httpStatus());verifyNoInteractions(db);}
+ @Test void originalAndResumedPaymentsBothReturnToOrders(){var service=new PaymentService(null,false,"","","","","http://127.0.0.1:8080","http://127.0.0.1:5173");assertTrue(service.redirect("success","EC123").getFragment().startsWith("/orders?"));assertTrue(service.redirect("unverified","RP123").getFragment().startsWith("/orders?"));}
+
+}

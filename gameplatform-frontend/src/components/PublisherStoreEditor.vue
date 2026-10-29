@@ -91,7 +91,7 @@ async function upload(event, cover = false) {
         <h3>基本資料 <span class="publisher-draft-label">草稿編輯</span></h3>
         <label>遊戲名稱<input v-model="form.name" maxlength="150" placeholder="輸入遊戲名稱" required></label>
         <div class="publisher-form-pair">
-          <label>售價（NT$）<input v-model.number="form.price" type="number" min="0" max="99999999.99" step="0.01"
+          <label>售價（NT$，整數）<input v-model.number="form.price" type="number" min="0" max="99999999" step="1"
               required></label>
           <label>預定發行時間
             <DatePicker v-model="form.releaseDate" type="datetime-local" label="預定發行時間" :min="todayMinimum()" />

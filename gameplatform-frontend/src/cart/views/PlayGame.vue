@@ -7,6 +7,7 @@ import { api, accessToken, session } from '../../api'
 import { useCartStore } from '@/cart/stores/cart'
 import { readGameSave, writeGameSave, sandboxGameHtml, gameSaveMessage } from '@/cart/utils/gameSave'
 import { miniGameOf } from '@/cart/minigames'
+import { createPlaytimeSync } from '@/cart/utils/playtimeSync'
 
 const route = useRoute()
 const cart = useCartStore()
@@ -27,7 +28,7 @@ function onGameSave(event) {
   if (data && !writeGameSave(saveKey, data)) error.value = '目前無法保存遊戲進度，請確認瀏覽器儲存空間。'
 }
 const loading = ref(true)
-const error = ref('')
+const error = ref(''), syncError = ref(''), syncing = ref(false)
 const screen = ref(null)
 const isFullscreen = ref(false)
 const canFullscreen = document.fullscreenEnabled
@@ -51,25 +52,33 @@ function validIdentity() {
   return member != null && token && accessToken() === token && session.user?.id === member
 }
 
-// CART 的 POST /api/member-games/{memberId}/{gameId}/play，body 為 { minutes }。
-function send(minutes, keepalive = false) {
-  if (!(mini.value || (isAi.value && html.value)) || !entry.value || !validIdentity() || minutes < 1) return
-  const path = `/member-games/${member}/${gameId}/play`
-  if (keepalive) {
-    // 原 CART 使用 sendBeacon，但目前專題採 Bearer JWT：使用可帶 Authorization 的 keepalive fetch。
-    fetch('/api' + path, {
-      method: 'POST',
-      keepalive: true,
+// 原有分鐘算法保留；先把本批分鐘排入佇列，取得伺服器確認後才刪除。
+const playSync = createPlaytimeSync({
+  memberId: member, gameId, validIdentity,
+  sendBatch: async (batch, { keepalive }) => {
+    const path = `/member-games/${member}/${gameId}/play`
+    const body = { minutes: batch.minutes, batchId: batch.batchId }
+    if (!keepalive) return api(path, { method: 'POST', body })
+    const response = await fetch('/api' + path, {
+      method: 'POST', keepalive: true,
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ minutes }),
-    }).catch(() => { })
-    return
+      body: JSON.stringify(body)
+    })
+    if (!response.ok) throw Error('伺服器尚未接受本批時數')
+  },
+  onError: message => { if (alive) syncError.value = message },
+  onBusy: value => { if (alive) syncing.value = value },
+  onSynced: async () => {
+    if (alive) syncError.value = ''
+    if (alive && validIdentity()) await cart.fetchLibrary().catch(() => {})
   }
-  api(path, { method: 'POST', body: { minutes } })
-    .then(() => cart.fetchLibrary())
-    .then(() => { if (alive) error.value = '' })
-    .catch(e => { if (alive) error.value = '遊玩時間尚未同步：' + e.message })
+})
+function send(minutes, keepalive = false) {
+  if (!(mini.value || (isAi.value && html.value)) || !entry.value || !validIdentity()) return
+  if (minutes > 0) playSync.enqueue(minutes)
+  playSync.flush({ keepalive })
 }
+function retryPlaytime() { playSync.flush() }
 
 // CART 原邏輯：每 15 秒檢查，累積滿 1 分鐘先寫入，零頭保留。
 function tick() {
@@ -86,7 +95,7 @@ function finish(keepalive = false) {
   send(minutes, keepalive)
 }
 function onVisibility() {
-  if (document.visibilityState === 'visible') resume()
+  if (document.visibilityState === 'visible') { resume(); retryPlaytime() }
   else pause()
 }
 function onPageHide() { finish(true) }
@@ -101,6 +110,7 @@ async function toggleFullscreen() {
 onMounted(async () => {
   document.addEventListener('fullscreenchange', onFullscreenChange)
   window.addEventListener('message', onGameSave)
+  window.addEventListener('online', retryPlaytime)
   try {
     await cart.fetchLibrary()
     if (!alive || !entry.value) return
@@ -111,6 +121,7 @@ onMounted(async () => {
     }
     if (!mini.value && !html.value) return
     resume()
+    retryPlaytime()
     timer = setInterval(tick, 15000)
     document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('pagehide', onPageHide)
@@ -125,6 +136,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', onVisibility)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
   window.removeEventListener('message', onGameSave)
+  window.removeEventListener('online', retryPlaytime)
   window.removeEventListener('pagehide', onPageHide)
   if (document.fullscreenElement === screen.value) document.exitFullscreen().catch(() => { })
 })
@@ -137,6 +149,7 @@ onBeforeUnmount(() => {
       <div class="game-toolbar-right"><button v-if="(mini || html) && canFullscreen" class="fs-btn" @click="toggleFullscreen">⛶ {{ isFullscreen ? '離開全螢幕' : '全螢幕' }}</button></div>
     </header>
     <p v-if="error" class="game-error" role="alert">{{ error }}</p>
+    <p v-if="syncError" class="game-error" role="alert">{{ syncError }} <button type="button" class="fs-btn" :disabled="syncing" @click="retryPlaytime">{{ syncing ? '同步中…' : '重新同步' }}</button></p>
     <div v-if="loading" class="notice">正在確認遊戲庫…</div>
     <div v-else-if="!entry" class="notice"><h2>目前無法遊玩這款遊戲</h2><p>請確認已登入購買帳號，且遊戲仍在你的有效遊戲庫。</p><RouterLink to="/member-games" class="btn">返回遊戲庫</RouterLink></div>
     <div v-else-if="!mini && !html" class="notice"><h2>暫時沒有可用的線上版本</h2><p>請稍後再試，或回遊戲庫查看下載版本。</p><RouterLink to="/member-games" class="btn">返回遊戲庫</RouterLink></div>

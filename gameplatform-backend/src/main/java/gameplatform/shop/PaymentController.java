@@ -9,6 +9,7 @@ import gameplatform.support.model.Actor;
 @RestController
 @RequestMapping("/api/payment")
 public class PaymentController {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PaymentController.class);
     final PaymentService payment;
     final ShopService shop;
 
@@ -57,7 +58,16 @@ public class PaymentController {
     @PostMapping(value = { "/result", "/info-redirect" }, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     public ResponseEntity<Void> result(@RequestParam Map<String, String> input,
             jakarta.servlet.http.HttpServletRequest req) {
-        String status = payment.callback(input, req.getRequestURI().endsWith("/info-redirect"));
-        return ResponseEntity.status(303).location(payment.redirect(status, input.get("MerchantTradeNo"))).build();
+        String trade = input.get("MerchantTradeNo");
+        if (trade != null && !trade.matches("[A-Za-z0-9]{1,30}")) trade = null;
+        String status;
+        try {
+            status = payment.callback(input, req.getRequestURI().endsWith("/info-redirect"));
+        } catch (RuntimeException e) {
+            // 瀏覽器回傳失敗只導向待核對狀態；保留 notify 的錯誤回應，讓綠界可重送。
+            log.warn("付款瀏覽器回傳未完成，交易編號 {}，原因 {}", trade, e.toString());
+            status = "unverified";
+        }
+        return ResponseEntity.status(303).location(payment.redirect(status, trade)).build();
     }
 }

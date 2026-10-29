@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { login, session } from '../api'
 import { homeFor } from '../permissions'
 import { useAccountLockCountdown } from '../utils/accountLockCountdown'
+const emit = defineEmits(['busy-change'])
 const props = defineProps({ area: { type: String, required: true } })
 const router = useRouter(), route = useRoute()
 const name = ref(''), password = ref(''), error = ref(''), busy = ref(false)
@@ -23,6 +24,9 @@ async function submit(event) {
     error.value = '請輸入帳號和密碼'
     return
   }
+  busy.value = true
+  error.value = ''
+  emit('busy-change', true)
   try {
     const openSupport = props.area === 'member' && route.query.support === '1'
     await login(account, loginPassword, props.area)
@@ -30,7 +34,7 @@ async function submit(event) {
     await router.replace(destination)
     if (openSupport && session.user?.role === 'MEMBER') { await nextTick(); window.dispatchEvent(new Event('open-chat')) }
   } catch (e) { error.value = e.message }
-  finally { busy.value = false }
+  finally { busy.value = false; emit('busy-change', false) }
 }
 </script>
 <template>

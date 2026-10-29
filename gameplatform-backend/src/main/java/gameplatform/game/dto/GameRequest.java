@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
 
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -25,6 +26,7 @@ public class GameRequest {
     private LocalDateTime releaseDate;
 
     @PositiveOrZero(message = "遊戲價格不能小於 0")
+    @Digits(integer = 8, fraction = 0, message = "遊戲售價必須是整數，最多 8 位數")
     private BigDecimal price;
 
     private String description;

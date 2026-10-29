@@ -20,12 +20,12 @@ BEGIN TRY
  END;
  CREATE TABLE #MiniNames(name NVARCHAR(150) PRIMARY KEY,price DECIMAL(10,2),genre NVARCHAR(50),cover VARCHAR(40),description NVARCHAR(500));
  INSERT #MiniNames VALUES
- (N'貪食蛇',49,N'策略','snake.svg',N'方向鍵或 WASD 引導貪食蛇，吃下食物並挑戰最高分。'),
- (N'數字合成 2048',49,N'策略','2048.svg',N'合併相同數字，挑戰 2048。支援方向鍵與手機滑動。'),
- (N'踩地雷',49,N'策略','minesweeper.svg',N'根據數字線索找出安全格子，左鍵翻開、右鍵插旗。'),
- (N'打磚塊',69,N'動作冒險','breakout.svg',N'移動擋板反彈球，清除所有磚塊。'),
- (N'記憶翻牌',49,N'策略','memory.svg',N'記住卡片位置，一次翻兩張，配對所有圖案。'),
- (N'火柴人格鬥：霓虹對決',99,N'動作冒險','stickman.svg',N'霓虹競技場火柴人格鬥；A／D 移動、W 跳、J 拳、K 踢、L 防禦、U 氣功波。');
+ (N'貪食蛇',147,N'策略','snake.svg',N'方向鍵或 WASD 引導貪食蛇，吃下食物並挑戰最高分。'),
+ (N'數字合成 2048',147,N'策略','2048.svg',N'合併相同數字，挑戰 2048。支援方向鍵與手機滑動。'),
+ (N'踩地雷',147,N'策略','minesweeper.svg',N'根據數字線索找出安全格子，左鍵翻開、右鍵插旗。'),
+ (N'打磚塊',207,N'動作冒險','breakout.svg',N'移動擋板反彈球，清除所有磚塊。'),
+ (N'記憶翻牌',147,N'策略','memory.svg',N'記住卡片位置，一次翻兩張，配對所有圖案。'),
+ (N'火柴人格鬥：霓虹對決',297,N'動作冒險','stickman.svg',N'霓虹競技場火柴人格鬥；A／D 移動、W 跳、J 拳、K 踢、L 防禦、U 氣功波。');
 
  INSERT dbo.tags(tag_name) SELECT DISTINCT genre FROM #MiniNames n WHERE NOT EXISTS(SELECT 1 FROM dbo.tags t WHERE t.tag_name=n.genre);
  INSERT dbo.games(member_id,game_name,price,status,description,cover_url,release_date,created_at)
@@ -47,18 +47,18 @@ BEGIN TRY
  -- AI 遊戲的封面使用 gameplatform-frontend/public/ai-covers/{slug}.png。
  CREATE TABLE #AiSeed(name NVARCHAR(150) PRIMARY KEY, tag NVARCHAR(50), slug VARCHAR(60), price DECIMAL(10,2), game_status VARCHAR(20));
  INSERT #AiSeed VALUES
- (N'暗夜倖存者',N'Roguelike','dark-survivor',149,'PUBLISHED'),
- (N'無盡深淵',N'Roguelike','abyss',129,'PUBLISHED'),
- (N'失落王國',N'冒險','lost-kingdom',129,'PUBLISHED'),
- (N'戰場前線',N'射擊','tactical-frontline',149,'PUBLISHED'),
- (N'三國戰棋',N'策略','three-kingdoms',149,'PUBLISHED'),
- (N'牛排大師',N'經營養成','steak-master',99,'PUBLISHED'),
- (N'星露森林',N'冒險','starlight-forest',129,'COMING_SOON'),
- (N'火柴人射擊',N'射擊','stickman-shooter',99,'COMING_SOON'),
- (N'火柴人羽毛球',N'運動','badminton',99,'COMING_SOON'),
- (N'荒野生存',N'冒險','wilderness',99,'DRAFT'),
- (N'火柴人紅藍競技場',N'格鬥','stickman-arena',99,'DRAFT'),
- (N'火柴人賽車',N'運動','racing',99,'DRAFT');
+ (N'暗夜倖存者',N'Roguelike','dark-survivor',447,'PUBLISHED'),
+ (N'無盡深淵',N'Roguelike','abyss',387,'PUBLISHED'),
+ (N'失落王國',N'冒險','lost-kingdom',387,'PUBLISHED'),
+ (N'戰場前線',N'射擊','tactical-frontline',447,'PUBLISHED'),
+ (N'三國戰棋',N'策略','three-kingdoms',447,'PUBLISHED'),
+ (N'牛排大師',N'經營養成','steak-master',297,'PUBLISHED'),
+ (N'星露森林',N'冒險','starlight-forest',387,'COMING_SOON'),
+ (N'火柴人射擊',N'射擊','stickman-shooter',297,'COMING_SOON'),
+ (N'火柴人羽毛球',N'運動','badminton',297,'COMING_SOON'),
+ (N'荒野生存',N'冒險','wilderness',297,'DRAFT'),
+ (N'火柴人紅藍競技場',N'格鬥','stickman-arena',297,'DRAFT'),
+ (N'火柴人賽車',N'運動','racing',297,'DRAFT');
  INSERT dbo.tags(tag_name)
  SELECT DISTINCT s.tag FROM #AiSeed s WHERE NOT EXISTS (SELECT 1 FROM dbo.tags t WHERE t.tag_name=s.tag);
  INSERT dbo.games(member_id,game_name,price,status,description,cover_url,release_date,created_at)

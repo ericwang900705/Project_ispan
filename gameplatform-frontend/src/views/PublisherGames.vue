@@ -296,8 +296,12 @@ async function saveEditor(next = '', syncRoute = true) {
     return null
   }
   const current = mode.value
+  if (['new', 'edit'].includes(current) && (form.value.price === '' || !Number.isInteger(Number(form.value.price)) || Number(form.value.price) < 0 || Number(form.value.price) > 99999999)) {
+    dialogError.value = '售價請輸入 0～99999999 的整數。'
+    return null
+  }
   tagValidationError.value = ''
-  if (['new', 'edit'].includes(current) && !tagIds.value.length) {
+  if ((['new', 'edit'].includes(current) || (current === 'tags' && selected.value?.status === 'PUBLISHED')) && !tagIds.value.length) {
     tagValidationError.value = '請至少選擇一個遊戲標籤，才能儲存。'
     await nextTick()
     editorForm.value?.querySelector('.publisher-select-tags input')?.focus()
@@ -568,6 +572,7 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
                 <p class="muted">新增版本可選擇上傳 ZIP 或填寫 HTTP／HTTPS 網址，擇一即可。畫面僅顯示目前版本與上一個歷史版本；更早版本仍保留在資料庫。</p>
               </form>
               <form v-else-if="mode === 'tags'" class="publisher-form" ref="editorForm" @submit.prevent="submitEditor">
+                <p v-if="tagValidationError && !tagIds.length" class="error" role="alert">{{ tagValidationError }}</p>
                 <p v-if="selected?.status === 'PUBLISHED'" class="muted">已上架遊戲每 7 天可修改一次標籤。<span v-if="tagCooldown"> 下次可修改：{{ date(selected.tag_next_allowed_at) }}</span></p>
                 <fieldset :disabled="busy || uploading || !canSaveMode">
                   <p class="muted">只能勾選平台提供的標籤，可複選。</p>

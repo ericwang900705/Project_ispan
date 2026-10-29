@@ -203,7 +203,7 @@ public class PaymentService {
     }
 
     public URI redirect(String status, String trade) {
-        String target = trade != null && trade.startsWith("RP") ? "/orders" : "/shopping-cart";
+        String target = "/orders";
         return URI.create(frontend + "/#" + target + "?payment=" + URLEncoder.encode(status, StandardCharsets.UTF_8)
                 + "&tradeNo=" + URLEncoder.encode(trade == null ? "" : trade, StandardCharsets.UTF_8));
     }

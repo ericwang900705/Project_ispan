@@ -34,8 +34,8 @@ public class ShopService {
     }
 
     void lockMember(int id) {
-        // Transactional no-op UPDATE acquires a row lock on SQL Server.
-        if (db.update("UPDATE members SET failed_login_count=failed_login_count WHERE member_id=?", id) != 1)
+        // 以鎖定查詢判斷存在性，不依賴可能被 NOCOUNT 抑制的更新筆數。
+        if (db.queryForList("SELECT member_id FROM members WITH (UPDLOCK,ROWLOCK) WHERE member_id=?", id).isEmpty())
             throw new Problem(404, "找不到會員");
     }
 
@@ -298,9 +298,26 @@ public class ShopService {
     // 沿用 CART 的 POST { minutes } 累加 member_games 時數，不另外建立計時工作階段。
     @Transactional
     public Map<String, Object> recordPlay(Actor actor, int member, int gameId, Integer minutes) {
+        return recordPlay(actor, member, gameId, minutes, null);
+    }
+
+    /** 相同 batchId 只累計一次；回應遺失後重送仍安全。 */
+    @Transactional
+    public Map<String, Object> recordPlay(Actor actor, int member, int gameId, Integer minutes, String batchId) {
         owner(actor, member);
         if (minutes == null || minutes < 1 || minutes > 1440)
             throw bad("遊玩分鐘數必須介於 1 與 1440");
+        if (batchId != null && !batchId.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"))
+            throw bad("遊玩同步批次編號無效");
+        lockMember(member);
+        if (batchId != null) {
+            var previous = db.queryForList("SELECT minutes FROM playtime_sync_batches WHERE member_id=? AND game_id=? AND batch_id=?", member, gameId, batchId);
+            if (!previous.isEmpty()) {
+                if (((Number) previous.getFirst().get("minutes")).intValue() != minutes)
+                    throw new Problem(409, "相同遊玩同步批次不可變更分鐘數");
+                return Map.of("minutesAdded", 0, "deduplicated", true, "batchId", batchId);
+            }
+        }
         var game = row("SELECT g.game_name FROM member_games l JOIN games g ON g.game_id=l.game_id "
                 + "WHERE l.member_id=? AND l.game_id=? AND l.is_active=1 AND g.status IN ('PUBLISHED','PENDING_OFF_SHELF')", member, gameId);
         if (!Set.of("貪食蛇", "數字合成 2048", "踩地雷", "打磚塊", "記憶翻牌", "火柴人格鬥：霓虹對決",
@@ -313,7 +330,9 @@ public class ShopService {
                 minutes, LocalDateTime.now(), member, gameId);
         if (changed == 0)
             throw new Problem(404, "找不到你的遊戲庫紀錄");
-        return Map.of("minutesAdded", minutes);
+        if (batchId != null)
+            db.update("INSERT INTO playtime_sync_batches(member_id,game_id,batch_id,minutes) VALUES(?,?,?,?)", member, gameId, batchId, minutes);
+        return batchId == null ? Map.of("minutesAdded", minutes) : Map.of("minutesAdded", minutes, "deduplicated", false, "batchId", batchId);
     }
 
     public List<Map<String, Object>> library(Actor a, int member) {
@@ -548,7 +567,7 @@ public class ShopService {
     }
 
     void lockOrder(int id) {
-        if (db.update("UPDATE orders SET updated_at=updated_at WHERE order_id=?", id) != 1)
+        if (db.queryForList("SELECT order_id FROM orders WITH (UPDLOCK,ROWLOCK) WHERE order_id=?", id).isEmpty())
             throw new Problem(404, "找不到訂單");
     }
 
