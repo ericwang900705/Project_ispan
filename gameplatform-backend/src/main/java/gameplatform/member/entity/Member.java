@@ -25,6 +25,7 @@ public class Member {
     @Column(name = "username", length = 30, nullable = false)
     private String username;
 
+
     @Column(name = "national_id", length = 10)
     private String nationalId;
 

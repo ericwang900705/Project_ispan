@@ -216,11 +216,11 @@ public class SupportExtensionService {
         args.toArray());
     for (var row : rows) {
       int pending = count(
-          "SELECT COUNT(*) FROM dbo.order_items i JOIN dbo.orders o ON o.order_id=i.order_id WHERE o.member_id=? AND i.coupon_id=? AND o.order_status='PENDING'",
+          "SELECT COUNT(DISTINCT o.order_id) FROM dbo.order_items i JOIN dbo.orders o ON o.order_id=i.order_id WHERE o.member_id=? AND i.coupon_id=? AND o.order_status='PENDING'",
           member,
           row.get("couponId"));
       int paid = count(
-          "SELECT COUNT(*) FROM dbo.order_items i JOIN dbo.orders o ON o.order_id=i.order_id WHERE o.member_id=? AND i.coupon_id=? AND o.order_status='PAID'",
+          "SELECT COUNT(DISTINCT o.order_id) FROM dbo.order_items i JOIN dbo.orders o ON o.order_id=i.order_id WHERE o.member_id=? AND i.coupon_id=? AND o.order_status='PAID'",
           member,
           row.get("couponId"));
       row.put("pendingUseCount", pending);

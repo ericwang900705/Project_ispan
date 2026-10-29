@@ -40,7 +40,7 @@ async function sendMessage(text) {
 
 // 現在時間，例如 15:03
 function nowTime() {
-  return new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false })
+  return new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 }
 
 // 捲到最新的訊息

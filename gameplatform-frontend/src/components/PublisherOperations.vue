@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import UiIcon from './UiIcon.vue'
 const props = defineProps({ game: { type: Object, required: true }, mode: String, canRestore: Boolean, remaining: String, editable: Boolean, busy: Boolean })
 const emit = defineEmits(['offShelf', 'restore', 'navigate'])
-const date = value => value ? new Date(value).toLocaleString('zh-TW', { hour12: false }) : '—'
+const date = value => value ? new Date(value).toLocaleString('zh-TW', { hourCycle: 'h23' }) : '—'
 const latest = computed(() => props.game.history[0])
 const canOffShelf = computed(() => !props.game.pending_review_type && ['PUBLISHED'].includes(props.game.status))
 </script>

@@ -1,4 +1,4 @@
--- 01｜GamePlatformDB 完整建庫（2026-10-29：全新安裝版）
+﻿-- 01｜GamePlatformDB 完整建庫（2026-10-29：全新安裝版）
 -- SSMS 請先啟用「查詢 → SQLCMD 模式」，整份執行；遇錯即停止。
 -- 本檔只供全新建庫。既有 GamePlatformDB 會停止，不會自動刪除你的舊資料庫。
 -- 順序：01 建庫 → 02 六款 CART + 十二款 AI 遊戲 → 03 示範帳號與資料。
@@ -345,6 +345,17 @@ CREATE TABLE dbo.games (
     CONSTRAINT UQ_game_name UNIQUE (game_name),
     CONSTRAINT CK_games_price CHECK (price >= 0),
     CONSTRAINT CK_games_status CHECK (status IN ('DRAFT', 'PENDING_REVIEW', 'COMING_SOON', 'PUBLISHED', 'PENDING_OFF_SHELF', 'OFF_SHELF'))
+);
+GO
+
+-- 已上架遊戲標籤修改紀錄：每款遊戲獨立記錄最後一次修改時間。
+-- 後端依 last_changed_at 檢查是否已間隔滿 7 天；首次修改不需要預先建立紀錄。
+CREATE TABLE dbo.publisher_game_tag_changes (
+    game_id INT NOT NULL,
+    last_changed_at DATETIME2(3) NOT NULL
+        CONSTRAINT DF_publisher_game_tag_changes_time DEFAULT (SYSDATETIME()),
+    CONSTRAINT PK_publisher_game_tag_changes PRIMARY KEY (game_id),
+    CONSTRAINT FK_publisher_game_tag_changes_game FOREIGN KEY (game_id) REFERENCES dbo.games(game_id)
 );
 GO
 

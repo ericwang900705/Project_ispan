@@ -71,7 +71,7 @@ public class CouponService {
 
     public int uses(int member, int coupon) {
         return db.queryForObject(
-                "SELECT COUNT(*) FROM order_items i JOIN orders o ON o.order_id=i.order_id WHERE o.member_id=? AND i.coupon_id=? AND o.order_status IN ('PENDING','PAID')",
+                "SELECT COUNT(DISTINCT o.order_id) FROM order_items i JOIN orders o ON o.order_id=i.order_id WHERE o.member_id=? AND i.coupon_id=? AND o.order_status IN ('PENDING','PAID')",
                 Integer.class, member, coupon);
     }
 

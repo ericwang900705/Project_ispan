@@ -42,9 +42,18 @@ public class MemberProfileController {
         return ResponseEntity.ok(profile);
     }
 
+    // Google 首次開啟帳號密碼登入，使用原本的 JWT 登入狀態進行驗證。
+    @PostMapping("/setup-account-password")
+    public ResponseEntity<MemberProfileResponse> setupAccountPassword(
+            @Valid @RequestBody gameplatform.member.dto.SetupAccountPasswordRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(memberService.setupAccountPassword(
+                authentication.getName(), request.getUsername(), request.getNewPassword()));
+    }
+
     // 登入狀態下修改密碼
     @PostMapping("/change-password")
-    public ResponseEntity<java.util.Map<String, String>> changePassword(@RequestBody ChangePasswordRequest request,
+    public ResponseEntity<java.util.Map<String, String>> changePassword(@Valid @RequestBody ChangePasswordRequest request,
             Authentication authentication) {
 
         String currentUsername = authentication.getName();// 直接從 Token 中取得目前登入的帳號，安全又精簡

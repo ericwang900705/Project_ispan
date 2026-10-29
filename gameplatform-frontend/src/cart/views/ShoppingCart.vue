@@ -71,9 +71,10 @@ const couponId = computed({
 
 
 // 套用優惠券前的小計（每項遊戲售價加總）
-const subtotal = computed(() => cart.items.reduce((sum, item) => sum + item.game.price, 0))
+const subtotal = computed(() => cart.items.reduce((sum, item) => sum + Number(item.game.price || 0), 0))
 // 優惠券省下的金額 = 小計 - 後端算好的總金額
-const saved = computed(() => subtotal.value - cart.totalPrice)
+const saved = computed(() => Math.max(0, subtotal.value - Number(cart.totalPrice || 0)))
+const money = value => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(Number(value) || 0)
 
 // 移除一個項目
 async function remove(cartItemId) {
@@ -123,7 +124,7 @@ async function checkout() {
         <template v-if="paymentResult.status === 'success'">
           <h2>✅ 付款成功</h2>
           <p v-if="paymentResult.order">
-            訂單 #{{ paymentResult.order.orderId }}，共 NT$ {{ paymentResult.order.totalAmount }}，獲得 {{
+            訂單 #{{ paymentResult.order.orderId }}，共 NT$ {{ money(paymentResult.order.totalAmount) }}，獲得 {{
               paymentResult.order.pointsEarned }} 點
           </p>
           <p>遊戲已經加入你的遊戲庫</p>
@@ -133,7 +134,7 @@ async function checkout() {
         <template v-else-if="paymentResult.status === 'pending'">
           <h2>🕒 等待繳費</h2>
           <template v-if="paymentResult.order">
-            <p>訂單 #{{ paymentResult.order.orderId }}，應繳 NT$ {{ paymentResult.order.totalAmount }}</p>
+            <p>訂單 #{{ paymentResult.order.orderId }}，應繳 NT$ {{ money(paymentResult.order.totalAmount) }}</p>
             <dl class="pay-info">
               <template v-if="paymentResult.order.virtualAccount">
                 <dt>銀行代碼</dt>
@@ -187,9 +188,9 @@ async function checkout() {
             </div>
             <!-- 遊戲活動折扣使用共用價格元件；優惠券折抵另列。 -->
             <div class="cart-price-area">
-              <PriceBlock :game="item.game" />
-              <small v-if="Number(item.finalPrice) < Number(item.game.price)" class="coupon-price">
-                優惠券折抵後：NT$ {{ Number(item.finalPrice).toLocaleString('zh-TW') }}
+              <PriceBlock :game="item.game" whole-amounts />
+              <small v-if="cart.coupon" class="coupon-price" :class="{ 'coupon-not-applicable': !item.coupon }">
+                {{ item.coupon ? '適用本次優惠券' : '不適用本次優惠券，維持原售價' }}
               </small>
             </div>
           </div>
@@ -200,8 +201,8 @@ async function checkout() {
         <aside class="summary">
           <h2>訂單摘要</h2>
           <div class="line">
-            <span>小計</span>
-            <span>NT$ {{ subtotal }}</span>
+            <span>總金額</span>
+            <span>NT$ {{ money(subtotal) }}</span>
           </div>
           <!-- 優惠券：整個購物車套用同一張 -->
           <label class="coupon">
@@ -214,13 +215,13 @@ async function checkout() {
             </select>
           </label>
           <!-- 有用優惠券省到錢才顯示 -->
-          <div v-if="saved > 0" class="line saved">
-            <span>{{ cart.coupon.couponName }}</span>
-            <span>- NT$ {{ saved }}</span>
+          <div class="line saved">
+            <span>優惠券折抵</span>
+            <span>{{ saved > 0 ? '− ' : '' }}NT$ {{ money(saved) }}</span>
           </div>
           <div class="line total">
-            <span>總金額</span>
-            <span>NT$ {{ cart.totalPrice }}</span>
+            <span>應付金額</span>
+            <span>NT$ {{ money(cart.totalPrice) }}</span>
           </div>
           <!-- 付款方式 -->
           <div class="methods">
@@ -244,6 +245,7 @@ async function checkout() {
 <!-- 購物車頁面樣式（scoped：只作用於此元件；暗棕底 + 金色，和遊戲頁同色系） -->
 <style scoped>
 .cart-price-area { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px; white-space: nowrap; }
+.coupon-not-applicable { color: #a8b5d5 !important; font-weight: 400 !important; white-space: normal; text-align: right; max-width: 190px; }
 .coupon-price { color: #f0bb4d; font-size: 12px; font-weight: 600; }
 
 .coupon-center-link {

@@ -183,6 +183,39 @@ public class MemberService {
                 .build();
     }
 
+    // Google 首次設定帳號密碼：帳號與密碼必須同時提供，並在同一交易中完成。
+    @Transactional
+    public MemberProfileResponse setupAccountPassword(String currentUsername, String requestedUsername, String rawPassword) {
+        Member member = memberRepository.findByUsernameForUpdate(currentUsername)
+                .orElseThrow(() -> new RuntimeException("找不到該會員"));
+        // 只允許已綁定 Google 且沒有密碼紀錄的會員使用首次設定功能。
+        Integer googleLinked = db.queryForObject(
+                "SELECT COUNT(*) FROM dbo.member_oauth_accounts WHERE member_id=? AND provider='GOOGLE'",
+                Integer.class, member.getMemberId());
+        if (googleLinked == null || googleLinked == 0)
+            throw new RuntimeException("僅限尚未設定密碼的 Google 會員使用此功能");
+        if (passwordHistoryRepository.existsByMember_MemberId(member.getMemberId()))
+            throw new RuntimeException("帳號已設定密碼，請改用修改密碼功能");
+        String name = requestedUsername == null ? "" : requestedUsername.trim();
+        if (!name.matches("[\\p{IsHan}A-Za-z0-9_]{3,20}"))
+            throw new RuntimeException("帳號名稱需為 3～20 個中文、英數字或底線");
+        if (rawPassword == null || rawPassword.length() < 8 || rawPassword.length() > 72)
+            throw new RuntimeException("密碼長度需為 8～72 位");
+        boolean changed = !name.equals(member.getUsername());
+        if (changed) {
+            if (memberRepository.existsByUsername(name))
+                throw new RuntimeException("此帳號名稱已被使用");
+            member.setUsername(name);
+        }
+        memberRepository.saveAndFlush(member);
+        PasswordHistory firstPassword = PasswordHistory.builder()
+                .member(member)
+                .passwordHash(passwordEncoder.encode(rawPassword))
+                .build();
+        passwordHistoryRepository.saveAndFlush(firstPassword);
+        return buildProfileResponse(member);
+    }
+
     // --- 4. 完善/修改個人資料
     @Transactional
     public MemberProfileResponse updateProfile(String username, UpdateProfileRequest request) {
@@ -309,6 +342,9 @@ public class MemberService {
         if (!passwordEncoder.matches(request.getOldPassword(), latestPassword.getPasswordHash())) {
             throw new RuntimeException("舊密碼不正確");
         }
+
+        if (request.getNewPassword() == null || request.getNewPassword().length() < 8 || request.getNewPassword().length() > 72)
+            throw new RuntimeException("新密碼長度需為 8～72 位");
 
         // 檢查新密碼是否和舊密碼一樣
         if (passwordEncoder.matches(request.getNewPassword(), latestPassword.getPasswordHash())) {

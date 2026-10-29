@@ -59,6 +59,16 @@ BEGIN
  );
 END;
 
+ -- 僅轉換一次舊版按明細累計的使用額度；取消及退款訂單不占用次數。
+ IF NOT EXISTS (SELECT 1 FROM sys.extended_properties WHERE class=1 AND major_id=OBJECT_ID(N'dbo.coupons')
+  AND minor_id=0 AND name=N'HERO_COUPON_ORDER_COUNT_V1')
+ BEGIN
+  UPDATE c WITH (TABLOCKX) SET used_count=(
+   SELECT COUNT(DISTINCT o.order_id) FROM dbo.orders o JOIN dbo.order_items i ON i.order_id=o.order_id
+   WHERE i.coupon_id=c.coupon_id AND o.order_status IN ('PENDING','PAID')) FROM dbo.coupons c;
+  EXEC sys.sp_addextendedproperty @name=N'HERO_COUPON_ORDER_COUNT_V1',@value=1,
+   @level0type=N'SCHEMA',@level0name=N'dbo',@level1type=N'TABLE',@level1name=N'coupons';
+ END;
  COMMIT TRANSACTION;
 END TRY
 BEGIN CATCH

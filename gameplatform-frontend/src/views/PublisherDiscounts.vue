@@ -1,4 +1,5 @@
 <script setup>
+import DatePicker from '../components/DatePicker.vue'
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { api } from '../api'
 const games = ref([]), gameId = ref(''), percent = ref(20), startAt = ref(''), busy = ref(false), error = ref(''), notice = ref('')
@@ -60,8 +61,7 @@ onUnmounted(() => window.clearInterval(clockTimer))
         <p v-if="selected.nextAllowedAt">下次可開始折扣：{{ date(selected.nextAllowedAt) }}</p>
         <label class="discount-setting-field">折扣百分比（1～99 整數）<input v-model.number="percent" type="number" min="1"
             max="99" step="1" :disabled="locked || busy" /></label>
-        <label class="discount-setting-field">開始時間<input v-model="startAt" type="datetime-local" :min="minStartAt"
-            step="60" :disabled="locked || busy" /></label>
+        <label class="discount-setting-field">開始時間<DatePicker v-model="startAt" type="datetime-local" label="開始時間" :min="minStartAt" :disabled="locked || busy" required /></label>
         <p v-if="startTimeExpired" class="discount-time-error" role="alert">開始時間已經過去，請選擇目前時間之後的時段。</p>
         <p>結束時間：{{ endDate }}（固定 7 天）</p>
         <p>預估折扣價：<strong>{{ money(price) }}</strong> <span v-if="percent >= 1 && percent <= 99"

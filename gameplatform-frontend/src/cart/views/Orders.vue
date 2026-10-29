@@ -6,6 +6,21 @@ import { useOrdersStore } from '@/cart/stores/orders'
 
 const store = useOrdersStore()
 const route = useRoute()
+// 優惠券在訂單層級呈現；明細只顯示遊戲金額，不顯示折扣分攤的小數。
+const money = value => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(Number(value) || 0)
+function orderCoupons(order) {
+  const unique = new Map()
+  for (const item of order.orderItems || []) if (item.coupon) {
+    const coupon = item.coupon
+    const key = coupon.couponId ?? JSON.stringify([coupon.couponName, coupon.discountType, coupon.discountValue])
+    if (!unique.has(key)) unique.set(key, coupon)
+  }
+  return [...unique.values()]
+}
+function orderSubtotal(order) {
+  return order.subtotalAmount ?? Number(order.totalAmount || 0) + Number(order.discountAmount || 0)
+}
+
 const refundTarget = ref(null)
 const refundReason = ref('')
 const refundError = ref('')
@@ -164,7 +179,7 @@ async function cancel(order) {
           <span class="games">
             {{order.orderItems.map((i) => i.game.gameName).join('、') || '—'}}
           </span>
-          <span class="amount">NT$ {{ order.totalAmount }}</span>
+          <span class="amount">NT$ {{ money(order.totalAmount) }}</span>
           <span class="arrow">{{ openId === order.orderId ? '▴' : '▾' }}</span>
         </button>
 
@@ -213,23 +228,30 @@ async function cancel(order) {
                 <RouterLink :to="`/games/${item.game.gameId}`" class="name">{{ item.game.gameName }}</RouterLink>
                 <div class="tags">
                   <span v-if="item.isGift" class="tag gift">🎁 送給 {{ item.recipientMember?.username }}</span>
-                  <span v-if="item.coupon" class="tag">🏷️ {{ item.coupon.couponName }} · {{ discountLabel(item.coupon) }}</span>
                 </div>
               </div>
               <div class="price">
-                <del v-if="Number(item.discountAmount) > 0">NT$ {{ item.unitPrice }}</del>
-                <span>NT$ {{ Number(item.unitPrice) - Number(item.discountAmount || 0) }}</span>
+                <span>NT$ {{ money(item.unitPrice) }}</span>
               </div>
             </li>
             <li v-if="!order.orderItems.length" class="no-items">付款失敗的訂單不保留明細</li>
           </ul>
 
+          <!-- 優惠券不重複放在每款遊戲下方，整筆訂單統一顯示。 -->
+          <section class="order-totals" aria-label="訂單金額摘要">
+            <div v-if="orderCoupons(order).length" class="order-coupon-once">
+              <span class="totals-caption">使用優惠券</span>
+              <span v-for="coupon in orderCoupons(order)" :key="coupon.couponId ?? coupon.couponName" class="order-coupon-label">🏷️ {{ coupon.couponName }} · {{ discountLabel(coupon) }}</span>
+            </div>
+            <dl class="order-totals-rows">
+              <div><dt>總金額</dt><dd>NT$ {{ money(orderSubtotal(order)) }}</dd></div>
+              <div class="coupon-deduction"><dt>優惠券折抵</dt><dd>{{ Number(order.discountAmount) > 0 ? '− ' : '' }}NT$ {{ money(order.discountAmount) }}</dd></div>
+              <div class="total-paid"><dt>{{ ['PAID', 'REFUNDED'].includes(order.orderStatus) ? '實付金額' : '應付金額' }}</dt><dd>NT$ {{ money(order.totalAmount) }}</dd></div>
+            </dl>
+          </section>
+
           <!-- 付款資訊 -->
           <dl class="meta">
-            <template v-if="Number(order.discountAmount) > 0">
-              <dt>優惠券折抵</dt>
-              <dd>NT$ {{ order.discountAmount }}</dd>
-            </template>
             <dt>付款方式</dt>
             <dd>{{ paymentLabel(order.paymentType) }}</dd>
             <dt>付款時間</dt>
@@ -264,6 +286,23 @@ async function cancel(order) {
 
 <!-- 我的訂單樣式：和購物車同色系（暗棕底 + 金色） -->
 <style scoped>
+.order-totals {
+  margin: 18px 0; padding: 18px 20px; border: 1px solid #46578b;
+  border-radius: 12px; background: #0d173b; color: #e7edff;
+}
+.order-coupon-once { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-bottom: 16px; margin-bottom: 14px; border-bottom: 1px solid #344572; }
+.totals-caption { color: #aebde1; font-size: 13px; }
+.order-coupon-label { padding: 6px 10px; border: 1px solid #76643a; border-radius: 8px; background: #d4ab5012; color: #f0d599; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.order-totals-rows { display: grid; gap: 12px; margin: 0 0 0 auto; max-width: 360px; font-variant-numeric: tabular-nums; }
+.order-totals-rows > div { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; }
+.order-totals-rows dt { color: #bdc9e7; }
+.order-totals-rows dd { margin: 0; font-weight: 600; white-space: nowrap; }
+.order-totals-rows .coupon-deduction dd { color: #9ed8ba; }
+.order-totals-rows .total-paid { padding-top: 14px; border-top: 1px solid #344572; }
+.order-totals-rows .total-paid dt { color: #f0d599; font-weight: 700; }
+.order-totals-rows .total-paid dd { color: #f0d599; font-size: 23px; }
+@media (max-width: 600px) { .order-totals { padding: 16px; } .order-totals-rows { max-width: none; } }
+
 .refund-entry.refund-result { display: grid; gap: 8px; overflow-wrap: anywhere; }
 .refund-result p { margin: 0; white-space: pre-wrap; line-height: 1.7; }
 .refund-entry,.refund-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:14px 0}
@@ -639,6 +678,23 @@ async function cancel(order) {
 </style>
 
 <style scoped>
+.order-totals {
+  margin: 18px 0; padding: 18px 20px; border: 1px solid #46578b;
+  border-radius: 12px; background: #0d173b; color: #e7edff;
+}
+.order-coupon-once { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-bottom: 16px; margin-bottom: 14px; border-bottom: 1px solid #344572; }
+.totals-caption { color: #aebde1; font-size: 13px; }
+.order-coupon-label { padding: 6px 10px; border: 1px solid #76643a; border-radius: 8px; background: #d4ab5012; color: #f0d599; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.order-totals-rows { display: grid; gap: 12px; margin: 0 0 0 auto; max-width: 360px; font-variant-numeric: tabular-nums; }
+.order-totals-rows > div { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; }
+.order-totals-rows dt { color: #bdc9e7; }
+.order-totals-rows dd { margin: 0; font-weight: 600; white-space: nowrap; }
+.order-totals-rows .coupon-deduction dd { color: #9ed8ba; }
+.order-totals-rows .total-paid { padding-top: 14px; border-top: 1px solid #344572; }
+.order-totals-rows .total-paid dt { color: #f0d599; font-weight: 700; }
+.order-totals-rows .total-paid dd { color: #f0d599; font-size: 23px; }
+@media (max-width: 600px) { .order-totals { padding: 16px; } .order-totals-rows { max-width: none; } }
+
 .refund-entry.refund-result { display: grid; gap: 8px; overflow-wrap: anywhere; }
 .refund-result p { margin: 0; white-space: pre-wrap; line-height: 1.7; }
 .pending-pay-entry { display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 12px 20px; border-top: 1px solid #2e4a9a; color: #b7c5e5; font-size: 13px; }

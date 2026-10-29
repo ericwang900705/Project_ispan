@@ -183,7 +183,7 @@ export const homeFor = role => ({
 }[role] || '/member/login')
 
 export const senderTypeFor = role =>
-  staffRoles.includes(role) ? 'ADMIN' : role
+  staffRoles.includes(role) ? 'ADMIN' : ['MEMBER', 'PUBLISHER'].includes(role) ? 'MEMBER' : role
 
 export const roleName = role => ({
   ADMIN: '最高管理員',

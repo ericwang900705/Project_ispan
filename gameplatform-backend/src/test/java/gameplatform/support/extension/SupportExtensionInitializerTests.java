@@ -42,6 +42,7 @@ class SupportExtensionInitializerTests {
         assertTrue(categories.indexOf("BEGIN TRANSACTION;") < categories.indexOf("sys.sp_getapplock"));
         assertTrue(categories.contains("sp_getapplock="));
         assertTrue(categories.contains("ROLLBACK TRANSACTION;"));
+        verify(statement).executeUpdate("SET NOCOUNT OFF");
         verify(source, times(1)).getConnection();
         verify(connection).close();
     }
@@ -53,6 +54,7 @@ class SupportExtensionInitializerTests {
         when(statement.execute(anyString())).thenReturn(false).thenThrow(failure);
         assertSame(failure, assertThrows(SQLException.class, () -> initializer.run(null)));
         verify(connection).setAutoCommit(true);
+        verify(statement).executeUpdate("SET NOCOUNT OFF");
         verify(connection).setAutoCommit(false);
         verify(connection).close();
     }
@@ -62,6 +64,26 @@ class SupportExtensionInitializerTests {
         when(statement.execute(anyString())).thenThrow(new SQLException("structure failed"));
         assertThrows(SQLException.class, () -> initializer.run(null));
         verify(statement, times(1)).execute(anyString());
+        verify(statement).executeUpdate("SET NOCOUNT OFF");
+        verify(connection).close();
+    }
+
+    @Test
+    void cleanupFailureDoesNotHideOriginalSqlFailure() throws Exception {
+        var original = new SQLException("initialization failed");
+        var cleanup = new SQLException("NOCOUNT reset failed");
+        when(statement.execute(anyString())).thenThrow(original);
+        when(statement.executeUpdate("SET NOCOUNT OFF")).thenThrow(cleanup);
+        assertSame(original, assertThrows(SQLException.class, () -> initializer.run(null)));
+        assertArrayEquals(new Throwable[]{cleanup}, original.getSuppressed());
+        verify(connection).close();
+    }
+
+    @Test
+    void cleanupFailureIsVisibleWhenInitializationSucceeded() throws Exception {
+        var cleanup = new SQLException("NOCOUNT reset failed");
+        when(statement.executeUpdate("SET NOCOUNT OFF")).thenThrow(cleanup);
+        assertSame(cleanup, assertThrows(SQLException.class, () -> initializer.run(null)));
         verify(connection).close();
     }
 

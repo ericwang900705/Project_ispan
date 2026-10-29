@@ -19,7 +19,7 @@ const comment = ref(''), decision = ref('')
 const labels = { PENDING_REVIEW: '待審核', COMING_SOON: '即將發售', PUBLISHED: '已上架', PENDING_OFF_SHELF: '預定下架', OFF_SHELF: '已下架' }
 const decisionLabel = computed(() => ({ approve: '核准上架', reject: '退回申請', 'force-off-shelf': '強制下架' }[decision.value] || ''))
 const money = value => 'NT$ ' + new Intl.NumberFormat('zh-TW').format(Number(value) || 0)
-const date = value => value ? new Date(value).toLocaleString('zh-TW', { hour12: false }) : '—'
+const date = value => value ? new Date(value).toLocaleString('zh-TW', { hourCycle: 'h23' }) : '—'
 let run = 0, detailRun = 0, alive = true
 async function load(reset = false) {
   if (reset) page.value = 0

@@ -82,7 +82,7 @@ onMounted(load)
       <p v-else class="platform-chart-empty">{{ loading ? '載入統計中…' : '尚無可用的統計資料' }}</p>
       <footer>僅統計目前為已付款狀態的訂單金額，非平台結算收益。</footer>
     </article>
-    <footer class="platform-footer dashboard-update-footer"><div class="dashboard-update-card" role="status"><span class="dashboard-update-dot" :class="{ loading }"></span><div><strong>{{ loading ? '正在更新平台資料' : '資料更新時間' }}</strong><time v-if="data?.updatedAt" :datetime="data.updatedAt">{{ new Date(data.updatedAt).toLocaleString('zh-TW', { hour12: false }) }}</time><small v-else>尚未取得更新時間</small></div><UiIcon name="refresh" /></div></footer>
+    <footer class="platform-footer dashboard-update-footer"><div class="dashboard-update-card" role="status"><span class="dashboard-update-dot" :class="{ loading }"></span><div><strong>{{ loading ? '正在更新平台資料' : '資料更新時間' }}</strong><time v-if="data?.updatedAt" :datetime="data.updatedAt">{{ new Date(data.updatedAt).toLocaleString('zh-TW', { hourCycle: 'h23' }) }}</time><small v-else>尚未取得更新時間</small></div><UiIcon name="refresh" /></div></footer>
   </section>
 </template>
 

@@ -63,7 +63,7 @@ const status = (value) =>
   '—'
 const money = (value) => Number(value || 0).toLocaleString('zh-TW')
 const date = (value) =>
-  value ? new Date(value).toLocaleString('zh-TW', { hour12: false }) : '—'
+  value ? new Date(value).toLocaleString('zh-TW', { hourCycle: 'h23' }) : '—'
 const discount = (c) =>
   c.discountType === 'RATE'
     ? `${Number((Number(c.discountValue) * 10).toFixed(1))} 折`

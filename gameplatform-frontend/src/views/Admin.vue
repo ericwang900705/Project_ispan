@@ -446,37 +446,16 @@ onUnmounted(() => {
           <span class="room-avatar">
             {{ r.memberName?.charAt(0) || '?' }}
           </span>
-          <div class="room-person">
-            <strong>
-              {{ r.memberName }}
-            </strong>
-
-            <small>
-              #{{ r.id }}
-            </small>
-          </div>
-
-          <p>
-            <template v-if="r.ticketId">
-              已轉案件 {{ r.ticketNo }}
-            </template>
-
-            <template v-else-if="r.status === 'CLOSED'">
-              已結束
-            </template>
-
-            <template v-else-if="r.adminId">
-              客服 #{{ r.adminId }} 處理中
-            </template>
-
-            <template v-else>
-              等待客服接手
-            </template>
-          </p>
-
-          <small>
-            {{ timeText(r.createdAt) }}
-          </small>
+          <span class="room-entry-content">
+            <strong class="room-entry-name">{{ r.memberName }}</strong>
+            <span class="room-entry-state"><span class="room-entry-id">#{{ r.id }}</span>
+              <span v-if="r.ticketId">已轉案件 {{ r.ticketNo }}</span>
+              <span v-else-if="r.status === 'CLOSED'">已結束</span>
+              <span v-else-if="r.adminId">客服 #{{ r.adminId }} 處理中</span>
+              <span v-else>等待客服接手</span>
+            </span>
+            <time class="room-entry-time">{{ timeText(r.createdAt) }}</time>
+          </span>
         </button>
 
         </div>
@@ -788,6 +767,14 @@ onUnmounted(() => {
 
 </template>
 <style>
+/* 名單內容使用獨立容器，避免 button 的全域 flex 樣式把三行資料攤成同一列。 */
+.support-ui .admin-page .room-sidebar button.room-row { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: start; gap: 12px; padding: 16px 14px; min-height: 118px; white-space: normal; }
+.support-ui .admin-page .room-row .room-entry-content { display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto; gap: 9px; grid-column: 2; grid-row: 1 / span 3; min-width: 0; text-align: left; }
+.support-ui .admin-page .room-entry-content .room-entry-name { display: block; min-width: 0; margin: 0; color: #234c5c; font-size: 14px; line-height: 1.6; white-space: normal; overflow-wrap: anywhere; }
+.support-ui .admin-page .room-entry-content .room-entry-state { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 9px; font-size: 12px; line-height: 1.6; color: #52758a; }
+.support-ui .admin-page .room-entry-content .room-entry-id { display: inline-block; padding: 1px 6px; border-radius: 5px; background: #e3f0f5; color: #48728b; font-size: 11px; }
+.support-ui .admin-page .room-entry-content .room-entry-time { display: block; font-size: 11px; line-height: 1.6; color: #7690a2; white-space: normal; }
+
 /* 聊天清單獨立捲動，分頁列固定留在清單底部，不影響右側訊息輸入。 */
 .support-ui .admin-layout .room-sidebar-column { display: flex; flex-direction: column; min-width: 0; height: min(760px, calc(100dvh - 210px)); min-height: 420px; }
 .support-ui .admin-layout .room-sidebar { display: flex; flex-direction: column; flex: 1; min-height: 0; height: auto; padding-bottom: 0; }

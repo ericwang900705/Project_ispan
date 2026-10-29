@@ -115,13 +115,13 @@ public class ShopService {
         if (!couponActive(c) || subtotal.compareTo(money(c.get("min_spend"))) < 0)
             throw bad("優惠券已過期、停用或未達最低金額");
         int limit = c.get("total_limit") == null ? Integer.MAX_VALUE : number(c.get("total_limit"));
-        if ((long) number(c.get("used_count")) + items > limit)
+        if ((long) number(c.get("used_count")) + 1 > limit)
             throw bad("優惠券使用名額不足");
         int uses = count(
-                "SELECT COUNT(*) FROM order_items i JOIN orders o ON o.order_id=i.order_id WHERE o.member_id=? AND i.coupon_id=? AND o.order_status IN ('PENDING','PAID')",
+                "SELECT COUNT(DISTINCT o.order_id) FROM order_items i JOIN orders o ON o.order_id=i.order_id WHERE o.member_id=? AND i.coupon_id=? AND o.order_status IN ('PENDING','PAID')",
                 member, c.get("coupon_id"));
-        if ((long) uses + items > number(c.get("per_member_limit")))
-            throw bad("超過每位會員的優惠券使用上限（按訂單明細計次）");
+        if ((long) uses + 1 > number(c.get("per_member_limit")))
+            throw bad("超過每位會員的優惠券使用上限（每筆訂單計一次）");
     }
 
     public List<Map<String, Object>> coupons(Actor a) {
@@ -456,7 +456,7 @@ public class ShopService {
         }
         if (cid != null)
             db.update("UPDATE coupons SET used_count=used_count+? WHERE coupon_id=?",
-                    (int) p.eligible().stream().filter(Boolean::booleanValue).count(), cid);
+                    1, cid);
         // Cart contents were snapshotted and moved into a pending order; library stays
         // unchanged.
         db.update("DELETE FROM cart_items WHERE member_id=?", member);
@@ -569,7 +569,7 @@ public class ShopService {
     void cancelInternal(int id, String paymentStatus) {
         // Release reserved coupon uses once, under the order row lock.
         for (var c : db.queryForList(
-                "SELECT coupon_id,COUNT(*) AS n FROM order_items WHERE order_id=? AND coupon_id IS NOT NULL GROUP BY coupon_id",
+                "SELECT coupon_id,1 AS n FROM order_items WHERE order_id=? AND coupon_id IS NOT NULL GROUP BY coupon_id",
                 id))
             db.update("UPDATE coupons SET used_count=used_count-? WHERE coupon_id=?", c.get("n"), c.get("coupon_id"));
         db.update(

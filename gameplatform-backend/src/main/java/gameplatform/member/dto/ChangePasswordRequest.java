@@ -11,6 +11,6 @@ public class ChangePasswordRequest {
     private String oldPassword;
 
     @NotBlank(message = "密碼不能為空")
-    @Size(min = 4, message = "密碼長度至少需要 4 個字元")
+    @Size(min = 8, max = 72, message = "新密碼長度需為 8～72 位")
     private String newPassword;
 }

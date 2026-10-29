@@ -110,7 +110,7 @@ public class RefundService {
             }
             // 僅撤銷這筆訂單授予的權益，不影響其他訂單取得的同款遊戲。
             db.update("UPDATE member_games SET is_active=0,revoked_at=CURRENT_TIMESTAMP WHERE is_active=1 AND order_item_id IN (SELECT order_item_id FROM order_items WHERE order_id=?)",order);
-            for(var c:db.queryForList("SELECT coupon_id,COUNT(*) AS n FROM order_items WHERE order_id=? AND coupon_id IS NOT NULL GROUP BY coupon_id",order)) {
+            for(var c:db.queryForList("SELECT coupon_id,1 AS n FROM order_items WHERE order_id=? AND coupon_id IS NOT NULL GROUP BY coupon_id",order)) {
                 int n=id(c.get("n"));
                 if(db.update("UPDATE coupons SET used_count=used_count-? WHERE coupon_id=? AND used_count>=?",n,c.get("coupon_id"),n)!=1)
                     throw new Problem(409,"優惠券使用次數不一致，退款尚未登記，請先核對");

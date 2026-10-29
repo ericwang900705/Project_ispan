@@ -2,6 +2,7 @@
 import WorkspacePager from '../components/WorkspacePager.vue'
 import WorkspaceModal from '../components/WorkspaceModal.vue'
 import DatePicker from '../components/DatePicker.vue'
+import { todayMinimum, sevenDaysLater } from '../utils/platformDates'
 import SearchableSelect from '../components/SearchableSelect.vue'
 import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
@@ -20,6 +21,11 @@ const moderationInfo = ref(null)
 const couponOptions = ref({ publishers: [], tags: [] }), optionsError = ref('')
 const appliedFilters = ref({ q: '', status: '' })
 const form = ref({}), editable = computed(() => ['tags', 'coupons'].includes(area.value))
+// 歷史活動可修改名稱與狀態，保留原始起訖日期，避免已發行券無法停用。
+const historicalCoupon = computed(() => !!selected.value && selected.value.start_at?.slice(0, 10) < todayMinimum().slice(0, 10))
+watch(() => form.value.start, value => {
+    if (area.value === 'coupons' && !(selected.value && value === selected.value.start_at?.slice(0, 16))) form.value.end = sevenDaysLater(value)
+})
 let run = 0, optionsRun = 0, alive = true, timer = null
 const refreshable = computed(() => ['reviews', 'review-reports', 'operations', 'login-logs'].includes(area.value))
 const logPage = computed(() => ['operations', 'login-logs'].includes(area.value))
@@ -28,7 +34,7 @@ const emptyMessage = computed(() => query.value.trim() || status.value ? '沒有
 function refreshVisible() { if (document.visibilityState === 'visible' && refreshable.value && !loading.value && !busy.value && !editing.value && !selected.value && !query.value.trim() && (!status.value || (commentPage.value && commentView.value === 'pending'))) load() }
 onMounted(() => { timer = setInterval(refreshVisible, 30000); window.addEventListener('support-refresh', refreshVisible); document.addEventListener('visibilitychange', refreshVisible) })
 const text = (value) => value == null ? '—' : (area.value === 'promotions' ? ({ SCHEDULED: '尚未開始', ACTIVE: '進行中', COOLDOWN: '冷卻中', ENDED: '已結束' }[value]) : null) || managementLabels[value] || String(value)
-const date = value => value ? new Date(value).toLocaleString('zh-TW', { hour12: false }) : '—'
+const date = value => value ? new Date(value).toLocaleString('zh-TW', { hourCycle: 'h23' }) : '—'
 const couponSummary = row => `${Number(row.min_spend) > 0 ? '滿 NT$' + Number(row.min_spend) : '無低消'}・${row.discount_type === 'AMOUNT' ? '折 NT$' + Number(row.discount_value) : Number((Number(row.discount_value) * 10).toFixed(1)) + ' 折'}`
 const couponScope = row => row.scope_type === 'PUBLISHER' ? '發行商：' + row.publisher_name : row.scope_type === 'TAG' ? '類型：' + row.tag_name : '全平台遊戲'
 const cell = (row, key) => key === 'discount_summary' ? (area.value === 'promotions' ? `${Number(((100 - Number(row.discount_percent)) / 10).toFixed(1))} 折（減價 ${row.discount_percent}%）・NT$ ${Number(row.original_price)} → ${Number(row.discount_price)}` : couponSummary(row)) : key === 'scope_summary' ? couponScope(row) : key.endsWith('_at') ? date(row[key]) : text(row[key])
@@ -67,6 +73,10 @@ function save() {
         if (form.value.scopeType !== 'ALL' && !items.some(item => String(item.id) === String(id))) { error.value = '請從搜尋結果選擇有效的發行商或遊戲類型'; return }
     }
     let body = { ...form.value }; if (area.value === 'coupons') body = { ...body, value: body.type === 'RATE' ? Number((Number(body.value) / 10).toFixed(2)) : Number(body.value), minimum: body.hasMinimum ? Number(body.minimum) : 0, scopeType: body.scopeType, publisherId: body.scopeType === 'PUBLISHER' ? Number(body.publisherId) : null, tagId: body.scopeType === 'TAG' ? Number(body.tagId) : null, memberLimit: Number(body.memberLimit), totalLimit: body.totalLimit === '' || body.totalLimit == null ? null : Number(body.totalLimit) }
+    // 未改期時保留原始秒數及既有期限；新建或改期才適用七天規則。
+    if (area.value === 'coupons' && selected.value && body.start === selected.value.start_at?.slice(0, 16) && body.end === selected.value.expires_at?.slice(0, 16)) {
+        body.start = selected.value.start_at; body.end = selected.value.expires_at
+    }
     delete body.hasMinimum
     mutate('/backoffice/' + area.value + (selected.value ? '/' + selected.value[config.value.id] : ''), selected.value ? 'PUT' : 'POST', body)
 }
@@ -169,13 +179,13 @@ const orderLabels = { order_no: '訂單編號', username: '會員', order_status
                     <SearchableSelect v-if="form.scopeType === 'TAG'" v-model="form.tagId" :options="couponOptions.tags"
                         label="遊戲類型" required :disabled="busy" />
                     <label>開始時間
-                        <DatePicker v-model="form.start" type="datetime-local" label="開始時間" required :disabled="busy" />
+                        <DatePicker v-model="form.start" type="datetime-local" label="開始時間" required :min="todayMinimum()" :disabled="busy || historicalCoupon" />
                     </label>
                     <label>結束時間
-                        <DatePicker v-model="form.end" type="datetime-local" label="結束時間" required :disabled="busy" />
+                        <input :value="(form.end || '').replace('T', ' ')" type="text" aria-label="結束時間" readonly required><small>發行起固定 7 天，自動計算結束時間。</small>
                     </label>
                     <label>總使用額度<input v-model="form.totalLimit" type="number" min="1" step="1" placeholder="留空為不限制"
-                            :disabled="busy"><small>沿用現有規則：按適用遊戲的訂單明細計次。</small></label>
+                            :disabled="busy"><small>每筆訂單計一次，折扣僅套用於符合規則的遊戲。</small></label>
                     <label>每位會員額度<input v-model="form.memberLimit" type="number" min="1" step="1" required
                             :disabled="busy"></label>
                     <label>狀態<select v-model="form.status" :disabled="busy">

@@ -3,9 +3,11 @@ import { ref, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { login, session } from '../api'
 import { homeFor } from '../permissions'
+import { useAccountLockCountdown } from '../utils/accountLockCountdown'
 const props = defineProps({ area: { type: String, required: true } })
 const router = useRouter(), route = useRoute()
 const name = ref(''), password = ref(''), error = ref(''), busy = ref(false)
+const displayedError = useAccountLockCountdown(error)
 async function submit(event) {
   if (busy.value) return
 
@@ -41,7 +43,7 @@ async function submit(event) {
       <input v-model="password" :name="area + '-password'" type="password" autocomplete="current-password" required
         maxlength="200" placeholder="輸入密碼" :disabled="busy">
     </label>
-    <p v-if="error" class="error" role="alert">{{ error }}</p>
+    <p v-if="error" class="error" role="alert">{{ displayedError }}</p>
     <button class="primary full" :disabled="busy">
       {{ busy ? '登入中…' : area === 'staff' ? '登入工作後台' : '會員登入' }}
     </button>

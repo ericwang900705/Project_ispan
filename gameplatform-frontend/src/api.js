@@ -327,7 +327,7 @@ export const statusText = s => ({
 export const timeText = t => t ? new Intl.DateTimeFormat('zh-TW', {
   month: '2-digit',
   day: '2-digit',
-  hour: '2-digit',
+  hour: '2-digit', hourCycle: 'h23',
   minute: '2-digit'
 }).format(new Date(t)) : ''
 

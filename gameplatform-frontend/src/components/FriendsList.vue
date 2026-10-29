@@ -5,7 +5,7 @@ import UiIcon from '../../components/UiIcon.vue'
 
 const open = ref(false), friends = ref([]), pending = ref([]), rooms = ref([]), results = ref([])
 const emit = defineEmits(['expanded-change'])
-const search = ref(''), error = ref(''), notice = ref(''), busy = ref(false), connected = ref(false)
+const search = ref(''), searched = ref(false), error = ref(''), notice = ref(''), busy = ref(false), connected = ref(false)
 const active = ref(null), messages = ref([]), draft = ref(''), selected = ref([]), groupName = ref('')
 const box = ref(null), more = ref(false)
 const onlineCount = computed(() => friends.value.filter(x => x.online).length)
@@ -62,6 +62,7 @@ async function run(action) {
     if (alive) {
       notice.value = result?.message || '';
       await refresh()
+      if (search.value.trim().length >= 2) await find()
     }
   } catch (e) {
     fail(e)
@@ -69,6 +70,7 @@ async function run(action) {
 }
 async function find() {
   const version = ++searchVersion, q = search.value.trim();
+  searched.value = false;
   error.value = ''
   if (q.length < 2) {
     results.value = [];
@@ -77,7 +79,7 @@ async function find() {
   }
   try {
     const data = await api('/friends/search?username=' + encodeURIComponent(q));
-    if (alive && version === searchVersion) results.value = data
+    if (alive && version === searchVersion) { results.value = Array.isArray(data) ? data : []; searched.value = true }
   } catch (e) {
     if (version === searchVersion) fail(e)
   }
@@ -178,6 +180,7 @@ onUnmounted(() => {
         <input v-model="search" placeholder="搜尋會員帳號" maxlength="30" aria-label="搜尋會員帳號" />
         <button>搜尋</button>
       </form>
+      <p v-if="searched && !results.length" class="feedback" role="status">找不到符合條件的會員，請確認帳號名稱及帳號是否啟用。</p>
       <div v-for="person in results" :key="person.memberId" class="row">
         <span>{{ person.username }}</span>
         <button :disabled="busy" @click="request(person.memberId)">加好友</button>
@@ -236,7 +239,7 @@ onUnmounted(() => {
         <div v-for="m in messages" :key="m.messageId" class="message" :class="{ me: m.senderId === session.user?.id }">
           <small>{{ m.senderName }}</small>
           <p>{{ m.content }}</p>
-          <time>{{ new Date(m.createdAt).toLocaleString('zh-TW') }}</time>
+          <time>{{ new Date(m.createdAt).toLocaleString('zh-TW', { hourCycle: 'h23' }) }}</time>
         </div>
       </div>
       <form class="tools" @submit.prevent="send">

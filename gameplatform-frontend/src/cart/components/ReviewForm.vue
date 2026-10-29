@@ -67,7 +67,7 @@ async function submit() {
       <h2>{{ review ? '修改評論' : '撰寫評論' }}</h2>
       <p class="game-name">{{ game.gameName }}</p>
       <p v-if="muted" role="status" class="review-restriction">評論功能暫停至 {{ new
-        Date(restriction.mutedUntil).toLocaleString('zh-TW', { hour12:false})}}。期間仍可登入、購買與聯絡客服。</p>
+        Date(restriction.mutedUntil).toLocaleString('zh-TW', { hourCycle: 'h23'})}}。期間仍可登入、購買與聯絡客服。</p>
       <p v-if="restrictionError" role="alert" class="review-restriction">{{ restrictionError }} <button type="button"
           @click="loadRestriction">重新檢查</button></p>
 

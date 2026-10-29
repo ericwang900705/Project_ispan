@@ -1,12 +1,13 @@
 <script setup>
 import DatePicker from './DatePicker.vue'
+import { todayMinimum } from '../utils/platformDates'
 import { computed, ref } from 'vue'
 import { api } from '../api'
 
 const form = defineModel('form', { required: true })
 const tagIds = defineModel('tagIds', { required: true })
 const media = defineModel('media', { required: true })
-const props = defineProps({ tags: { type: Array, default: () => [] }, disabled: Boolean, busy: Boolean })
+const props = defineProps({ tags: { type: Array, default: () => [] }, disabled: Boolean, busy: Boolean, tagError: String })
 const emit = defineEmits(['uploading'])
 const uploading = ref(false)
 const uploadError = ref('')
@@ -93,7 +94,7 @@ async function upload(event, cover = false) {
           <label>售價（NT$）<input v-model.number="form.price" type="number" min="0" max="99999999.99" step="0.01"
               required></label>
           <label>預定發行時間
-            <DatePicker v-model="form.releaseDate" type="datetime-local" label="預定發行時間" />
+            <DatePicker v-model="form.releaseDate" type="datetime-local" label="預定發行時間" :min="todayMinimum()" />
           </label>
         </div>
       </section>
@@ -160,6 +161,7 @@ async function upload(event, cover = false) {
         <div class="publisher-select-tags"><label v-for="tag in tags" :key="tag.tag_id"
             :class="{ selected: tagIds.includes(tag.tag_id) }"><input v-model="tagIds" type="checkbox"
               :value="tag.tag_id"><span>{{ tag.tag_name }}</span></label></div>
+        <p v-if="tagError && !tagIds.length" class="error" role="alert">{{ tagError }}</p>
         <p v-if="!tags.length" class="muted">尚無可選用標籤，請確認資料庫已建立平台標籤。</p>
       </section>
 

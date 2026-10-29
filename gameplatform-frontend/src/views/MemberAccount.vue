@@ -2,7 +2,7 @@
 import DatePicker from '../components/DatePicker.vue'
 import { computed, ref, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, session } from '../api'
+import { api, session, logout } from '../api'
 import GoogleSignInButton from '../components/GoogleSignInButton.vue'
 
 const route = useRoute()
@@ -12,6 +12,7 @@ const loading = ref(false)
 const error = ref('')
 const notice = ref('')
 const profile = ref(null)
+const newUsername = ref('')
 const googleLink = ref(null), googleError = ref(''), linking = ref(false)
 
 // 根據當前 action 決定次分頁
@@ -86,7 +87,7 @@ const title = computed(() => ({
   'forgot-password': '忘記密碼',
   'reset-password': '重設密碼',
   profile: '個人資料',
-  'change-password': '更改密碼',
+  'change-password': profile.value?.hasPassword === false ? '設定帳號密碼' : '修改密碼',
   'apply-publisher': '申請遊戲發行商'
 })[action.value] || '會員中心')
 
@@ -112,6 +113,7 @@ async function loadProfile() {
   if (!session.user) return
   try {
     profile.value = await api('/members/me')
+    newUsername.value = profile.value.username || ''
     form.value.birthDate = profile.value.birthDate || ''
     form.value.address = profile.value.address || ''
     form.value.avatarUrl = profile.value.avatarUrl || ''
@@ -217,6 +219,37 @@ async function updateProfile() {
   } catch (e) { error.value = e.message } finally { loading.value = false }
 }
 
+async function setupAccountPassword() {
+  if (loading.value || profile.value?.hasPassword !== false) return
+  const username = newUsername.value.trim()
+  if (!/^[\p{Script=Han}A-Za-z0-9_]{3,20}$/u.test(username)) {
+    error.value = '帳號名稱需為 3～20 個中文、英數字或底線'; return
+  }
+  if (form.value.newPassword.length < 8 || form.value.newPassword.length > 72) {
+    error.value = '密碼長度需為 8～72 位'; return
+  }
+  if (form.value.newPassword !== form.value.confirmPassword) {
+    error.value = '兩次輸入的新密碼不同'; return
+  }
+  loading.value = true; error.value = ''; notice.value = ''
+  try {
+    const result = await api('/members/setup-account-password', {
+      method: 'POST', body: { username, newPassword: form.value.newPassword }
+    })
+    // 後端成功後 hasPassword=true；若更名則舊 JWT 的 username 失效。
+    const originalUsername = profile.value.username
+    profile.value = result
+    form.value.newPassword = form.value.confirmPassword = ''
+    if (username !== originalUsername) {
+      await logout()
+      await router.replace('/member/login')
+      return
+    }
+    notice.value = '帳號密碼設定成功，之後可使用帳號密碼登入'
+  } catch (e) { error.value = e.message }
+  finally { loading.value = false }
+}
+
 async function changePassword() {
   if (form.value.newPassword !== form.value.confirmPassword) { error.value = '兩次輸入的新密碼不同'; return }
   const result = await send('/members/change-password', {
@@ -242,7 +275,7 @@ async function applyPublisher() {
     <aside v-if="isProfile" class="member-profile-nav" aria-label="會員設定">
       <strong>會員設定</strong>
       <RouterLink to="/member/profile" :class="{ active: profileSection === 'profile' }">個人資料</RouterLink>
-      <RouterLink to="/member/change-password" :class="{ active: profileSection === 'password' }">更改密碼</RouterLink>
+      <RouterLink to="/member/change-password" :class="{ active: profileSection === 'password' }">{{ profile?.hasPassword === false ? '設定帳號密碼' : '修改密碼' }}</RouterLink>
       <RouterLink v-if="!profile?.isPublisher" to="/member/apply-publisher"
         :class="{ active: profileSection === 'publisher' }">申請遊戲發行商</RouterLink>
     </aside>
@@ -364,12 +397,24 @@ async function applyPublisher() {
 
         <!-- 2. 更改密碼 (明確指定 profileSection === 'password') -->
         <template v-else-if="profileSection === 'password'">
-          <div v-if="profile?.hasPassword === false">
-            <p>你目前使用 Google 登入，尚未設定本機密碼。可透過信箱驗證設定密碼。</p>
-            <RouterLink class="primary" :to="{ path: '/member/forgot-password', query: { email: profile.email } }">
-              寄送密碼設定信
-            </RouterLink>
-          </div>
+          <form v-if="profile?.hasPassword === false" @submit.prevent="setupAccountPassword">
+            <p>第一次使用帳號密碼登入，請同時設定登入帳號與密碼。密碼至少 8 位；設定完成後即不能再修改登入帳號名稱。</p>
+            <label>登入帳號
+              <input v-model.trim="newUsername" autocomplete="username" required minlength="3" maxlength="20"
+                placeholder="3～20 字元，中文、英數字或底線" />
+            </label>
+            <label>設定密碼
+              <input v-model="form.newPassword" type="password" autocomplete="new-password"
+                minlength="8" maxlength="72" required placeholder="請設定 8～72 位密碼" />
+            </label>
+            <label>確認密碼
+              <input v-model="form.confirmPassword" type="password" autocomplete="new-password"
+                minlength="8" maxlength="72" required placeholder="再次輸入密碼" />
+            </label>
+            <button class="primary" :disabled="loading || !newUsername.trim() || form.newPassword.length < 8 || form.newPassword !== form.confirmPassword">
+              {{ loading ? '設定中…' : '設定帳號密碼' }}
+            </button>
+          </form>
           <form v-else-if="profile" @submit.prevent="changePassword">
             <label>目前密碼 <input v-model="form.oldPassword" type="password" autocomplete="current-password"
                 required /></label>
@@ -752,4 +797,11 @@ async function applyPublisher() {
     padding: 22px
   }
 }
+</style>
+
+<style scoped>
+.username-edit { margin: 22px 0; padding: 22px; border: 1px solid rgba(127,162,205,.45); border-radius: 14px; background: rgba(234,243,255,.07); display: grid; gap: 12px; }
+.username-edit label { display: grid; gap: 9px; }
+.username-edit small { opacity: .8; line-height: 1.6; }
+.username-edit button { justify-self: start; }
 </style>

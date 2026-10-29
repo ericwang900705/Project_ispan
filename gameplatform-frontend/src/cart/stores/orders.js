@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import axios from '../../http.js'
 import { memberId, useCartStore } from './cart'
+import { useCouponsStore } from './coupons'
 
 // 「我的訂單」頁用的 Pinia store
 export const useOrdersStore = defineStore('orders', () => {
@@ -26,7 +27,7 @@ export const useOrdersStore = defineStore('orders', () => {
     }
   }
 
-  // 取消待付款訂單：後端會把遊戲放回購物車，所以購物車也要重新抓
+  // 取消後釋放優惠券占用，同步刷新購物車與優惠券狀態。
   async function cancelOrder(orderId) {
     loading.value = true
     try {
@@ -37,7 +38,7 @@ export const useOrdersStore = defineStore('orders', () => {
     } finally {
       loading.value = false
     }
-    await Promise.all([fetchOrders(), useCartStore().fetchCart()])
+    await Promise.all([fetchOrders(), useCartStore().fetchCart(), useCartStore().fetchCoupons(), useCouponsStore().fetchAll()])
   }
 
   // 直接送出退款申請，不自動建立客服案件，款項、遊戲及優惠券狀態仍由後續人工處理。

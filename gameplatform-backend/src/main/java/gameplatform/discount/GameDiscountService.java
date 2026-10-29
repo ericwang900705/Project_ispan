@@ -56,7 +56,7 @@ public class GameDiscountService {
         } catch (DateTimeParseException | NullPointerException e) {
             throw new Problem(400, "請輸入正確的開始時間");
         }
-        if (start.isBefore(LocalDateTime.now()))
+        if (!start.isAfter(LocalDateTime.now()))
             throw new Problem(400, "折扣開始時間不可早於現在");
         var games = db.queryForList(
                 "SELECT game_id,price,status FROM dbo.games WITH (UPDLOCK,HOLDLOCK) WHERE game_id=? AND member_id=?",

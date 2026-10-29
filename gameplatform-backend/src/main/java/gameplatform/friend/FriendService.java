@@ -51,7 +51,7 @@ public class FriendService {
 
     private void active(int id) {
         if (id <= 0 || db.queryForObject(
-                "SELECT COUNT(*) FROM members m WHERE m.member_id=? AND (m.locked_until IS NULL OR m.locked_until<=SYSDATETIME()) AND (EXISTS(SELECT 1 FROM password_history h WHERE h.member_id=m.member_id) OR EXISTS(SELECT 1 FROM dbo.member_oauth_accounts oa WHERE oa.member_id=m.member_id AND oa.provider='GOOGLE')) AND (NOT EXISTS(SELECT 1 FROM member_verifications v WHERE v.email=m.email) OR EXISTS(SELECT 1 FROM member_verifications v WHERE v.email=m.email AND v.is_verified=1))",
+                "SELECT COUNT(*) FROM members m WHERE m.member_id=? AND (m.locked_until IS NULL OR m.locked_until<=SYSDATETIME()) AND (EXISTS(SELECT 1 FROM dbo.member_oauth_accounts oa WHERE oa.member_id=m.member_id AND oa.provider='GOOGLE') OR (EXISTS(SELECT 1 FROM password_history h WHERE h.member_id=m.member_id) AND (NOT EXISTS(SELECT 1 FROM member_verifications v WHERE v.email=m.email) OR EXISTS(SELECT 1 FROM member_verifications v WHERE v.email=m.email AND v.is_verified=1))))",
                 Integer.class, id) == 0)
             throw new Problem(404, "找不到已啟用的會員");
     }
@@ -124,7 +124,7 @@ public class FriendService {
         // data.
         q = q.replace("!", "!!").replace("%", "!%").replace("_", "!_").replace("[", "![");
         return db.queryForList(
-                "SELECT TOP (20) member_id AS memberId,username,avatar_url AS avatarUrl FROM members m WHERE m.member_id<>? AND (m.locked_until IS NULL OR m.locked_until<=SYSDATETIME()) AND (EXISTS(SELECT 1 FROM password_history h WHERE h.member_id=m.member_id) OR EXISTS(SELECT 1 FROM dbo.member_oauth_accounts oa WHERE oa.member_id=m.member_id AND oa.provider='GOOGLE')) AND (NOT EXISTS(SELECT 1 FROM member_verifications v WHERE v.email=m.email) OR EXISTS(SELECT 1 FROM member_verifications v WHERE v.email=m.email AND v.is_verified=1)) AND username LIKE ? ESCAPE '!' ORDER BY username",
+                "SELECT TOP (20) member_id AS memberId,username,avatar_url AS avatarUrl FROM members m WHERE m.member_id<>? AND (m.locked_until IS NULL OR m.locked_until<=SYSDATETIME()) AND (EXISTS(SELECT 1 FROM dbo.member_oauth_accounts oa WHERE oa.member_id=m.member_id AND oa.provider='GOOGLE') OR (EXISTS(SELECT 1 FROM password_history h WHERE h.member_id=m.member_id) AND (NOT EXISTS(SELECT 1 FROM member_verifications v WHERE v.email=m.email) OR EXISTS(SELECT 1 FROM member_verifications v WHERE v.email=m.email AND v.is_verified=1)))) AND username LIKE ? ESCAPE '!' ORDER BY username",
                 id, q + "%");
     }
 
@@ -134,7 +134,7 @@ public class FriendService {
                 "SELECT f.friendship_id AS friendshipId,m.member_id AS memberId,m.username,m.avatar_url AS avatarUrl,f.friend_status AS friendStatus FROM friendships f JOIN members m ON m.member_id=CASE WHEN f.requester_member_id=? THEN f.receiver_member_id ELSE f.requester_member_id END WHERE "
                         + (pending ? "f.receiver_member_id=? AND f.friend_status='PENDING'"
                                 : "(f.requester_member_id=? OR f.receiver_member_id=?) AND f.friend_status='ACCEPTED'")
-                        + " AND (m.locked_until IS NULL OR m.locked_until<=SYSDATETIME()) AND (EXISTS(SELECT 1 FROM password_history h WHERE h.member_id=m.member_id) OR EXISTS(SELECT 1 FROM dbo.member_oauth_accounts oa WHERE oa.member_id=m.member_id AND oa.provider='GOOGLE')) AND (NOT EXISTS(SELECT 1 FROM member_verifications v WHERE v.email=m.email) OR EXISTS(SELECT 1 FROM member_verifications v WHERE v.email=m.email AND v.is_verified=1)) ORDER BY f.friendship_id DESC",
+                        + " AND (m.locked_until IS NULL OR m.locked_until<=SYSDATETIME()) AND (EXISTS(SELECT 1 FROM dbo.member_oauth_accounts oa WHERE oa.member_id=m.member_id AND oa.provider='GOOGLE') OR (EXISTS(SELECT 1 FROM password_history h WHERE h.member_id=m.member_id) AND (NOT EXISTS(SELECT 1 FROM member_verifications v WHERE v.email=m.email) OR EXISTS(SELECT 1 FROM member_verifications v WHERE v.email=m.email AND v.is_verified=1)))) ORDER BY f.friendship_id DESC",
                 pending ? new Object[] { id, id } : new Object[] { id, id, id });
         for (var row : rows)
             row.put("online", socket.online(((Number) row.get("memberId")).intValue()));

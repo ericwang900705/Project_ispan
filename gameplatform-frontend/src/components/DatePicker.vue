@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, useAttrs } from 'vue'
+import { ref, computed, nextTick, useAttrs, watch } from 'vue'
 defineOptions({ inheritAttrs: false })
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -11,6 +11,16 @@ const emit = defineEmits(['update:modelValue'])
 const attrs = useAttrs(), dialog = ref(null), input = ref(null)
 const year = ref(0), month = ref(0), selected = ref(''), time = ref('00:00')
 const dateTime = computed(() => props.type === 'datetime-local')
+const selectedHour = computed({ get: () => time.value.slice(0, 2), set: value => { time.value = value + ':' + time.value.slice(3, 5) } })
+const selectedMinute = computed({ get: () => time.value.slice(3, 5), set: value => { time.value = time.value.slice(0, 2) + ':' + value } })
+// datetime-local 的原生欄位會依作業系統顯示上午／下午，改用文字展示與自訂選時。
+watch(() => [props.modelValue, props.min, props.max, props.type], async () => {
+  await nextTick()
+  const value = props.modelValue
+  const invalid = dateTime.value && value && (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)
+    || (props.min && value < props.min) || (props.max && value > props.max))
+  input.value?.setCustomValidity(invalid ? '請選擇有效範圍內的日期與時間。' : '')
+}, { immediate: true })
 const pad = n => String(n).padStart(2, '0')
 const dateText = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 const years = computed(() => {
@@ -71,9 +81,10 @@ function escape(event) { event.preventDefault(); close() }
 <template>
   <span class="hero-date-picker">
     <span class="date-field">
-      <input ref="input" v-bind="attrs" class="date-value" :type="type" :value="modelValue"
+      <input ref="input" v-bind="attrs" class="date-value" :type="dateTime ? 'text' : type" :value="dateTime ? modelValue.replace('T', ' ') : modelValue" :aria-readonly="dateTime || undefined"
         :aria-label="attrs['aria-label'] || label" :required="required" :disabled="disabled" :min="min" :max="max"
-        @input="emit('update:modelValue', $event.target.value)" @click.prevent="open" @keydown.alt.down.prevent="open">
+        @beforeinput="dateTime && $event.preventDefault()" @paste="dateTime && $event.preventDefault()"
+        @input="!dateTime && emit('update:modelValue', $event.target.value)" @click.prevent="open" @keydown.alt.down.prevent="open">
       <button type="button" class="calendar-trigger" :disabled="disabled" :aria-label="`開啟${label}日曆`"
         aria-haspopup="dialog" @click.prevent="open">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -83,8 +94,8 @@ function escape(event) { event.preventDefault(); close() }
       </button>
     </span>
     <dialog ref="dialog" class="hero-calendar" :aria-label="`選擇${label}`" @cancel="escape" @click.stop>
-      <div class="calendar-heading"><strong>選擇{{ label }}</strong><button type="button" aria-label="關閉日曆"
-          @click="close">✕</button></div>
+      <div class="calendar-heading"><strong>選擇{{ label }}</strong><button type="button" class="calendar-close" aria-label="關閉日曆" title="關閉日曆"
+          @click="close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></div>
       <div class="calendar-navigation">
         <button type="button" aria-label="上個月" @click="move(-1)">‹</button>
         <select v-model.number="year" aria-label="年份">
@@ -104,7 +115,9 @@ function escape(event) { event.preventDefault(); close() }
           :aria-pressed="day.value === selected" :aria-current="day.today ? 'date' : undefined"
           @click="choose(day.value)">{{ day.day }}</button>
       </div>
-      <label v-if="dateTime" class="calendar-time">時間<input v-model="time" type="time" aria-label="時間"></label>
+      <div v-if="dateTime" class="calendar-time"><span>時間<br><small>24 小時制</small></span>
+        <div class="calendar-time-parts"><label><select v-model="selectedHour" aria-label="小時（24小時制）"><option v-for="hour in 24" :key="hour" :value="pad(hour - 1)">{{ pad(hour - 1) }}</option></select><small>時</small></label><span aria-hidden="true">:</span><label><select v-model="selectedMinute" aria-label="分鐘"><option v-for="minute in 60" :key="minute" :value="pad(minute - 1)">{{ pad(minute - 1) }}</option></select><small>分</small></label></div>
+      </div>
       <div class="calendar-footer">
         <button type="button" class="calendar-text-button" @click="today">今天</button>
         <button v-if="!required" type="button" class="calendar-text-button" @click="clear">清除</button>
@@ -116,6 +129,16 @@ function escape(event) { event.preventDefault(); close() }
 </template>
 
 <style scoped>
+.hero-calendar .calendar-heading .calendar-close { display: grid; place-items: center; width: 36px; height: 36px; flex: none; padding: 8px; margin: 0; border: 1px solid #526b9f; border-radius: 11px; background: #223665; color: #f2f5ff; box-shadow: 0 3px 9px #06112d22; transition: background .15s, border-color .15s; }
+.hero-calendar .calendar-heading .calendar-close:hover { background: #36518a; border-color: #89a9dc; }
+.hero-calendar .calendar-heading .calendar-close:focus-visible { outline: 3px solid #d4a64a; outline-offset: 3px; }
+.hero-calendar .calendar-close svg { display: block; width: 18px; height: 18px; color: inherit; }
+.hero-calendar .calendar-time { justify-content: space-between; }
+.hero-calendar .calendar-time small { font-size: 11px; opacity: .8; white-space: nowrap; }
+.hero-calendar .calendar-time-parts { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.hero-calendar .calendar-time-parts label { display: flex; align-items: center; gap: 5px; margin: 0; }
+.hero-calendar .calendar-time-parts select { box-sizing: border-box; width: 66px; min-width: 0; height: 40px; margin: 0; padding: 6px 9px; border: 1px solid #829bbb; border-radius: 8px; background: #edf3fc; color: #203c5d; font: inherit; font-variant-numeric: tabular-nums; }
+
 .hero-date-picker {
   display: block;
   width: 100%;

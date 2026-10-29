@@ -5,9 +5,11 @@
 import { hasDiscount, discountPercent } from '@/cart/stores/games'
 
 // 元件接收的參數：整筆遊戲資料（要用 price、originalPrice）
-defineProps({
+const props = defineProps({
   game: { type: Object, required: true },
+  wholeAmounts: { type: Boolean, default: false },
 })
+const money = value => Number(value).toLocaleString('zh-TW', props.wholeAmounts ? { maximumFractionDigits: 0 } : undefined)
 </script>
 
 <template>
@@ -16,10 +18,10 @@ defineProps({
     <span v-if="hasDiscount(game)" class="pct">-{{ (game.discountPercent ?? discountPercent(game)) }}%</span>
     <span class="prices">
       <!-- 刪除線原價：有打折才顯示 -->
-      <s v-if="hasDiscount(game)">NT$ {{ Number(game.originalPrice).toLocaleString('zh-TW') }}</s>
+      <s v-if="hasDiscount(game)">NT$ {{ money(game.originalPrice) }}</s>
       <!-- 售價：0 元顯示「免費遊玩」 -->
       <b :class="{ sale: hasDiscount(game) }">{{ game.price === 0 ? '免費遊玩' : `NT$
-        ${Number(game.price).toLocaleString('zh-TW')}` }}</b>
+        ${money(game.price)}` }}</b>
     </span>
   </div>
 </template>

@@ -26,6 +26,7 @@ public class SupportExtensionInitializer implements ApplicationRunner {
         !"Microsoft SQL Server".equals(c.getMetaData().getDatabaseProductName())
       ) return;
       boolean auto = c.getAutoCommit();
+      Exception failure = null;
       try {
         if (!auto) c.setAutoCommit(true);
         try (var s = c.createStatement()) {
@@ -34,8 +35,22 @@ public class SupportExtensionInitializer implements ApplicationRunner {
             s.execute(new ClassPathResource(resource).getContentAsString(StandardCharsets.UTF_8));
           }
         }
+      } catch (Exception e) {
+        failure = e;
+        throw e;
       } finally {
-        if (!auto) c.setAutoCommit(false);
+        // NOCOUNT 為連線層級設定，連線池不會自動還原。
+        // 必須在歸還前關閉，否則商城會把未回傳的更新筆數誤判為找不到會員。
+        try {
+          try (var cleanup = c.createStatement()) {
+            cleanup.executeUpdate("SET NOCOUNT OFF");
+          }
+        } catch (Exception cleanupError) {
+          if (failure != null) failure.addSuppressed(cleanupError);
+          else throw cleanupError;
+        } finally {
+          if (!auto) c.setAutoCommit(false);
+        }
       }
     }
   }

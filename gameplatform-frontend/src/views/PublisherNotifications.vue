@@ -7,7 +7,7 @@ import { api } from '../api'
 const router = useRouter(), data = ref(null), page = ref(0), loading = ref(false), busy = ref(false), error = ref('')
 let run = 0, timer
 const title = n => n.review_type === 'OFF_SHELF' ? (n.review_type === 'OFF_SHELF' ? '管理員強制下架' : n.decision === 'APPROVED' ? '下架審核通過' : '下架申請退回') : n.decision === 'APPROVED' ? '上架審核通過' : '上架申請退回'
-const date = v => v ? new Date(v).toLocaleString('zh-TW', { hour12: false }) : '—'
+const date = v => v ? new Date(v).toLocaleString('zh-TW', { hourCycle: 'h23' }) : '—'
 async function load() {
   const id = ++run; loading.value = true; error.value = ''
   try {

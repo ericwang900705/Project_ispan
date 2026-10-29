@@ -5,7 +5,9 @@ import { ref, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { loginWithGoogle, session } from '../api'
 import { homeFor } from '../permissions'
+import { useAccountLockCountdown } from '../utils/accountLockCountdown'
 const route = useRoute(), router = useRouter(), busy = ref(false), googleError = ref('')
+const displayedGoogleError = useAccountLockCountdown(googleError)
 let alive = true
 onBeforeUnmount(() => { alive = false })
 async function googleLogin({ idToken, nonce }) {
@@ -64,7 +66,7 @@ async function googleLogin({ idToken, nonce }) {
       </fieldset>
       <p class="google-divider"><span>或使用 Google 帳號</span></p>
       <GoogleSignInButton :busy="busy" @credential="googleLogin" />
-      <p v-if="googleError" class="google-error" role="alert">{{ googleError }}</p>
+      <p v-if="googleError" class="google-error" role="alert">{{ displayedGoogleError }}</p>
 
       <!-- 帳號相關連結靠右 -->
       <nav class="member-login-links">

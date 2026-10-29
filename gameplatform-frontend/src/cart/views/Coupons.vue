@@ -27,7 +27,7 @@ const counts = computed(() =>
 // 時間顯示成「2026/10/21 14:30」
 function fmt(t) {
   if (!t) return ''
-  return new Date(t).toLocaleString('zh-TW', { dateStyle: 'short', timeStyle: 'short', hour12: false })
+  return new Date(t).toLocaleString('zh-TW', { dateStyle: 'short', timeStyle: 'short', hourCycle: 'h23' })
 }
 
 // 有效期間：開始日（DATE，例如 2026-10-01）～ 到期時間；沒有到期時間就是「長期有效」
@@ -58,7 +58,7 @@ onUnmounted(() => { clearInterval(refreshTimer); window.removeEventListener('foc
   <main class="coupons">
     <div class="wrap">
       <div class="head">
-        <h1>優惠券</h1><button type="button" :disabled="store.loading" @click="store.fetchAll()">重新整理</button>
+        <h1>優惠券</h1>
         <span>領取優惠券，結帳時選擇適用遊戲使用</span>
       </div>
 
@@ -86,7 +86,7 @@ onUnmounted(() => { clearInterval(refreshTimer); window.removeEventListener('foc
               <div class="meta">{{ item.coupon.scopeLabel }}</div>
               <div class="meta">{{ minimum(item.coupon) }}</div>
               <div class="meta">
-                每位會員可用於 {{ item.coupon.perMemberLimit }} 筆適用遊戲明細；每張券只需領取一次。
+                每位會員可用於 {{ item.coupon.perMemberLimit }} 筆訂單；每張券只需領取一次。
               </div>
             </div>
             <button class="claim" :disabled="!item.canClaim || store.loading" :title="item.reason ?? ''"
@@ -117,11 +117,11 @@ onUnmounted(() => { clearInterval(refreshTimer); window.removeEventListener('foc
               <div class="meta">{{ period(m.coupon) }}</div>
               <div class="meta">{{ m.coupon.scopeLabel }}</div>
               <div class="meta">{{ minimum(m.coupon) }}</div>
-              <div class="meta">個人剩餘額度：{{ m.remainingUses }} 筆適用遊戲明細</div>
+              <div class="meta">個人剩餘額度：{{ m.remainingUses }} 筆訂單</div>
               <div v-if="m.unavailableReason" class="meta">{{ m.unavailableReason }}</div>
               <div class="meta">領取：{{ fmt(m.receivedAt) }}</div>
               <div v-if="m.status === 'USED'" class="meta">
-                已使用 {{ m.usedCount }} 筆適用遊戲明細
+                已使用 {{ m.usedCount }} 筆訂單
               </div>
             </div>
             <div class="coupon-actions">

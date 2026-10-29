@@ -1217,3 +1217,44 @@ body.support-portal.staff-workspace .ticket-detail-page :is(.summary-card h2, .d
     padding: 16px;
   }
 }
+/* 客服工作台：名單分行、處理資料按鈕換行，避免窄側欄被全域按鈕樣式擠壓。 */
+.support-ui.staff-ui .admin-page .room-sidebar .room-results { padding: 10px; min-width: 0; }
+.support-ui.staff-ui .admin-page .room-sidebar button.room-row {
+  display: grid; grid-template-columns: 36px minmax(0, 1fr); grid-template-rows: auto auto auto;
+  align-items: start; gap: 7px 12px; width: 100%; min-width: 0; min-height: 116px;
+  margin: 0 0 10px; padding: 15px 12px; border: 1px solid #d8e7ef;
+  border-radius: 12px; background: #fff; text-align: left; white-space: normal;
+  box-sizing: border-box; color: #294c62; box-shadow: 0 2px 7px #15334a06;
+}
+.support-ui.staff-ui .admin-page .room-sidebar button.room-row:hover { border-color: #82c4d5; background: #f4fbfd; }
+.support-ui.staff-ui .admin-page .room-sidebar button.room-row.selected { border-color: #76bfd0; background: #edf9fc; box-shadow: inset 3px 0 #2298ac; }
+.support-ui.staff-ui .admin-page .room-row .room-avatar {
+  position: static; grid-column: 1; grid-row: 1 / span 3; width: 36px; height: 36px;
+  display: grid; place-items: center; margin: 0; transform: none; border-radius: 11px;
+  background: #dff3f8; color: #15738c; font-size: 15px; font-weight: 700;
+}
+.support-ui.staff-ui .admin-page .room-row .room-person {
+  grid-column: 2; grid-row: 1; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline;
+  min-width: 0; margin: 0;
+}
+.support-ui.staff-ui .admin-page .room-row .room-person strong { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; line-height: 1.5; }
+.support-ui.staff-ui .admin-page .room-row .room-person small { flex-shrink: 0; color: #7c929f; font-size: 11px; }
+.support-ui.staff-ui .admin-page .room-sidebar .room-row > p { grid-column: 2; grid-row: 2; margin: 0; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.support-ui.staff-ui .admin-page .room-sidebar .room-row > small { grid-column: 2; grid-row: 3; margin: 0; font-size: 11px; line-height: 1.6; color: #7890a1; white-space: normal; }
+.support-ui.staff-ui .admin-page .room-filters .search-bar { gap: 8px; }
+.support-ui.staff-ui .admin-page .discussion-heading { flex-wrap: wrap; gap: 14px; }
+.support-ui.staff-ui .admin-page .discussion-heading > div { min-width: 0; }
+.support-ui.staff-ui .admin-page .discussion-heading h2 { overflow-wrap: anywhere; line-height: 1.5; margin-bottom: 5px; }
+.support-ui.staff-ui .admin-page .support-context .sx-context-heading { gap: 16px; align-items: flex-start; }
+.support-ui.staff-ui .admin-page .support-context .sx-context-heading > button { flex-shrink: 0; margin: 0; }
+.support-ui.staff-ui .admin-page .support-context .sx-context-tabs {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+  margin: 0 0 18px; padding: 5px; border: 1px solid #dfebf1; border-radius: 12px; background: #f3f8fb;
+}
+.support-ui.staff-ui .admin-page .support-context .sx-context-tabs button {
+  display: flex; justify-content: center; align-items: center; gap: 7px; width: 100%; min-width: 0;
+  min-height: 42px; margin: 0; padding: 10px 7px; border: 1px solid transparent; border-radius: 8px;
+  color: #517084; background: transparent; white-space: normal; line-height: 1.5; font-size: 13px;
+}
+.support-ui.staff-ui .admin-page .support-context .sx-context-tabs button.active { color: #126c87; border-color: #b3dce7; background: #fff; box-shadow: 0 2px 7px #183b5410; }
+.support-ui.staff-ui .admin-page .support-context .sx-context-tabs button small { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 4px; margin: 0; border-radius: 6px; background: #e4f0f5; font-size: 11px; line-height: 1; }

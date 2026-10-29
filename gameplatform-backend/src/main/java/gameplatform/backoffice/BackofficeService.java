@@ -285,6 +285,16 @@ public class BackofficeService {
             throw bad("狀態或優惠券時間不正確");
     }
 
+    private static LocalDateTime couponDate(Object value) {
+        return value instanceof java.sql.Timestamp t ? t.toLocalDateTime() : (LocalDateTime) value;
+    }
+
+    static void validateCouponDates(LocalDateTime start, LocalDateTime end) {
+        if (start == null || start.toLocalDate().isBefore(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Taipei"))))
+            throw bad("優惠券發行日期不可早於今天");
+        if (!start.plusDays(7).equals(end)) throw bad("優惠券期限固定為發行時間起 7 天");
+    }
+
     @Transactional
     public void saveCoupon(Actor actor, Integer id, CouponInput c) {
         require(actor, "coupons");
@@ -297,6 +307,15 @@ public class BackofficeService {
                 && db.queryForObject("SELECT COUNT(*) FROM dbo.tags WHERE tag_id=?", Integer.class, c.tagId()) != 1)
             throw bad("請選擇有效的遊戲類型");
         boolean creating = id == null;
+        Map<String, Object> dates = null;
+        if (!creating) {
+            if (db.update("UPDATE dbo.coupons SET used_count=used_count WHERE coupon_id=?", id) != 1)
+                throw new Problem(404, "找不到優惠券");
+            dates = one("SELECT start_at,expires_at FROM dbo.coupons WHERE coupon_id=?", id);
+        }
+        boolean unchangedDates = dates != null && Objects.equals(c.start(), couponDate(dates.get("start_at")))
+                && Objects.equals(c.end(), couponDate(dates.get("expires_at")));
+        if (!unchangedDates) validateCouponDates(c.start(), c.end());
         if (id == null)
             id = db.queryForObject(
                     "INSERT INTO dbo.coupons(coupon_name,discount_type,discount_value,min_spend,total_limit,per_member_limit,status,start_at,expires_at) OUTPUT INSERTED.coupon_id VALUES(?,?,?,?,?,?,?,?,?)",
