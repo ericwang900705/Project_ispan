@@ -122,7 +122,7 @@ public class MemberService {
         // 2. 檢查帳號是否被鎖定
         if (member.getLockedUntil() != null && member.getLockedUntil().isAfter(LocalDateTime.now())) {
             loginAudit.record(member, "LOCKED");
-            throw new LoginFailedException("帳號已被鎖定，請稍後再試");
+            throw new LoginFailedException(AccountLockMessage.until(member.getLockedUntil()));
         }
         // 3. 取得最新密碼紀錄
         PasswordHistory latestPassword = passwordHistoryRepository

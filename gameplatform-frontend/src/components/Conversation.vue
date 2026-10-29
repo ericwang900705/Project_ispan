@@ -313,3 +313,12 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.conversation .messages { display: flex; flex-direction: column; gap: 14px; }
+.conversation .messages > .message { align-self: flex-start; width: fit-content; max-width: 85%; margin-left: 0; margin-right: auto; }
+.conversation .messages > .message.mine { align-self: flex-end; margin-left: auto; margin-right: 0; }
+.conversation .message small { display: block; text-align: left; }
+.conversation .message.mine small { text-align: right; }
+.conversation .message-bubble { overflow-wrap: anywhere; }
+</style>

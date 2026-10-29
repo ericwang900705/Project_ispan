@@ -88,12 +88,11 @@ public class CouponService {
         int id = member(a);
         var result = new ArrayList<Map<String, Object>>();
         for (var c : db.queryForList(SELECT + "WHERE c.status='ACTIVE' ORDER BY c.expires_at,c.coupon_id")) {
-            if (!active(c))
-                continue;
+            if (!((Timestamp)c.get("expires_at")).toLocalDateTime().isAfter(LocalDateTime.now())) continue;
             boolean has = claimed(id, n(c.get("coupon_id")));
             if (has)
                 continue;
-            result.add(Map.of("coupon", dto(c), "canClaim", true, "reason", ""));
+            result.add(Map.of("coupon", dto(c), "canClaim", active(c), "reason", active(c) ? "" : "尚未開始"));
         }
         return result;
     }

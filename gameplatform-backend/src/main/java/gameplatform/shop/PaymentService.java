@@ -159,8 +159,52 @@ public class PaymentService {
         return shop.paymentFromAttempt(input, info, testMode());
     }
 
+    // 補查只接受綠界回應的簽章、特店、交易編號及金額；不信任瀏覽器付款成功參數。
+    public Object sync(Actor actor,int member,int orderId) {
+        ready();
+        String current=shop.paymentSyncState(actor,member,orderId);
+        if("PAID".equals(current))return Map.of("status","success","message","此訂單已付款");
+        if("REFUNDED".equals(current))return Map.of("status","refunded","message","此訂單已退款");
+        String status="pending";
+        for(var attempt:shop.paymentSyncAttempts(actor,member,orderId,testMode())) {
+            String trade=attempt.get("merchant_trade_no").toString();
+            var response=queryTrade(trade);
+            if(!merchant.equals(response.get("MerchantID")) || !trade.equals(response.get("MerchantTradeNo")))
+                throw new Problem(502,"付款核對的交易資料不符");
+            var fields=new HashMap<>(response);String received=fields.remove("CheckMacValue");
+            String expected=EcpayCheckMacValueUtil.generate(fields,key,iv);
+            if(received==null || !MessageDigest.isEqual(expected.getBytes(StandardCharsets.US_ASCII),received.toUpperCase(Locale.ROOT).getBytes(StandardCharsets.US_ASCII)))
+                throw new Problem(502,"付款核對簽章無效，請稍後重試");
+            if("1".equals(response.get("TradeStatus"))) {
+                if(!testMode() && "1".equals(response.get("SimulatePaid")))throw new Problem(502,"正式環境不接受模擬付款");
+                var verified=new HashMap<>(response);verified.put("RtnCode","1");
+                status=shop.paymentFromAttempt(verified,false,testMode());break;
+            }
+        }
+        return Map.of("status",status,"message","success".equals(status)?"付款已確認，訂單已更新":"付款狀態已重新核對，請查看訂單結果");
+    }
+
+    Map<String,String> queryTrade(String trade) {
+        var params=new LinkedHashMap<String,String>();params.put("MerchantID",merchant);params.put("MerchantTradeNo",trade);
+        params.put("TimeStamp",Long.toString(Instant.now().getEpochSecond()));
+        params.put("CheckMacValue",EcpayCheckMacValueUtil.generate(params,key,iv));
+        String body=params.entrySet().stream().map(e->URLEncoder.encode(e.getKey(),StandardCharsets.UTF_8)+"="+URLEncoder.encode(e.getValue(),StandardCharsets.UTF_8)).collect(java.util.stream.Collectors.joining("&"));
+        try {
+            var client=java.net.http.HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+            String endpoint=testMode()?"https://payment-stage.ecpay.com.tw/Cashier/QueryTradeInfo/V5":"https://payment.ecpay.com.tw/Cashier/QueryTradeInfo/V5";
+            var request=java.net.http.HttpRequest.newBuilder(URI.create(endpoint)).timeout(Duration.ofSeconds(10)).header("Content-Type","application/x-www-form-urlencoded").POST(java.net.http.HttpRequest.BodyPublishers.ofString(body)).build();
+            var result=client.send(request,java.net.http.HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if(result.statusCode()!=200 || result.body().length()>65536)throw new IllegalStateException();
+            var response=new LinkedHashMap<String,String>();
+            for(String pair:result.body().split("&")){String[] parts=pair.split("=",2);if(parts.length!=2)throw new IllegalStateException();String name=URLDecoder.decode(parts[0],StandardCharsets.UTF_8);if(response.putIfAbsent(name,URLDecoder.decode(parts[1],StandardCharsets.UTF_8))!=null)throw new IllegalStateException();}
+            return response;
+        }catch(InterruptedException e){Thread.currentThread().interrupt();throw new Problem(503,"付款核對暫時中斷，請稍後重試");}
+        catch(Exception e){throw new Problem(503,"暫時無法向綠界確認付款，請稍後重試");}
+    }
+
     public URI redirect(String status, String trade) {
-        return URI.create(frontend + "/#/shopping-cart?payment=" + URLEncoder.encode(status, StandardCharsets.UTF_8)
+        String target = trade != null && trade.startsWith("RP") ? "/orders" : "/shopping-cart";
+        return URI.create(frontend + "/#" + target + "?payment=" + URLEncoder.encode(status, StandardCharsets.UTF_8)
                 + "&tradeNo=" + URLEncoder.encode(trade == null ? "" : trade, StandardCharsets.UTF_8));
     }
 }

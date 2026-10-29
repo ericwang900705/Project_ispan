@@ -9,9 +9,17 @@ const route = useRoute()
 const refundTarget = ref(null)
 const refundReason = ref('')
 const refundError = ref('')
-const paymentNotice = ref(''), paymentError = ref('')
+const paymentNotice = ref(''), paymentError = ref(''), checkingPayment = ref(false)
+let recentPaymentId = null, orderRefreshTimer, refreshing = false
+async function checkPayment(orderId) {
+ if (checkingPayment.value || store.loading) return
+ checkingPayment.value = true; paymentError.value = ''
+ try { const result = await store.syncPayment(orderId); paymentNotice.value = result.message }
+ catch(e) { paymentError.value = e.message }
+ finally { checkingPayment.value = false }
+}
 async function pay(order) {
-  paymentError.value = ''; paymentNotice.value = ''
+  paymentError.value = ''; paymentNotice.value = ''; recentPaymentId = order.orderId
   try { await store.payOrder(order.orderId); paymentNotice.value = '綠界付款頁已在新分頁開啟。'; await store.fetchOrders() }
   catch (e) { paymentError.value = e.message }
 }
@@ -75,8 +83,12 @@ function toggle(orderId) {
   openId.value = openId.value === orderId ? null : orderId
 }
 
-function refreshOrdersWhenVisible() {
-  if (document.visibilityState === 'visible' && !store.loading) store.fetchOrders().catch(e => { paymentError.value = e.message })
+async function refreshOrdersWhenVisible() {
+  if (document.visibilityState !== 'visible' || store.loading || refreshing) return
+  refreshing = true
+  try { await store.fetchOrders(); if (recentPaymentId != null) { const id = recentPaymentId; recentPaymentId = null; await checkPayment(id) } }
+  catch(e) { paymentError.value = e.message }
+  finally { refreshing = false }
 }
 function expandRefundOrder() {
   const value = String(route.query.refundOrder || '')
@@ -86,8 +98,10 @@ watch(() => route.query.refundOrder, expandRefundOrder)
 onMounted(() => {
   store.fetchOrders().then(expandRefundOrder).catch(e => { paymentError.value = e.message })
   document.addEventListener('visibilitychange', refreshOrdersWhenVisible)
+  window.addEventListener('focus', refreshOrdersWhenVisible)
+  orderRefreshTimer = setInterval(() => { if (store.orders.some(o => o.orderStatus === 'PENDING')) refreshOrdersWhenVisible() }, 10000)
 })
-onUnmounted(() => document.removeEventListener('visibilitychange', refreshOrdersWhenVisible))
+onUnmounted(() => { document.removeEventListener('visibilitychange', refreshOrdersWhenVisible); window.removeEventListener('focus', refreshOrdersWhenVisible); clearInterval(orderRefreshTimer) })
 
 // 綠界的付款方式代碼換成中文，例如 Credit_CreditCard → 信用卡、ATM_TAISHIN → ATM 轉帳
 function paymentLabel(type) {
@@ -155,7 +169,7 @@ async function cancel(order) {
         </button>
 
         <p v-if="order.paymentNeedsReview" class="payment-feedback error">此訂單有額外付款紀錄需核對，請聯絡客服，勿重複付款。</p>
-        <div v-if="order.orderStatus === 'PENDING'" class="pending-pay-entry"><span>尚未完成付款</span><button class="btn-gold" :disabled="store.loading" @click="pay(order)">前往付款 ↗</button></div>
+        <div v-if="order.orderStatus === 'PENDING'" class="pending-pay-entry"><span>尚未完成付款</span><button class="btn-gold" :disabled="store.loading || checkingPayment" @click="checkPayment(order.orderId)">{{ checkingPayment ? '核對中…' : '更新付款狀態' }}</button><button class="btn-gold" :disabled="store.loading" @click="pay(order)">前往付款 ↗</button></div>
         <div v-if="openId === order.orderId" class="detail">
           <RouterLink class="sx-contact-link" :to="{ path: '/member/support', query: { orderId: String(order.orderId) } }">
             此訂單有問題？聯絡客服 →</RouterLink>

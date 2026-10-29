@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useCouponsStore } from '../stores/coupons'
 
 const store = useCouponsStore()
@@ -7,7 +7,7 @@ const discountValue = c => c.discountType === 'AMOUNT' ? Number(c.discountValue)
 const minimum = c => Number(c.minSpend) > 0 ? `最低消費 NT$${Number(c.minSpend).toLocaleString('zh-TW')}` : '無低消'
 
 // 上面兩大區：領券中心 / 我的優惠券
-const section = ref('mine')
+const section = ref('center')
 const message = ref('')
 
 // 我的優惠券的分頁：key 對應 member_coupons.status
@@ -48,14 +48,17 @@ async function claim(item) {
   }
 }
 
-onMounted(() => store.fetchAll())
+let refreshTimer
+function refresh() { if (document.visibilityState === 'visible' && !store.loading) store.fetchAll() }
+onMounted(() => { store.fetchAll(); refreshTimer = setInterval(refresh,30000); window.addEventListener('focus',refresh); document.addEventListener('visibilitychange',refresh) })
+onUnmounted(() => { clearInterval(refreshTimer); window.removeEventListener('focus',refresh); document.removeEventListener('visibilitychange',refresh) })
 </script>
 
 <template>
   <main class="coupons">
     <div class="wrap">
       <div class="head">
-        <h1>優惠券</h1>
+        <h1>優惠券</h1><button type="button" :disabled="store.loading" @click="store.fetchAll()">重新整理</button>
         <span>領取優惠券，結帳時選擇適用遊戲使用</span>
       </div>
 

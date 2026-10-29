@@ -60,10 +60,7 @@ function submitSearch() {
   selectedSuggestion.value = -1
   search()
 }
-function formatSearchPrice(game) {
-  const price = Number(game.price)
-  return Number.isFinite(price) ? `NT$ ${price.toLocaleString('zh-TW')}` : '查看價格'
-}
+
 // 按 Enter 或放大鏡：跳到所有遊戲頁，並把關鍵字放在網址 ?q=
 function search() {
   router.push({ path: '/games/all', query: keyword.value ? { q: keyword.value } : {} })
@@ -217,7 +214,7 @@ onUnmounted(stopAuto)
               <strong>{{ game.gameName }}</strong>
               <small>{{ game.genre || '未分類' }}</small>
             </span>
-            <span class="search-result-price">{{ formatSearchPrice(game) }}</span>
+            <PriceBlock class="search-result-price" :game="game" />
           </button>
           <div v-if="!searchSuggestions.length" class="search-no-results">找不到符合的遊戲</div>
           <button v-else type="button" class="search-all" @mousedown.prevent="searchFocused = false; search()">

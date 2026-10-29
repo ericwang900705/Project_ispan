@@ -158,7 +158,7 @@ public class PublisherWorkspaceService {
         if (!currentStatus.isEmpty()) { where += " AND g.status=?"; args.add(currentStatus); }
         Long total = db.queryForObject("SELECT COUNT(*)" + where, Long.class, args.toArray());
         args.add(page * size); args.add(size);
-        var items = db.queryForList("SELECT g.game_id,g.game_name,g.status," + buyers() + " AS buyer_count" + where
+        var items = db.queryForList("SELECT g.game_id,g.game_name,g.status,g.cover_url," + buyers() + " AS buyer_count" + where
                 + " ORDER BY g.game_id DESC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY", args.toArray());
         items.forEach(g -> g.put("pending_review_type", "PENDING_REVIEW".equals(g.get("status")) ? "PUBLISH" : null));
         return Map.of("items", items, "total", total);

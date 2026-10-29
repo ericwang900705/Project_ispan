@@ -26,6 +26,7 @@ const filterable = computed(() => ['history','publish','offShelf','list','previe
 const statusFilter = ref(''), appliedFilters = ref({ q: '', status: '' })
 const gameEditorOpen = ref(false), detailLoading = ref(false)
 const q = ref('')
+const brokenCovers = ref({})
 const uploading = ref(false)
 const loading = ref(false)
 const busy = ref(false)
@@ -367,7 +368,7 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
               <button type="button" class="publisher-game-select" :disabled="busy || detailLoading" @click="select(game)">
               <span class="publisher-game-info">
                 <span class="publisher-game-thumb">
-                  <UiIcon name="game" />
+                  <img v-if="game.cover_url && !brokenCovers[game.game_id]" :src="game.cover_url" :alt="game.game_name + ' 封面'" loading="lazy" @error="brokenCovers[game.game_id] = true"><UiIcon v-else name="game" />
                 </span>
                 <span>
                   <strong>{{ game.game_name }}</strong>
@@ -605,6 +606,7 @@ api('/workspace/publisher/tags').then(data => { allTags.value = data }).catch(e 
 </template>
 
 <style scoped>
+.publisher-game-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .publisher-draft-hint { display: flex; align-items: center; gap: 10px; padding: 14px 16px; margin: 8px 0 20px; border: 1px solid #425883; border-radius: 10px; background: #1c2b51; color: #ccd9ee; line-height: 1.7; }
 .publisher-draft-hint .ui-icon { width: 18px; height: 18px; flex: none; color: #e4c07e; }
 body.cart-portal .publisher-games .publisher-edit-list .publisher-game-row { margin-bottom: 12px; border-radius: 12px; border: 1px solid #3c5280; background: linear-gradient(110deg,#1a2851,#14203f); }

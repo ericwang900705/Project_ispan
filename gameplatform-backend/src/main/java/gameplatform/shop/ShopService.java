@@ -487,6 +487,22 @@ public class ShopService {
         for(int person:people)lockMember(person);
     }
 
+    public String paymentSyncState(Actor actor,int member,int orderId) {
+        owner(actor,member);var order=orderRow(orderId);
+        if(number(order.get("member_id"))!=member)throw new Problem(403,"只能核對自己的訂單");
+        return Objects.toString(order.get("order_status"),"");
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String,Object>> paymentSyncAttempts(Actor actor,int member,int orderId,boolean test) {
+        owner(actor,member);
+        var order=orderRow(orderId);
+        if(number(order.get("member_id"))!=member)throw new Problem(403,"只能核對自己的訂單");
+        if(!"PENDING".equals(order.get("order_status")))return List.of();
+        if(!Objects.equals(test?"TEST":"PROD",order.get("payment_environment")))throw new Problem(409,"付款環境不符");
+        return db.queryForList("SELECT TOP (5) merchant_trade_no FROM payment_attempts WHERE order_id=? AND payment_environment=? ORDER BY attempt_id DESC",orderId,test?"TEST":"PROD");
+    }
+
     void addPaymentAttempt(int orderId,String trade,String method,boolean test) {
         db.update("INSERT INTO payment_attempts(order_id,merchant_trade_no,payment_method,payment_environment) VALUES(?,?,?,?)",orderId,trade,method,test?"TEST":"PROD");
     }

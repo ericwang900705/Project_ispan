@@ -36,6 +36,11 @@ public class PaymentController {
         return payment.resume(actor, memberId, orderId);
     }
 
+    @PostMapping("/{memberId}/orders/{orderId}/sync")
+    public Object sync(Actor actor,@PathVariable int memberId,@PathVariable int orderId) {
+        return payment.sync(actor,memberId,orderId);
+    }
+
     @GetMapping("/{memberId}/orders/{tradeNo}")
     public Object order(Actor a, @PathVariable int memberId, @PathVariable String tradeNo) {
         return shop.paymentOrder(a, memberId, tradeNo);

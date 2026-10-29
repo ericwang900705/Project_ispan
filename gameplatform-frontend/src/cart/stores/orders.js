@@ -65,5 +65,15 @@ export const useOrdersStore = defineStore('orders', () => {
     finally { loading.value = false }
   }
 
-  return { orders, loading, fetchOrders, cancelOrder, requestRefund, payOrder }
+  async function syncPayment(orderId) {
+    loading.value = true
+    try {
+      const { data } = await axios.post(`/api/payment/${memberId()}/orders/${orderId}/sync`)
+      await fetchOrders()
+      return data
+    } catch (e) { throw new Error(e.response?.data?.message ?? '核對付款失敗，請稍後再試') }
+    finally { loading.value = false }
+  }
+
+  return { orders, loading, fetchOrders, cancelOrder, requestRefund, payOrder, syncPayment }
 })

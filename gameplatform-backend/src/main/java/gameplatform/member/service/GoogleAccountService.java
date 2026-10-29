@@ -66,7 +66,7 @@ public class GoogleAccountService {
         }
         if (member.getLockedUntil() != null && member.getLockedUntil().isAfter(LocalDateTime.now())) {
             audit.record(member, "LOCKED");
-            throw new LoginFailedException("帳號已被停權或鎖定");
+            throw new LoginFailedException(AccountLockMessage.until(member.getLockedUntil()));
         }
         member.setFailedLoginCount(0);
         members.save(member);
