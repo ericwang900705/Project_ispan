@@ -1,4 +1,6 @@
 <script setup>
+// 後台人員註冊頁；使用共用品牌背景，保留原表單流程。
+import StaffAuthShell from '../components/StaffAuthShell.vue'
 import { ref } from 'vue'
 import { api } from '../api'
 import UiIcon from '../components/UiIcon.vue'
@@ -18,60 +20,59 @@ async function submit() {
 }
 </script>
 <template>
-  <section class="staff-register-page">
-    <div class="register-brand">
-      <strong>赫洛</strong>
-      <span>STAFF WORKSPACE</span>
-    </div>
-    <div class="staff-register" aria-labelledby="staff-register-title">
-      <header class="register-heading">
-        <span class="register-icon">
-          <UiIcon name="users" />
-        </span>
-        <span class="register-eyebrow">加入工作後台</span>
-        <h1 id="staff-register-title">建立後台人員帳號</h1>
-        <p>填寫基本資料，開始建立你的後台帳號。</p>
-      </header>
-      <div class="register-tip">
-        <UiIcon name="shield" />
-        <p>新帳號將設為待授權，經最高管理員分配角色與權限後，即可登入工作後台。</p>
+  <StaffAuthShell register>
+    <section class="staff-register-page">
+
+      <div class="staff-register" aria-labelledby="staff-register-title">
+        <header class="register-heading">
+          <span class="register-icon">
+            <UiIcon name="users" />
+          </span>
+          <span class="register-eyebrow">加入工作後台</span>
+          <h1 id="staff-register-title">建立後台人員帳號</h1>
+          <p>填寫基本資料，開始建立你的後台帳號。</p>
+        </header>
+        <div class="register-tip">
+          <UiIcon name="shield" />
+          <p>新帳號將設為待授權，經最高管理員分配角色與權限後，即可登入工作後台。</p>
+        </div>
+        <p v-if="error" class="register-feedback error-feedback" role="alert">{{ error }}</p>
+        <p v-if="notice" class="register-feedback success-feedback" role="status">{{ notice }}</p>
+        <form class="register-form" @submit.prevent="submit">
+          <label>帳號
+            <input v-model.trim="form.username" required pattern="[A-Za-z0-9_]{4,50}" maxlength="50"
+              autocomplete="username" placeholder="4–50 位英文字母、數字或底線" :disabled="busy">
+          </label>
+          <label>姓名
+            <input v-model.trim="form.name" required maxlength="50" autocomplete="name" placeholder="輸入你的姓名"
+              :disabled="busy">
+          </label>
+          <label>信箱
+            <input v-model.trim="form.email" type="email" required maxlength="100" autocomplete="email"
+              placeholder="name@example.com" :disabled="busy">
+          </label>
+          <label>密碼
+            <input v-model="form.password" type="password" required minlength="12" maxlength="72"
+              autocomplete="new-password" placeholder="至少 12 個字元" :disabled="busy">
+          </label>
+          <label>確認密碼
+            <input v-model="confirmPassword" type="password" required autocomplete="new-password" placeholder="再次輸入密碼"
+              :disabled="busy">
+          </label>
+          <button class="primary register-submit" :disabled="busy">
+            <UiIcon name="plus" />{{ busy ? '建立中…' : '建立待授權帳號' }}
+          </button>
+        </form>
+        <footer class="register-footer">
+          <span>已經有後台帳號？</span>
+          <RouterLink class="register-return" to="/staff/login">
+            <span aria-hidden="true">←</span>
+            返回後台登入
+          </RouterLink>
+        </footer>
       </div>
-      <p v-if="error" class="register-feedback error-feedback" role="alert">{{ error }}</p>
-      <p v-if="notice" class="register-feedback success-feedback" role="status">{{ notice }}</p>
-      <form class="register-form" @submit.prevent="submit">
-        <label>帳號
-          <input v-model.trim="form.username" required pattern="[A-Za-z0-9_]{4,50}" maxlength="50"
-            autocomplete="username" placeholder="4–50 位英文字母、數字或底線" :disabled="busy">
-        </label>
-        <label>姓名
-          <input v-model.trim="form.name" required maxlength="50" autocomplete="name" placeholder="輸入你的姓名"
-            :disabled="busy">
-        </label>
-        <label>信箱
-          <input v-model.trim="form.email" type="email" required maxlength="100" autocomplete="email"
-            placeholder="name@example.com" :disabled="busy">
-        </label>
-        <label>密碼
-          <input v-model="form.password" type="password" required minlength="12" maxlength="72"
-            autocomplete="new-password" placeholder="至少 12 個字元" :disabled="busy">
-        </label>
-        <label>確認密碼
-          <input v-model="confirmPassword" type="password" required autocomplete="new-password" placeholder="再次輸入密碼"
-            :disabled="busy">
-        </label>
-        <button class="primary register-submit" :disabled="busy">
-          <UiIcon name="plus" />{{ busy ? '建立中…' : '建立待授權帳號' }}
-        </button>
-      </form>
-      <footer class="register-footer">
-        <span>已經有後台帳號？</span>
-        <RouterLink class="register-return" to="/staff/login">
-          <span aria-hidden="true">←</span>
-          返回後台登入
-        </RouterLink>
-      </footer>
-    </div>
-  </section>
+    </section>
+  </StaffAuthShell>
 </template>
 <style scoped>
 .staff-register-page {

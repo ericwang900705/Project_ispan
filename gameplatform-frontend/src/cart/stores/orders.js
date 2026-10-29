@@ -1,3 +1,4 @@
+import { openEcpayPayment } from '../utils/ecpayWindow'
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import axios from '../../http.js'
@@ -39,5 +40,30 @@ export const useOrdersStore = defineStore('orders', () => {
     await Promise.all([fetchOrders(), useCartStore().fetchCart()])
   }
 
-  return { orders, loading, fetchOrders, cancelOrder }
+  // 直接送出退款申請，不自動建立客服案件，款項、遊戲及優惠券狀態仍由後續人工處理。
+  async function requestRefund(orderId, reason) {
+    loading.value = true
+    try {
+      const { data } = await axios.post(`/api/orders/${orderId}/refund-request`, { reason })
+      return data
+    } catch (e) {
+      throw new Error(e.response?.data?.message ?? '退款申請失敗')
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function payOrder(orderId) {
+    if (loading.value) return
+    loading.value = true
+    try {
+      return await openEcpayPayment(async () => {
+        const { data } = await axios.post(`/api/payment/${memberId()}/orders/${orderId}/pay`)
+        return data
+      })
+    } catch (e) { throw new Error(e.response?.data?.message ?? e.message ?? '無法繼續付款') }
+    finally { loading.value = false }
+  }
+
+  return { orders, loading, fetchOrders, cancelOrder, requestRefund, payOrder }
 })

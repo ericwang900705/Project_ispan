@@ -30,7 +30,7 @@ public class SupportExtensionInitializer implements ApplicationRunner {
         if (!auto) c.setAutoCommit(true);
         try (var s = c.createStatement()) {
           // 先補齊客服結構，再初始化分類；每個批次自行管理實體交易。
-          for (String resource : new String[]{"db/support-extension.sql", "db/support-account-help.sql"}) {
+          for (String resource : new String[]{"db/support-extension.sql", "db/support-account-help.sql", "db/support-faq-catalog.sql"}) {
             s.execute(new ClassPathResource(resource).getContentAsString(StandardCharsets.UTF_8));
           }
         }

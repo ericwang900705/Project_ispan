@@ -79,15 +79,21 @@ public class MemberProfileController {
         return ResponseEntity.ok(updatedProfile);
     }
 
+    @GetMapping("/publisher-application")
+    public Object publisherApplicationStatus(Authentication authentication) {
+        return memberService.publisherApplicationStatus(authentication.getName());
+    }
+
     // 申請成為發行商
     @PostMapping("/apply-publisher")
-    public ResponseEntity<String> applyToBePublisher(@Valid @RequestBody PublisherApplicationRequest request,
+    public ResponseEntity<java.util.Map<String, String>> applyToBePublisher(
+            @Valid @RequestBody PublisherApplicationRequest request,
             Authentication authentication) {
 
         String currentUsername = authentication.getName();// 直接從 Token 中取得目前登入的帳號，安全又精簡
 
         String result = memberService.applyToBePublisher(currentUsername, request);
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(java.util.Map.of("message", result));
     }
 
 }

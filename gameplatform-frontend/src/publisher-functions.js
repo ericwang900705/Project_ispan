@@ -15,6 +15,11 @@ export const publisherFunctions = [
     description: '建立遊戲草稿，填寫名稱、售價與介紹。'
   },
   {
+    mode: 'discounts',
+    label: '遊戲折扣管理',
+    description: '設定 1～99% 整數折扣，固定七天，結束後冷卻三十天。'
+  },
+  {
     mode: 'edit',
     label: '修改遊戲',
     description: '編輯草稿或已下架遊戲。'
@@ -42,17 +47,12 @@ export const publisherFunctions = [
   {
     mode: 'builds',
     label: '遊戲版本資訊管理',
-    description: '維護版本號，上傳 ZIP 或填寫檔案網址，並設定啟用狀態。'
+    description: '上傳 ZIP 或填寫網址；已上架遊戲可新增並發布更新版本，保留歷史版本。'
   },
   {
     mode: 'tags',
     label: '遊戲標籤管理',
     description: '從現有標籤中設定遊戲類型。'
-  },
-  {
-    mode: 'media',
-    label: '遊戲圖片與影片管理',
-    description: '前往修改遊戲，上傳封面、圖片與 MP4 影片並調整順序。'
   },
   {
     mode: 'buyers',
@@ -62,8 +62,8 @@ export const publisherFunctions = [
 ]
 
 export const publisherLink = mode =>
-  mode === 'sales'
-    ? { path: '/publisher/sales' }
+  ['sales', 'discounts'].includes(mode)
+    ? { path: '/publisher/' + mode }
     : { path: '/publisher/games', query: { mode } }
 
 // 呈現分組沿用相同功能模式及路由。
@@ -71,12 +71,12 @@ export const publisherGroups = [
   {
     title: '遊戲管理',
     icon: 'game',
-    modes: ['list', 'new', 'edit', 'preview', 'offShelf']
+    modes: ['list', 'new', 'edit', 'discounts', 'preview', 'offShelf']
   },
   {
     title: '素材與版本',
     icon: 'folder',
-    modes: ['builds', 'tags', 'media']
+    modes: ['builds', 'tags']
   },
   {
     title: '上架與數據',
@@ -87,6 +87,7 @@ export const publisherGroups = [
 export const publisherIcons = {
   preview: 'image',
   sales: 'trend',
+  discounts: 'tag',
   list: 'game',
   new: 'plus',
   edit: 'edit',

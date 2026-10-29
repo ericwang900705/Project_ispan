@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, nextTick, onUnmounted } from 'vue'
 import UiIcon from './UiIcon.vue'
-const props = defineProps({ open: Boolean, title: String, description: String, busy: Boolean })
+const props = defineProps({ open: Boolean, title: String, description: String, busy: Boolean, elevated: Boolean })
 const emit = defineEmits(['close'])
 const element = ref(null)
 let previousFocus, previousOverflow
@@ -32,4 +32,27 @@ watch(() => props.open, async open => {
 })
 onUnmounted(cleanup)
 </script>
-<template><Teleport to="body"><div v-if="open" class="publisher-modal-backdrop" @click.self="!busy && emit('close')"><section ref="element" class="publisher-modal" role="dialog" aria-modal="true" aria-labelledby="publisher-dialog-title" tabindex="-1"><header><h2 id="publisher-dialog-title">{{ title }}</h2><button :disabled="busy" aria-label="關閉對話框" @click="emit('close')"><UiIcon name="close" /></button></header><p v-if="description">{{ description }}</p><slot /><footer><slot name="actions" /></footer></section></div></Teleport></template>
+<template>
+  <Teleport to="body">
+    <div v-if="open" class="publisher-modal-backdrop" :class="{ 'publisher-dialog-elevated': elevated }" @click.self="!busy && emit('close')">
+      <section ref="element" class="publisher-modal" role="dialog" aria-modal="true"
+        aria-labelledby="publisher-dialog-title" tabindex="-1">
+        <header>
+          <h2 id="publisher-dialog-title">{{ title }}</h2><button :disabled="busy" aria-label="關閉對話框"
+            @click="emit('close')">
+            <UiIcon name="close" />
+          </button>
+        </header>
+        <p v-if="description">{{ description }}</p>
+        <slot />
+        <footer>
+          <slot name="actions" />
+        </footer>
+      </section>
+    </div>
+  </Teleport>
+</template>
+
+<style scoped>
+.publisher-dialog-elevated { z-index: 2200; }
+</style>

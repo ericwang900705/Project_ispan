@@ -166,7 +166,7 @@ onUnmounted(() => {
     <div v-if="open" id="member-friends-panel" class="panel">
       <div class="connection" role="status">
         <span class="connection-label"><i :class="{ connected }" aria-hidden="true"></i>{{ connected ? '即時連線中' : '定期更新中'
-          }}</span>
+        }}</span>
         <button type="button" @click="refresh" aria-label="重新整理好友列表">
           <UiIcon name="refresh" />重新整理
         </button>

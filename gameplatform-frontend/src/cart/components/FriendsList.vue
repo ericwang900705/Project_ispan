@@ -153,15 +153,30 @@ onUnmounted(() => {
 <template>
   <section class="friends">
     <button class="bar" type="button" :aria-expanded="open" aria-controls="member-friends-panel" @click="open = !open">
-      <span class="dock-icon"><UiIcon name="users" /></span>
-      <span class="dock-copy"><strong>好友與聊天</strong><small>找好友，一起開始遊戲</small></span>
-      <span class="dock-count" :class="{ 'has-online': onlineCount > 0 }"><i aria-hidden="true"></i>{{ onlineCount }} 人上線</span>
-      <span class="dock-chevron" aria-hidden="true"><UiIcon name="chevron-down" /></span>
+      <span class="dock-icon">
+        <UiIcon name="users" />
+      </span>
+      <span class="dock-copy">
+        <strong>好友與聊天</strong>
+        <small>找好友，一起開始遊戲</small>
+      </span>
+      <span class="dock-count" :class="{ 'has-online': onlineCount > 0 }">
+        <i aria-hidden="true"></i>
+        {{ onlineCount }} 人上線
+      </span>
+      <span class="dock-chevron" aria-hidden="true">
+        <UiIcon name="chevron-down" />
+      </span>
     </button>
     <div v-if="open" id="member-friends-panel" class="panel">
       <div class="connection" role="status">
-        <span class="connection-label"><i :class="{ connected, reconnecting: !connected }" aria-hidden="true"></i>{{ connected ? '連線成功' : '重新連線中…' }}</span>
-        <button type="button" @click="refresh" aria-label="重新整理好友列表"><UiIcon name="refresh" />重新整理</button>
+        <span class="connection-label">
+          <i :class="{ connected, reconnecting: !connected }" aria-hidden="true"></i>
+          {{ connected ? '連線成功' : '重新連線中…' }}
+        </span>
+        <button type="button" @click="refresh" aria-label="重新整理好友列表">
+          <UiIcon name="refresh" />重新整理
+        </button>
       </div>
       <p v-if="error" class="feedback error" role="alert">{{ error }}</p>
       <p v-if="notice" class="feedback" role="status">{{ notice }}</p>
@@ -181,7 +196,11 @@ onUnmounted(() => {
         <button :disabled="busy" @click="respond(person.friendshipId, false)">拒絕</button>
       </div>
       <div class="section-title">好友列表</div>
-      <div v-if="!friends.length" class="empty friends-empty"><UiIcon name="users" /><strong>還沒有加入好友</strong><span>搜尋會員帳號，送出第一份邀請。</span></div>
+      <div v-if="!friends.length" class="empty friends-empty">
+        <UiIcon name="users" />
+        <strong>還沒有加入好友</strong>
+        <span>搜尋會員帳號，送出第一份邀請。</span>
+      </div>
       <div v-for="friend in friends" :key="friend.memberId" class="row">
         <label class="pick">
           <input v-model="selected" type="checkbox" :value="friend.memberId" :aria-label="'選取 ' + friend.username" />

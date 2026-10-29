@@ -2,7 +2,6 @@
 
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import SupportContext from './SupportContext.vue'
 import { api, session, timeText } from '../api'
 import SearchBar from './SearchBar.vue'
 import Conversation from './Conversation.vue'
@@ -131,8 +130,12 @@ async function openWidget() {
   const requestedRoom = Number(route.query.room)
   if (Number.isSafeInteger(requestedRoom) && requestedRoom > 0) {
     selectionVersion++
-    try { room.value = await api(`/rooms/${requestedRoom}`); selected = true; history.value = false }
-    catch (e) { error.value = e.message; return }
+    try {
+      room.value = await api(`/rooms/${requestedRoom}`);
+      selected = true; history.value = false
+    } catch (e) {
+      error.value = e.message; return
+    }
   } else await refresh()
   const orderId = Number(route.query.orderId), couponId = Number(route.query.couponId)
   if (linking || (!Number.isSafeInteger(orderId) || orderId <= 0) && (!Number.isSafeInteger(couponId) || couponId <= 0)) return
@@ -144,8 +147,11 @@ async function openWidget() {
     const query = { ...route.query }; delete query.orderId; delete query.couponId; delete query.chat; delete query.room
     window.dispatchEvent(new Event('support-refresh'))
     await router.replace({ path: route.path, query })
-  } catch (e) { error.value = e.message }
-  finally { linking = false }
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    linking = false
+  }
 }
 
 function goTicket() {
@@ -182,9 +188,16 @@ onUnmounted(() => {
     <!-- 聊天視窗展開按鈕 -->
     <button v-if="!expanded" class="chat-launcher" aria-expanded="false" aria-controls="member-support-panel"
       @click="openWidget">
-      <span class="dock-icon"><UiIcon name="headset" /></span>
-      <span class="dock-copy"><strong>線上客服</strong><small>有問題？隨時留下訊息</small></span>
-      <span class="dock-chevron support-bar-arrow" aria-hidden="true"><UiIcon name="chevron-down" /></span>
+      <span class="dock-icon">
+        <UiIcon name="headset" />
+      </span>
+      <span class="dock-copy">
+        <strong>線上客服</strong>
+        <small>有問題？隨時留下訊息</small>
+      </span>
+      <span class="dock-chevron support-bar-arrow" aria-hidden="true">
+        <UiIcon name="chevron-down" />
+      </span>
     </button>
 
     <!-- 聊天主面板 -->
@@ -245,11 +258,11 @@ onUnmounted(() => {
           沒有符合條件的聊天紀錄
         </p>
 
-        <div class="pager">
-          <button :disabled="page === 0" @click="page--; loadHistory()">
+        <div class="pager unified-pager">
+          <button v-if="page > 0" :disabled="page === 0" @click="page--; loadHistory()">
             上一頁
           </button>
-          <button :disabled="rooms.length < 30" @click="page++; loadHistory()">
+          <button v-if="rooms.length >= 30" :disabled="rooms.length < 30" @click="page++; loadHistory()">
             下一頁
           </button>
         </div>
@@ -264,7 +277,6 @@ onUnmounted(() => {
           <button class="text-button" :disabled="busy" @click="start">詢問新問題</button>
         </div>
 
-        <details class="sx-widget-context"><summary>相關資料 <span>從你的訂單／已領券選取</span></summary><SupportContext scope="rooms" :id="room.id" :context-state="room.status + ':' + room.adminId" compact /></details>
         <Conversation :key="room.id" kind="rooms" :id="room.id" :can-send="room.status === 'OPEN'"
           :closed-text="room.ticketId ? '此對話已轉案，請到案件頁接續回覆。' : '這次對話已結束，紀錄會保留。'" />
 
@@ -292,3 +304,47 @@ onUnmounted(() => {
     </section>
   </div>
 </template>
+<style>
+/* 後台與發行商分頁統一樣式：僅渲染可翻頁的方向，第一頁不顯示上一頁、末頁不顯示下一頁。 */
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 24px auto 12px;
+  padding: 8px 12px;
+  min-height: 56px;
+}
+
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager>button {
+  appearance: none;
+  min-height: 38px;
+  min-width: 76px;
+  padding: 8px 16px;
+  border: 1px solid #c6dcec;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .96);
+  color: #305674;
+  font-weight: 500;
+  box-shadow: none;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager>button:hover:not(:disabled) {
+  background: #f0f7ff;
+  border-color: #8eb8d3;
+}
+
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager>button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+:where(.management-pagination, .publisher-pagination, .sx-pager, .pager).unified-pager>span {
+  color: #355673;
+  font-size: 14px;
+  white-space: nowrap;
+}
+</style>

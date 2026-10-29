@@ -1,0 +1,12 @@
+調整內容
+
+1.google登入改帳號、密碼
+	a.調整後端 member/dto/UpdateProfileRequest.java
+	b.調整後端 member/dto/MemberProfileResponse.java
+	c.調整後端 member/service/MemberService.java 修改「// --- 4. 完善/修改個人資料 updateProfile 」
+	d.調整前端 src/api.js  // --- 新增：當會員修改 username 後，無縫替換新的 JWT Token ---(168行)
+	e.調整前端 src/views/MemberAccount.vue
+		(1)調整第5行 import { api, session, replaceToken } from '../api'
+		(2)調整111行 function loadProfile() 、208行 function updateProfile()
+		(3)新增364行 <!-- 新增：僅 Google 登入且尚未設定密碼 (無 password_history_id) 時顯示 -->
+				<template v-if="profile?.hasPassword === false">

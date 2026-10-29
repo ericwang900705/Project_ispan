@@ -5,6 +5,7 @@ import java.time.LocalDate;
 
 import org.hibernate.validator.constraints.URL;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Size;
 
@@ -17,4 +18,10 @@ public class UpdateProfileRequest {
     @Size(max = 500, message = "大頭貼網址長度不能超過 500 個字元")
     @URL(message = "大頭貼必須是有效的網址格式")
     private String avatarUrl;
+
+    // 當google登入修改帳號
+    @Size(min = 4, max = 30, message = "帳號長度須介於 4 到 30 個字元")
+    private String username;
+    @Size(min = 4, message = "密碼長度至少需要 4 個字元")
+    private String newPassword;
 }

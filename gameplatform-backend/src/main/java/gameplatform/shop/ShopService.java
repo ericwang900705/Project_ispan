@@ -34,7 +34,7 @@ public class ShopService {
     }
 
     void lockMember(int id) {
-        // Transactional no-op UPDATE acquires the same row lock on SQL Server and H2.
+        // Transactional no-op UPDATE acquires a row lock on SQL Server.
         if (db.update("UPDATE members SET failed_login_count=failed_login_count WHERE member_id=?", id) != 1)
             throw new Problem(404, "找不到會員");
     }
@@ -83,6 +83,8 @@ public class ShopService {
         out.put("gameName", r.get("game_name"));
         out.put("coverUrl", r.get("cover_url"));
         out.put("price", r.get("price"));
+        out.put("originalPrice", r.getOrDefault("original_price", r.get("price")));
+        out.put("discountPercent", r.get("discount_percent"));
         return out;
     }
 
@@ -108,7 +110,8 @@ public class ShopService {
     void validCoupon(Map<String, Object> c, int member, int items, BigDecimal subtotal) {
         if (!couponRules.claimed(member, number(c.get("coupon_id"))))
             throw bad("請先到優惠券頁領取這張優惠券");
-        if (items == 0) throw bad("購物車沒有符合優惠券使用規則的遊戲");
+        if (items == 0)
+            throw bad("購物車沒有符合優惠券使用規則的遊戲");
         if (!couponActive(c) || subtotal.compareTo(money(c.get("min_spend"))) < 0)
             throw bad("優惠券已過期、停用或未達最低金額");
         int limit = c.get("total_limit") == null ? Integer.MAX_VALUE : number(c.get("total_limit"));
@@ -127,11 +130,23 @@ public class ShopService {
 
     List<Map<String, Object>> cartRows(int member) {
         return db.queryForList(
-                "SELECT c.*,g.game_name,g.cover_url,g.price,g.member_id AS publisher_member_id,g.status AS game_status,m.username AS recipient_name FROM cart_items c JOIN games g ON g.game_id=c.game_id LEFT JOIN members m ON m.member_id=c.recipient_member_id WHERE c.member_id=? ORDER BY c.created_at,c.cart_item_id",
+                """
+                SELECT c.*,g.game_name,g.cover_url,g.price AS original_price,
+                    CASE WHEN d.discount_percent IS NULL THEN g.price
+                         ELSE CAST(ROUND(g.price*(100-d.discount_percent)/100.0,0) AS decimal(18,0)) END AS price,
+                    d.discount_percent,g.member_id AS publisher_member_id,g.status AS game_status,m.username AS recipient_name
+                FROM cart_items c JOIN games g ON g.game_id=c.game_id
+                OUTER APPLY (SELECT TOP 1 discount_percent FROM dbo.game_discounts
+                    WHERE game_id=g.game_id AND start_at<=SYSDATETIME() AND end_at>SYSDATETIME()
+                    ORDER BY start_at DESC) d
+                LEFT JOIN members m ON m.member_id=c.recipient_member_id
+                WHERE c.member_id=? ORDER BY c.created_at,c.cart_item_id
+                """,
                 member);
     }
 
-    record Pricing(List<BigDecimal> discounts, BigDecimal subtotal, BigDecimal discount, Map<String, Object> coupon, List<Boolean> eligible) {
+    record Pricing(List<BigDecimal> discounts, BigDecimal subtotal, BigDecimal discount, Map<String, Object> coupon,
+            List<Boolean> eligible) {
     }
 
     Pricing price(List<Map<String, Object>> rows, int member, boolean strict) {
@@ -147,10 +162,15 @@ public class ShopService {
                 throw bad("購物車優惠券不一致，請重新套用");
             coupon = couponRow(cid);
             try {
-                for (int i=0;i<rows.size();i++) eligible.set(i,couponRules.eligible(coupon,rows.get(i)));
-                eligibleSubtotal=BigDecimal.ZERO;
-                int matches=0;
-                for(int i=0;i<rows.size();i++) if(eligible.get(i)){eligibleSubtotal=eligibleSubtotal.add(money(rows.get(i).get("price")));matches++;}
+                for (int i = 0; i < rows.size(); i++)
+                    eligible.set(i, couponRules.eligible(coupon, rows.get(i)));
+                eligibleSubtotal = BigDecimal.ZERO;
+                int matches = 0;
+                for (int i = 0; i < rows.size(); i++)
+                    if (eligible.get(i)) {
+                        eligibleSubtotal = eligibleSubtotal.add(money(rows.get(i).get("price")));
+                        matches++;
+                    }
                 validCoupon(coupon, member, matches, eligibleSubtotal);
             } catch (Problem e) {
                 if (strict)
@@ -168,8 +188,8 @@ public class ShopService {
         }
         var ds = new ArrayList<BigDecimal>();
         BigDecimal left = totalDiscount;
-        for (int index=0;index<rows.size();index++) {
-            var row=rows.get(index);
+        for (int index = 0; index < rows.size(); index++) {
+            var row = rows.get(index);
             BigDecimal value = money(row.get("price"));
             BigDecimal d = !eligible.get(index) || eligibleSubtotal.signum() == 0 ? BigDecimal.ZERO
                     : totalDiscount.multiply(value).divide(eligibleSubtotal, 2, RoundingMode.DOWN);
@@ -179,7 +199,8 @@ public class ShopService {
         // Distribute residual cents into non-zero rows; zero-price last items must not
         // lose discount cents.
         for (int i = rows.size() - 1; i >= 0 && left.signum() > 0; i--) {
-            if(!eligible.get(i)) continue;
+            if (!eligible.get(i))
+                continue;
             BigDecimal extra = left.min(money(rows.get(i).get("price")).subtract(ds.get(i)));
             ds.set(i, ds.get(i).add(extra));
             left = left.subtract(extra);
@@ -250,7 +271,7 @@ public class ShopService {
             throw bad("購物車是空的");
         if (id != null) {
             var c = couponRow(id);
-            var matching=rows.stream().filter(x->couponRules.eligible(c,x)).toList();
+            var matching = rows.stream().filter(x -> couponRules.eligible(c, x)).toList();
             BigDecimal sub = matching.stream().map(x -> money(x.get("price"))).reduce(BigDecimal.ZERO, BigDecimal::add);
             validCoupon(c, member, matching.size(), sub);
         }
@@ -274,6 +295,27 @@ public class ShopService {
         return cart(a, member);
     }
 
+    // 沿用 CART 的 POST { minutes } 累加 member_games 時數，不另外建立計時工作階段。
+    @Transactional
+    public Map<String, Object> recordPlay(Actor actor, int member, int gameId, Integer minutes) {
+        owner(actor, member);
+        if (minutes == null || minutes < 1 || minutes > 1440)
+            throw bad("遊玩分鐘數必須介於 1 與 1440");
+        var game = row("SELECT g.game_name FROM member_games l JOIN games g ON g.game_id=l.game_id "
+                + "WHERE l.member_id=? AND l.game_id=? AND l.is_active=1 AND g.status IN ('PUBLISHED','PENDING_OFF_SHELF')", member, gameId);
+        if (!Set.of("貪食蛇", "數字合成 2048", "踩地雷", "打磚塊", "記憶翻牌", "火柴人格鬥：霓虹對決",
+                "暗夜倖存者", "無盡深淵", "失落王國", "星露森林", "荒野生存", "戰場前線",
+                "火柴人射擊", "火柴人紅藍競技場", "三國戰棋", "牛排大師", "火柴人羽毛球", "火柴人賽車")
+                .contains(game.get("game_name")))
+            throw new Problem(409, "這款遊戲尚無網頁遊玩版本");
+        int changed = db.update("UPDATE member_games SET total_play_minutes=COALESCE(total_play_minutes,0)+?, "
+                + "last_played_at=? WHERE member_id=? AND game_id=? AND is_active=1",
+                minutes, LocalDateTime.now(), member, gameId);
+        if (changed == 0)
+            throw new Problem(404, "找不到你的遊戲庫紀錄");
+        return Map.of("minutesAdded", minutes);
+    }
+
     public List<Map<String, Object>> library(Actor a, int member) {
         owner(a, member);
         return db.queryForList(
@@ -285,6 +327,8 @@ public class ShopService {
                     for (var p : Map.of("obtainedSource", "obtained_source", "obtainedAt", "obtained_at",
                             "totalPlayMinutes", "total_play_minutes", "lastPlayedAt", "last_played_at").entrySet())
                         m.put(p.getKey(), time(r.get(p.getValue())));
+                    var builds=db.queryForList("SELECT TOP 1 build_id,version,file_url FROM game_builds WHERE game_id=? AND status='ACTIVE' ORDER BY build_id DESC",r.get("game_id"));
+                    m.put("latestBuild",builds.isEmpty()?null:builds.getFirst());
                     m.put("isActive", true);
                     return (Map<String, Object>) m;
                 }).toList();
@@ -315,6 +359,20 @@ public class ShopService {
                 Map.entry("pointsEarned", "points_earned"), Map.entry("createdAt", "created_at"),
                 Map.entry("paidAt", "paid_at"), Map.entry("paymentType", "payment_type")).entrySet())
             m.put(pair.getKey(), time(r.get(pair.getValue())));
+        Object paid = r.get("paid_at");
+        java.time.LocalDateTime paidTime = paid instanceof java.sql.Timestamp timestamp ? timestamp.toLocalDateTime()
+                : paid instanceof java.time.LocalDateTime local ? local : null;
+        m.put("refundDeadline", "PAID".equals(r.get("order_status")) && paidTime != null
+                ? paidTime.plusDays(14).toString() : null);
+        var requests = db.queryForList("SELECT status,ticket_id,reason,requested_at,processed_at,decision_reason,refund_mode FROM refund_requests WHERE order_id=?", id);
+        m.put("refundStatus", requests.isEmpty() ? null : requests.getFirst().get("status"));
+        m.put("refundTicketId", requests.isEmpty() ? null : requests.getFirst().get("ticket_id"));
+        m.put("refundDecisionReason", requests.isEmpty() ? null : requests.getFirst().get("decision_reason"));
+        var refund = requests.isEmpty() ? Map.<String,Object>of() : requests.getFirst();
+        m.put("refundReason", refund.get("reason"));
+        m.put("refundRequestedAt", time(refund.get("requested_at")));
+        m.put("refundProcessedAt", time(refund.get("processed_at")));
+        m.put("refundMode", refund.get("refund_mode"));
         var info = new LinkedHashMap<String, Object>();
         info.put("bankCode", r.get("bank_code"));
         info.put("virtualAccount", r.get("virtual_account"));
@@ -322,6 +380,7 @@ public class ShopService {
         info.put("expireDate", r.get("payment_expire_date"));
         m.put("paymentInfo", r.get("virtual_account") == null && r.get("payment_no") == null ? null : info);
         m.put("paymentStatus", r.get("payment_status"));
+        m.put("paymentNeedsReview", count("SELECT COUNT(*) FROM payment_attempts WHERE order_id=? AND status='REVIEW'",id)>0);
         m.put("orderItems", orderItems(id).stream().map(x -> {
             var item = new LinkedHashMap<String, Object>();
             item.put("orderItemId", x.get("order_item_id"));
@@ -342,7 +401,8 @@ public class ShopService {
 
     public Map<String, Object> paymentOrder(Actor a, int member, String trade) {
         owner(a, member);
-        var r = row("SELECT order_id,member_id FROM orders WHERE order_no=?", trade);
+        var attempts = db.queryForList("SELECT o.order_id,o.member_id FROM payment_attempts p JOIN orders o ON o.order_id=p.order_id WHERE p.merchant_trade_no=?", trade);
+        var r = attempts.isEmpty() ? row("SELECT order_id,member_id FROM orders WHERE order_no=?", trade) : attempts.getFirst();
         if (number(r.get("member_id")) != member)
             throw new Problem(403, "只能查詢自己的訂單");
         return orderDto(number(r.get("order_id")));
@@ -395,11 +455,80 @@ public class ShopService {
                     r.get("recipient_member_id"), p.eligible().get(i) ? cid : null);
         }
         if (cid != null)
-            db.update("UPDATE coupons SET used_count=used_count+? WHERE coupon_id=?", (int)p.eligible().stream().filter(Boolean::booleanValue).count(), cid);
+            db.update("UPDATE coupons SET used_count=used_count+? WHERE coupon_id=?",
+                    (int) p.eligible().stream().filter(Boolean::booleanValue).count(), cid);
         // Cart contents were snapshotted and moved into a pending order; library stays
         // unchanged.
         db.update("DELETE FROM cart_items WHERE member_id=?", member);
         return orderDto(id);
+    }
+
+    void recordPaymentEnvironment(int orderId, boolean test) {
+        db.update("UPDATE orders SET payment_environment=? WHERE order_id=? AND order_status='PENDING'", test ? "TEST" : "PROD", orderId);
+    }
+
+    @Transactional
+    public Map<String,Object> pendingPayment(Actor actor,int member,int orderId,boolean test) {
+        owner(actor,member);
+        var initial=orderRow(orderId);
+        if(number(initial.get("member_id"))!=member)throw new Problem(403,"只能支付自己的訂單");
+        lockPaymentPeople(orderId,member);lockOrder(orderId);
+        var order=orderRow(orderId);
+        if(!"PENDING".equals(order.get("order_status")))throw new Problem(409,"只有待付款訂單可繼續付款");
+        if(!Objects.equals(test?"TEST":"PROD",order.get("payment_environment")))
+            throw new Problem(409,"此訂單付款環境與目前設定不同或來源不明，請聯絡客服核對");
+        if(money(order.get("total_amount")).signum()<=0)throw bad("訂單金額無效");
+        return orderDto(orderId);
+    }
+
+    private void lockPaymentPeople(int orderId,int buyer) {
+        var people=new TreeSet<Integer>();people.add(buyer);
+        for(var item:orderItems(orderId))if(item.get("recipient_member_id")!=null)people.add(number(item.get("recipient_member_id")));
+        for(int person:people)lockMember(person);
+    }
+
+    void addPaymentAttempt(int orderId,String trade,String method,boolean test) {
+        db.update("INSERT INTO payment_attempts(order_id,merchant_trade_no,payment_method,payment_environment) VALUES(?,?,?,?)",orderId,trade,method,test?"TEST":"PROD");
+    }
+
+    @Transactional
+    public String paymentFromAttempt(Map<String,String> input,boolean info,boolean test) {
+        var attempts=db.queryForList("SELECT * FROM payment_attempts WHERE merchant_trade_no=?",input.get("MerchantTradeNo"));
+        if(attempts.isEmpty()) {
+            var legacy=row("SELECT payment_environment FROM orders WHERE order_no=?",input.get("MerchantTradeNo"));
+            if(!Objects.equals(test?"TEST":"PROD",legacy.get("payment_environment")))
+                throw new Problem(409,"舊交易付款來源不明或環境不符，請人工核對");
+            return payment(input,info); // 僅相容已確認付款環境的舊交易。
+        }
+        var attempt=attempts.getFirst();int orderId=number(attempt.get("order_id"));
+        if(!Objects.equals(test?"TEST":"PROD",attempt.get("payment_environment")))throw new Problem(409,"付款環境不符");
+        var initial=orderRow(orderId);lockPaymentPeople(orderId,number(initial.get("member_id")));lockOrder(orderId);
+        var order=orderRow(orderId);
+        BigDecimal amount;
+        try{amount=new BigDecimal(input.get("TradeAmt"));}catch(Exception e){throw bad("付款金額無效");}
+        if(amount.compareTo(money(order.get("total_amount")))!=0)throw bad("付款金額與訂單不符");
+        String trade=input.get("TradeNo");
+        if(!info && "1".equals(input.get("RtnCode"))) {
+            if(trade==null || trade.isBlank())throw bad("缺少金流交易編號");
+            if("PAID".equals(order.get("order_status")) || "REFUNDED".equals(order.get("order_status"))) {
+                if(Objects.equals(trade,order.get("ecpay_trade_no")))return "REFUNDED".equals(order.get("order_status"))?"refunded":"success";
+                db.update("UPDATE payment_attempts SET status='REVIEW',ecpay_trade_no=?,updated_at=CURRENT_TIMESTAMP WHERE attempt_id=?",trade,attempt.get("attempt_id"));
+                return "review"; // 記錄額外付款供核對；不重複授予遊戲。
+            }
+            if(!"PENDING".equals(order.get("order_status"))) {
+                db.update("UPDATE payment_attempts SET status='REVIEW',ecpay_trade_no=?,updated_at=CURRENT_TIMESTAMP WHERE attempt_id=?",trade,attempt.get("attempt_id"));
+                return "review";
+            }
+        }
+        if(!"PENDING".equals(order.get("order_status")))return "review";
+        if(!info && !"1".equals(input.get("RtnCode"))) {
+            db.update("UPDATE payment_attempts SET status='FAILED',updated_at=CURRENT_TIMESTAMP WHERE attempt_id=? AND status<>'PAID'",attempt.get("attempt_id"));
+            return "fail"; // 保留待付款訂單及快照，讓會員可再次付款或取消。
+        }
+        var mapped=new HashMap<>(input);mapped.put("MerchantTradeNo",order.get("order_no").toString());
+        String result=payment(mapped,info);
+        db.update("UPDATE payment_attempts SET status=?,ecpay_trade_no=?,updated_at=CURRENT_TIMESTAMP WHERE attempt_id=?",info?"PENDING":"PAID",trade,attempt.get("attempt_id"));
+        return result;
     }
 
     void lockOrder(int id) {
@@ -522,6 +651,25 @@ public class ShopService {
                 }).toList();
     }
 
+    public Object reviewMuteStatus(Actor actor){
+        if(actor==null||!actor.isMember())throw new Problem(403,"僅會員可查詢自己的評論限制");
+        return new gameplatform.moderation.ReviewModerationPolicy(db).status(actor.id());
+    }
+
+    @Transactional
+    public Object reportReview(Actor actor,int reviewId,String reason){
+        if(actor==null||!actor.isMember())throw new Problem(403,"請先登入會員");
+        if(reason==null||reason.isBlank()||reason.trim().length()>500)throw bad("請填寫 1～500 字的檢舉原因");
+        lockMember(actor.id());
+        var rows=db.queryForList("SELECT r.member_id,r.content FROM game_reviews r JOIN games g ON g.game_id=r.game_id WHERE r.review_id=? AND r.status='NORMAL' AND g.status IN ('PUBLISHED','COMING_SOON','PENDING_OFF_SHELF')",reviewId);
+        if(rows.isEmpty())throw new Problem(404,"找不到可檢舉的評論");var review=rows.getFirst();
+        if(number(review.get("member_id"))==actor.id())throw bad("不能檢舉自己的評論");
+        String snapshot=Objects.toString(review.get("content"),"");if(snapshot.isBlank())throw bad("此評論沒有可檢舉的文字內容");
+        if(count("SELECT COUNT(*) FROM dbo.ugc_reports WHERE reporter_member_id=? AND target_type='REVIEW' AND target_id=? AND status='PENDING'",actor.id(),reviewId)>0)throw new Problem(409,"你已檢舉此評論，請等候處理");
+        db.update("INSERT INTO dbo.ugc_reports(reporter_member_id,target_type,target_id,snapshot_text,reason) VALUES(?,'REVIEW',?,?,?)",actor.id(),reviewId,snapshot,reason.trim());
+        return Map.of("message","已送出檢舉，確認成立前不會計次或禁言");
+    }
+
     void reviewValid(int member, int game, Review r) {
         if (r == null || r.rating() == null || r.rating() < 1 || r.rating() > 5 || r.recommended() == null)
             throw bad("請選擇 1～5 分與是否推薦");
@@ -535,6 +683,7 @@ public class ShopService {
     public List<Map<String, Object>> saveReview(Actor a, int member, int game, Integer id, Review r) {
         owner(a, member);
         lockMember(member);
+        new gameplatform.moderation.ReviewModerationPolicy(db).ensureCanPost(member);
         reviewValid(member, game, r);
         if (id == null) {
             var old = db.queryForList("SELECT review_id,status FROM game_reviews WHERE member_id=? AND game_id=?",

@@ -1,3 +1,4 @@
+import { openEcpayPayment } from '../utils/ecpayWindow'
 import { ref } from 'vue'
 import { session } from '../../api'
 import { defineStore } from 'pinia'
@@ -6,13 +7,13 @@ import axios from '../../http.js'
 
 // 使用目前登入會員，不保留測試會員編號。
 export const memberId = () => {
-  if (!session.user || !['MEMBER','PUBLISHER'].includes(session.user.role)) throw Error('請先登入會員帳號')
+  if (!session.user || !['MEMBER', 'PUBLISHER'].includes(session.user.role)) throw Error('請先登入會員帳號')
   return session.user.id
 }
 
 // 把 axios 錯誤轉成後端回傳的訊息（後端格式：{ message: '...' }）
 function toError(e, fallback) {
-  return new Error(e.response?.data?.message ?? fallback)
+  return new Error(e.response?.data?.message ?? e.message ?? fallback)
 }
 
 // 定義購物車的 Pinia store（id 為 'cart'），各元件可透過 useCartStore() 共用同一份購物車資料
@@ -44,7 +45,7 @@ export const useCartStore = defineStore('cart', () => {
 
   // 取得目前購物車內容
   async function fetchCart() {
-    if (!session.user) { items.value=[]; coupon.value=null; totalPrice.value=0; return }
+    if (!session.user) { items.value = []; coupon.value = null; totalPrice.value = 0; return }
     loading.value = true
     try {
       // GET /api/cart/{memberId}：回傳 { items: [...], coupon, totalPrice }
@@ -86,7 +87,7 @@ export const useCartStore = defineStore('cart', () => {
 
   // 取得自己的遊戲庫
   async function fetchLibrary() {
-    if (!session.user) { library.value=[]; return }
+    if (!session.user) { library.value = []; return }
     // GET /api/member-games/{memberId}
     const { data } = await axios.get(`/api/member-games/${memberId()}`)
     library.value = data
@@ -156,32 +157,19 @@ export const useCartStore = defineStore('cart', () => {
     }
   }
 
-  // 綠界付款：後端用購物車建立待付款訂單並回傳綠界表單參數，再整頁跳到綠界付款頁
+  // 綠界付款：後端用購物車建立待付款訂單並回傳綠界表單參數，再以新分頁開啟綠界付款頁
   // choosePayment：'Credit'（信用卡）、'ATM'、'CVS'（超商代碼）
   // 付款完綠界會導回 /shopping-cart?payment=success|pending|fail&tradeNo=...，由購物車頁顯示結果
   async function payWithEcpay(choosePayment) {
+    if (loading.value) return
     loading.value = true
     try {
-      // POST /api/payment/{memberId}/checkout：回傳 { actionUrl, params }
-      const { data } = await axios.post(`/api/payment/${memberId()}/checkout`, { choosePayment })
-      // 綠界要用表單 POST 進去，不能用 axios：動態做一個隱藏表單送出，整頁會跳到綠界
-      const form = document.createElement('form')
-      form.method = 'POST'
-      form.action = data.actionUrl
-      for (const [name, value] of Object.entries(data.params)) {
-        const input = document.createElement('input')
-        input.type = 'hidden'
-        input.name = name
-        input.value = value
-        form.appendChild(input)
-      }
-      document.body.appendChild(form)
-      form.submit()
-    } catch (e) {
-      loading.value = false
-      throw toError(e, '結帳失敗')
-    }
-    // 成功時頁面會跳走，loading 維持 true 讓按鈕不能再按
+      return await openEcpayPayment(async () => {
+        const { data } = await axios.post(`/api/payment/${memberId()}/checkout`, { choosePayment })
+        return data
+      })
+    } catch (e) { throw toError(e, '結帳失敗') }
+    finally { loading.value = false; fetchCart().catch(console.error) }
   }
 
   // 從綠界導回來後，用綠界訂單編號查付款結果（ATM / 超商代碼會有繳費資訊）

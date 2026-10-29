@@ -48,6 +48,16 @@ public class ShopController {
         return shop.coupons(a);
     }
 
+    public record PlayTimeInput(Integer minutes) {
+    }
+
+    // CART 分支採用分鐘增量回報；維持整合專題的 JWT 身分檢查。
+    @PostMapping("/member-games/{memberId}/{gameId}/play")
+    public Object recordPlay(Actor a, @PathVariable int memberId, @PathVariable int gameId,
+            @RequestBody PlayTimeInput input) {
+        return shop.recordPlay(a, memberId, gameId, input == null ? null : input.minutes());
+    }
+
     @GetMapping("/member-games/{memberId}")
     public Object library(Actor a, @PathVariable int memberId) {
         return shop.library(a, memberId);
@@ -61,6 +71,19 @@ public class ShopController {
     @PostMapping("/orders/{memberId}/{orderId}/cancel")
     public Object cancel(Actor a, @PathVariable int memberId, @PathVariable int orderId) {
         return shop.cancel(a, memberId, orderId);
+    }
+
+    public record ReviewReportInput(String reason) {
+    }
+
+    @PostMapping("/reviews/{reviewId}/report")
+    public Object reportReview(Actor a, @PathVariable int reviewId, @RequestBody ReviewReportInput input) {
+        return shop.reportReview(a, reviewId, input.reason());
+    }
+
+    @GetMapping("/reviews/mute-status")
+    public Object reviewMuteStatus(Actor a) {
+        return shop.reviewMuteStatus(a);
     }
 
     @GetMapping("/reviews/game/{gameId}")

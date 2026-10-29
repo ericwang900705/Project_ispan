@@ -54,7 +54,7 @@ export const permissionCatalog = [
     "code": "REFUND_MANAGE",
     "name": "退款訂單查詢",
     "group": "訂單",
-    "description": "查詢已標記退款的訂單與明細；不執行金流退款",
+    "description": "處理退款申請與查詢退款訂單；正式金流需核對實際退款紀錄",
     "status": "partial",
     "reserved": false
   },
@@ -92,10 +92,10 @@ export const permissionCatalog = [
   },
   {
     "code": "PROMOTION_MANAGE",
-    "name": "優惠活動管理",
+    "name": "優惠活動列表",
     "group": "優惠活動",
-    "description": "建立與管理平台優惠活動",
-    "status": "pending",
+    "description": "查看發行商的遊戲折扣、活動時間及冷卻狀態；折扣由發行商建立",
+    "status": "full",
     "reserved": false
   },
   {
@@ -218,6 +218,7 @@ export function guardPage(to, user, lastArea = 'member') {
 
   if (loginPage)
     return homeFor(user.role)
+  if (to.meta.anyPermissions && !to.meta.anyPermissions.some(code => hasPermission(user, code))) return homeFor(user.role)
   if (to.meta.permission && !hasPermission(user, to.meta.permission))
     return homeFor(user.role)
   if (to.meta.staff && !staffRoles.includes(user.role))

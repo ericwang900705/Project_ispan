@@ -189,6 +189,49 @@ public class MemberService {
         Member member = memberRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("找不到該會員"));
 
+        // 檢查是否已經有 password_history 紀錄
+        boolean hasPassword = passwordHistoryRepository.existsByMember_MemberId(member.getMemberId());
+        boolean usernameChanged = false;
+
+        // 僅限尚未設定密碼 (無 password_history_id) 的 Google 登入會員設定帳號與密碼
+        if (!hasPassword) {
+            String reqUsername = request.getUsername() != null ? request.getUsername().trim() : "";
+            String reqPassword = request.getNewPassword() != null ? request.getNewPassword() : "";
+
+            boolean wantsChangeUsername = !reqUsername.isEmpty() && !reqUsername.equals(member.getUsername());
+            boolean wantsSetPassword = !reqPassword.isEmpty();
+
+            // 如果他改了帳號，但沒填密碼，提醒他一併設定密碼（確保下次能用一般帳號登入）
+            if (wantsChangeUsername && !wantsSetPassword) {
+                throw new RuntimeException("修改登入帳號時，請一併設定登入密碼");
+            }
+
+            if (wantsSetPassword) {
+                if (reqPassword.length() < 8 || reqPassword.length() > 72) {
+                    throw new RuntimeException("密碼長度需為 8～72 位");
+                }
+
+                // 若有修改帳號名稱，檢查格式與是否重複
+                if (wantsChangeUsername) {
+                    if (!reqUsername.matches("^[a-zA-Z0-9_]{4,30}$")) {
+                        throw new RuntimeException("帳號格式需為 4～30 位英數字或底線");
+                    }
+                    if (memberRepository.existsByUsername(reqUsername)) {
+                        throw new RuntimeException("此帳號已被使用，請換一個");
+                    }
+                    member.setUsername(reqUsername);
+                    usernameChanged = true;
+                }
+
+                // 寫入第一筆密碼紀錄 (產生 password_history_id)
+                PasswordHistory passwordHistory = PasswordHistory.builder()
+                        .member(member)
+                        .passwordHash(passwordEncoder.encode(reqPassword))
+                        .build();
+                passwordHistoryRepository.save(passwordHistory);
+            }
+        }
+
         // 只更新有傳遞過來的欄位
         if (request.getBirthDate() != null) {
             member.setBirthDate(request.getBirthDate());
@@ -202,8 +245,15 @@ public class MemberService {
 
         memberRepository.save(member);
 
-        // 回傳更新後的最新狀態
-        return buildProfileResponse(member);
+        // 回傳更新後的最新狀態 (此時 hasPassword 會變成 true)
+        MemberProfileResponse response = buildProfileResponse(member);
+
+        // 如果帳號名稱有變動，重新簽發新的 JWT Token 給前端無縫替換
+        if (usernameChanged) {
+            response.setAccessToken(generateMemberToken(member));
+        }
+
+        return response;
     }
 
     // 5. 上傳大頭貼實體檔案並更新會員資料
@@ -436,6 +486,27 @@ public class MemberService {
         mailService.sendHtmlMail(member.getEmail(), "【遊戲平台】請驗證您的註冊信箱", emailContent);
 
         return "驗證信已重新寄出，請至信箱查收。";
+    }
+
+    /** 只讀取登入會員自己的申請狀態，不回傳銀行帳號。 */
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Object> publisherApplicationStatus(String username) {
+        var members = db.queryForList("SELECT member_id,is_publisher,company_name FROM dbo.members WHERE username=?",
+                username);
+        if (members.isEmpty())
+            throw new gameplatform.support.model.Problem(404, "找不到會員");
+        var member = members.getFirst();
+        Object publisher = member.get("is_publisher");
+        if (Boolean.TRUE.equals(publisher) || (publisher instanceof Number n && n.intValue() != 0))
+            return java.util.Map.of("status", "APPROVED", "reviewComment", "");
+        var rows = db.queryForList(
+                "SELECT TOP 1 approval_status,review_comment FROM dbo.publisher_applications WHERE member_id=? ORDER BY application_id DESC",
+                member.get("member_id"));
+        if (rows.isEmpty())
+            return java.util.Map.of("status", member.get("company_name") == null ? "NONE" : "PENDING", "reviewComment",
+                    "");
+        return java.util.Map.of("status", rows.getFirst().get("approval_status"), "reviewComment",
+                java.util.Objects.toString(rows.getFirst().get("review_comment"), ""));
     }
 
     // ---11.申請成為發行商

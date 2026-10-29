@@ -1,4 +1,6 @@
 <script setup>
+import ReportReviewDialog from '../../components/ReportReviewDialog.vue'
+import { session } from '../../api'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useGamesStore, addRecent } from '@/cart/stores/games'
@@ -23,6 +25,7 @@ const game = computed(() => gamesStore.games.find((g) => String(g.gameId) === St
 const owned = computed(() => cart.isOwned(route.params.id))
 // 撰寫 / 修改評論視窗是否打開
 const formOpen = ref(false)
+const reporting = ref(null)
 // 正在修改的評論（新增時是 null）
 const editing = ref(null)
 
@@ -136,7 +139,8 @@ function day(dateTime) {
             <p class="desc">{{ game.description }}</p>
             <span v-if="game.genre" class="tag">{{ game.genre }}</span>
             <div class="score">
-              整體評價：<b :class="{ good: reviewStore.recommendPercent >= 70, bad: reviewStore.recommendPercent < 40 }">{{ summary }}</b>
+              整體評價：<b :class="{ good: reviewStore.recommendPercent >= 70, bad: reviewStore.recommendPercent < 40 }">{{
+                summary }}</b>
               <span v-if="reviewStore.reviews.length">（{{ reviewStore.reviews.length }} 則評論）</span>
             </div>
           </div>
@@ -171,7 +175,8 @@ function day(dateTime) {
         </div>
         <div class="gallery" :class="{ single: pageShots.length === 1 }">
           <template v-for="(item, i) in pageShots" :key="page * PAGE_SIZE + i">
-            <video v-if="item.mediaType === 'VIDEO'" :src="item.mediaUrl" controls preload="metadata" style="width:100%;height:100%;min-height:0;object-fit:contain"></video>
+            <video v-if="item.mediaType === 'VIDEO'" :src="item.mediaUrl" controls preload="metadata"
+              style="width:100%;height:100%;min-height:0;object-fit:contain"></video>
             <img v-else :src="item.mediaUrl" :alt="game.gameName" />
           </template>
         </div>
@@ -181,10 +186,22 @@ function day(dateTime) {
       <section id="info" class="block">
         <h2>詳細資訊</h2>
         <dl class="box facts">
-          <div><dt>類型</dt><dd>{{ game.genre || '未分類' }}</dd></div>
-          <div><dt>售價</dt><dd>{{ game.price === 0 ? '免費' : `NT$ ${game.price}` }}</dd></div>
-          <div v-if="game.originalPrice > game.price"><dt>原價</dt><dd>NT$ {{ game.originalPrice }}</dd></div>
-          <div><dt>整體評價</dt><dd>{{ summary }}</dd></div>
+          <div>
+            <dt>類型</dt>
+            <dd>{{ game.genre || '未分類' }}</dd>
+          </div>
+          <div>
+            <dt>售價</dt>
+            <dd>{{ game.price === 0 ? '免費' : `NT$ ${game.price}` }}</dd>
+          </div>
+          <div v-if="game.originalPrice > game.price">
+            <dt>原價</dt>
+            <dd>NT$ {{ game.originalPrice }}</dd>
+          </div>
+          <div>
+            <dt>整體評價</dt>
+            <dd>{{ summary }}</dd>
+          </div>
         </dl>
       </section>
 
@@ -216,9 +233,12 @@ function day(dateTime) {
             <div class="meta">
               <b>{{ r.username }}</b><span v-if="r.mine" class="me">（你）</span>
               <span class="stars">{{ '★'.repeat(r.rating) }}<i>{{ '★'.repeat(5 - r.rating) }}</i></span>
-              <span class="date">{{ day(r.createdAt) }}<template v-if="r.updatedAt"> · 修改於 {{ day(r.updatedAt) }}</template></span>
+              <span class="date">{{ day(r.createdAt) }}<template v-if="r.updatedAt"> · 修改於 {{ day(r.updatedAt)
+              }}</template></span>
             </div>
             <p v-if="r.content" class="content">{{ r.content }}</p>
+            <button v-if="session.user && !r.mine && r.content?.trim()" type="button" class="review-report-link"
+              @click="reporting = r">檢舉</button>
             <div v-if="r.mine" class="own-actions">
               <button @click="openForm(r)">修改</button>
               <button class="del" @click="remove(r)">刪除</button>
@@ -230,12 +250,23 @@ function day(dateTime) {
       <RouterLink to="/games/all" class="back">← 回到所有遊戲</RouterLink>
     </template>
 
+    <ReportReviewDialog v-if="reporting" :review="reporting" @close="reporting = null" />
     <ReviewForm v-if="formOpen && game" :game="game" :review="editing" @close="formOpen = false" />
   </main>
 </template>
 
 <!-- 遊戲詳情頁樣式（深藍底 + 金色重點色，和遊戲庫同色系） -->
 <style scoped>
+.review-report-link {
+  margin-top: 8px;
+  color: #b9c8eb;
+  text-decoration: underline;
+  font-size: 12px;
+  background: none;
+  border: 0;
+  cursor: pointer
+}
+
 .detail {
   --bg: #0b0c32;
   --surface: #121a4a;
@@ -246,138 +277,495 @@ function day(dateTime) {
   --text-muted: #98a2c8;
   --text-dim: #5e6894;
 
-  max-width: 1200px; margin: 0 auto; padding: 16px; min-height: 70vh; color: var(--text);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
+  min-height: 70vh;
+  color: var(--text);
 }
-.none { text-align: center; color: var(--text-muted); padding: 40px 0; }
+
+.none {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 40px 0;
+}
 
 /* ===== ① 上方橫幅 ===== */
-.hero { position: relative; overflow: hidden; border-radius: 8px; }
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
 /* 背景：封面圖放大、模糊、變暗；inset 設負的，模糊的邊緣才不會露出來 */
 .hero-bg {
-  position: absolute; inset: -30px;
-  background-size: cover; background-position: center;
+  position: absolute;
+  inset: -30px;
+  background-size: cover;
+  background-position: center;
   filter: blur(18px) brightness(.35);
 }
+
 /* 內容疊在背景上面：封面、資訊、購買框橫排 */
-.hero-inner { position: relative; display: flex; align-items: center; gap: 28px; padding: 40px 32px; }
-.cover { width: 320px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; flex-shrink: 0; box-shadow: 0 8px 24px rgba(0, 0, 0, .6); }
-.info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
-.info h1 { margin: 0; font-size: 36px; color: #fff; line-height: 1.2; }
+.hero-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 40px 32px;
+}
+
+.cover {
+  width: 320px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .6);
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info h1 {
+  margin: 0;
+  font-size: 36px;
+  color: #fff;
+  line-height: 1.2;
+}
+
 /* 介紹最多顯示 3 行，多的變成 …（完整的在「遊戲介紹」分頁） */
 .desc {
-  margin: 0; font-size: 15px; line-height: 1.7; color: var(--text-muted);
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
-.tag { align-self: flex-start; padding: 3px 12px; border-radius: 14px; font-size: 12px; border: 1px solid var(--text-dim); color: var(--text-muted); }
-.score { font-size: 14px; color: var(--text-muted); }
-.score b { color: var(--text); }
-.score b.good { color: #66c0f4; }
-.score b.bad { color: #e06060; }
+
+.tag {
+  align-self: flex-start;
+  padding: 3px 12px;
+  border-radius: 14px;
+  font-size: 12px;
+  border: 1px solid var(--text-dim);
+  color: var(--text-muted);
+}
+
+.score {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.score b {
+  color: var(--text);
+}
+
+.score b.good {
+  color: #66c0f4;
+}
+
+.score b.bad {
+  color: #e06060;
+}
+
 /* 右側購買框：半透明深色底，按鈕撐滿寬度 */
 .buy-box {
-  width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px;
-  padding: 24px 20px; border-radius: 6px; background: rgba(11, 12, 50, .75);
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px 20px;
+  border-radius: 6px;
+  background: rgba(11, 12, 50, .75);
 }
-.buy-box :deep(button) { width: 100%; padding: 12px; font-size: 15px; }
+
+.buy-box :deep(button) {
+  width: 100%;
+  padding: 12px;
+  font-size: 15px;
+}
 
 /* ===== ② 分頁列：黏在畫面最上面，選到的分頁底下有藍線 ===== */
 .tabs {
-  position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 4px;
-  margin-top: 12px; background: var(--bg); border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
+
 .tabs button {
-  padding: 16px 24px; border: none; border-bottom: 3px solid transparent; background: none;
-  font-size: 15px; color: var(--text-muted); cursor: pointer;
+  padding: 16px 24px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: none;
+  font-size: 15px;
+  color: var(--text-muted);
+  cursor: pointer;
 }
-.tabs button:hover { color: var(--text); }
-.tabs button.on { color: var(--text); border-bottom-color: #2f7bff; }
+
+.tabs button:hover {
+  color: var(--text);
+}
+
+.tabs button.on {
+  color: var(--text);
+  border-bottom-color: #2f7bff;
+}
+
 /* 捲過橫幅後才出現：左邊小封面、右邊購買按鈕 */
-.tabs-cover { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; margin-right: 12px; }
-.tabs-buy { margin-left: auto; padding: 10px 24px; }
+.tabs-cover {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-right: 12px;
+}
+
+.tabs-buy {
+  margin-left: auto;
+  padding: 10px 24px;
+}
 
 /* ===== ③～⑤ 各區塊：左邊標題、右邊內容框 ===== */
 /* scroll-margin-top：捲過去時留位置給分頁列，標題才不會被擋住 */
-.block { display: grid; grid-template-columns: 220px 1fr; gap: 24px; padding: 40px 0; scroll-margin-top: 70px; }
-.block.full { grid-template-columns: 1fr; }
-.block h2 { margin: 0; font-size: 22px; font-weight: normal; }
-.box { margin: 0; padding: 28px 36px; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); }
-/* 遊戲畫面：第一張大圖佔左邊兩列，其他小圖兩兩排在右邊 */
-.gallery { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; }
-.gallery :is(img, video) { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; }
-.gallery :is(img, video):first-child { grid-row: span 2; height: 100%; }
-/* 只有一張圖：撐滿整排，但不要太高 */
-.gallery.single { grid-template-columns: 1fr; }
-.gallery.single img { max-height: 480px; }
-.media-head {display: flex;align-items: center;justify-content: space-between}
-.pager { display: flex; align-items: center; gap: 8px; }
-.dot{width: 6px;height: 6px;background:var(--text-dim);}
-.dot.on{background: var(--text);}
-.pager button{
-  width:36px; height: 36px; border:1px solid var(--border); border-radius: 4px;
-  background: var(--surface); color:var(--text); font-size:20px;cursor: pointer;
+.block {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 24px;
+  padding: 40px 0;
+  scroll-margin-top: 70px;
 }
-.pager button:hover:not(:disabled){border-color: #2f7bff ;}
-.pager button:disabled{opacity: .3;cursor: default;}
+
+.block.full {
+  grid-template-columns: 1fr;
+}
+
+.block h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: normal;
+}
+
+.box {
+  margin: 0;
+  padding: 28px 36px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+/* 遊戲畫面：第一張大圖佔左邊兩列，其他小圖兩兩排在右邊 */
+.gallery {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 16px;
+}
+
+.gallery :is(img, video) {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.gallery :is(img, video):first-child {
+  grid-row: span 2;
+  height: 100%;
+}
+
+/* 只有一張圖：撐滿整排，但不要太高 */
+.gallery.single {
+  grid-template-columns: 1fr;
+}
+
+.gallery.single img {
+  max-height: 480px;
+}
+
+.media-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  background: var(--text-dim);
+}
+
+.dot.on {
+  background: var(--text);
+}
+
+.pager button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.pager button:hover:not(:disabled) {
+  border-color: #2f7bff;
+}
+
+.pager button:disabled {
+  opacity: .3;
+  cursor: default;
+}
+
 /* 詳細資訊：每一項橫著排 */
-.facts { display: flex; flex-wrap: wrap; gap: 16px 80px; }
-.facts dt { font-size: 13px; color: var(--text-dim); margin-bottom: 6px; }
-.facts dd { margin: 0; font-size: 15px; }
-.intro { font-size: 15px; line-height: 1.9; color: var(--text-muted); white-space: pre-wrap; }
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 80px;
+}
+
+.facts dt {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.facts dd {
+  margin: 0;
+  font-size: 15px;
+}
+
+.intro {
+  font-size: 15px;
+  line-height: 1.9;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+}
 
 /* ===== ⑥ 評論區 ===== */
-.reviews { padding-top: 18px; scroll-margin-top: 70px; }
-.head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-.head h2 { margin: 0; font-size: 20px; letter-spacing: 1px; }
-.hint { font-size: 13px; color: var(--text-dim); }
-.btn {
-  padding: 8px 18px; border: none; border-radius: 4px; font-size: 14px; font-weight: bold; cursor: pointer;
-  color: #1b0f0d; background: linear-gradient(to bottom, #e8be63, #b8892f);
+.reviews {
+  padding-top: 18px;
+  scroll-margin-top: 70px;
 }
-.btn:hover { background: linear-gradient(to bottom, #f5d27f, #c99a3a); }
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.head h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 1px;
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.btn {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #1b0f0d;
+  background: linear-gradient(to bottom, #e8be63, #b8892f);
+}
+
+.btn:hover {
+  background: linear-gradient(to bottom, #f5d27f, #c99a3a);
+}
 
 .review {
-  display: flex; margin-bottom: 12px; border-radius: 6px; overflow: hidden;
-  background: var(--surface); border: 1px solid transparent;
+  display: flex;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid transparent;
 }
-.review.mine { border-color: var(--gold); }
+
+.review.mine {
+  border-color: var(--gold);
+}
+
 /* 左邊：推薦 / 不推薦 */
 .verdict {
-  width: 92px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  font-size: 13px; color: #66c0f4; background: rgba(102, 192, 244, .1);
+  width: 92px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #66c0f4;
+  background: rgba(102, 192, 244, .1);
 }
-.verdict.no { color: #e06060; background: rgba(224, 96, 96, .1); }
-.thumb { font-size: 26px; }
-/* 右邊：作者、星星、內容 */
-.body { flex: 1; min-width: 0; padding: 10px 14px; }
-.meta { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; }
-.me { color: var(--gold); margin-left: -8px; }
-.stars { color: #f0c060; letter-spacing: 1px; }
-.stars i { font-style: normal; color: #3a4680; }
-.date { color: var(--text-dim); font-size: 12px; }
-.content { margin: 8px 0 0; font-size: 14px; white-space: pre-wrap; word-break: break-word; }
-/* 開發商回覆：左邊金色線，跟玩家的評論區分開 */
-.dev-reply { margin-top: 8px; padding: 6px 12px; border-left: 3px solid var(--gold); background: var(--surface-2); border-radius: 0 6px 6px 0; }
-.dev-reply-label { font-size: 12px; color: var(--gold); }
-.dev-reply p { margin: 4px 0 0; font-size: 14px; white-space: pre-wrap; word-break: break-word; }
-.own-actions { display: flex; gap: 8px; margin-top: 8px; }
-.own-actions button {
-  padding: 3px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;
-  border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
-}
-.own-actions .del:hover { border-color: #e06060; color: #e06060; }
 
-.back { display: inline-block; margin-top: 14px; font-size: 14px; color: var(--text-muted); }
-.back:hover { color: var(--gold); }
+.verdict.no {
+  color: #e06060;
+  background: rgba(224, 96, 96, .1);
+}
+
+.thumb {
+  font-size: 26px;
+}
+
+/* 右邊：作者、星星、內容 */
+.body {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 14px;
+}
+
+.meta {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 13px;
+}
+
+.me {
+  color: var(--gold);
+  margin-left: -8px;
+}
+
+.stars {
+  color: #f0c060;
+  letter-spacing: 1px;
+}
+
+.stars i {
+  font-style: normal;
+  color: #3a4680;
+}
+
+.date {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.content {
+  margin: 8px 0 0;
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 開發商回覆：左邊金色線，跟玩家的評論區分開 */
+.dev-reply {
+  margin-top: 8px;
+  padding: 6px 12px;
+  border-left: 3px solid var(--gold);
+  background: var(--surface-2);
+  border-radius: 0 6px 6px 0;
+}
+
+.dev-reply-label {
+  font-size: 12px;
+  color: var(--gold);
+}
+
+.dev-reply p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.own-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.own-actions button {
+  padding: 3px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.own-actions .del:hover {
+  border-color: #e06060;
+  color: #e06060;
+}
+
+.back {
+  display: inline-block;
+  margin-top: 14px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.back:hover {
+  color: var(--gold);
+}
 
 /* 手機 / 小螢幕：封面、資訊、購買框改成上下排 */
 @media (max-width: 900px) {
-  .hero-inner { flex-direction: column; align-items: stretch; padding: 24px 16px; }
-  .cover, .buy-box { width: 100%; }
-  .tabs button { padding: 14px 16px; }
-  .block { grid-template-columns: 1fr; }
-  .tabs { overflow-x: auto; }
-  .tabs-cover { display: none; }
-  .verdict { width: 64px; }
-}
+  .hero-inner {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 24px 16px;
+  }
 
+  .cover,
+  .buy-box {
+    width: 100%;
+  }
+
+  .tabs button {
+    padding: 14px 16px;
+  }
+
+  .block {
+    grid-template-columns: 1fr;
+  }
+
+  .tabs {
+    overflow-x: auto;
+  }
+
+  .tabs-cover {
+    display: none;
+  }
+
+  .verdict {
+    width: 64px;
+  }
+}
 </style>

@@ -279,7 +279,8 @@ onMounted(async () => {
           </div>
           <div v-if="protectedAccount" class="protected-badge">最高管理員 · 受保護</div>
           <div v-else-if="highest" class="role-actions">
-            <select :value="selected.draftRole" @change="onRoleChange($event.target.value)" :disabled="busy" aria-label="人員角色">
+            <select :value="selected.draftRole" @change="onRoleChange($event.target.value)" :disabled="busy"
+              aria-label="人員角色">
               <option v-for="role in roles" :key="role.code" :value="role.code">
                 {{ role.name }}
               </option>
@@ -316,12 +317,10 @@ onMounted(async () => {
             </span>
           </div>
           <div v-if="editable" class="selection-actions">
-            <button type="button" class="secondary-action" :disabled="busy || !editable"
-              @click="selectAll">
+            <button type="button" class="secondary-action" :disabled="busy || !editable" @click="selectAll">
               全選可授權項目
             </button>
-            <button type="button" class="secondary-action" :disabled="busy || !editable"
-              @click="clearAll">
+            <button type="button" class="secondary-action" :disabled="busy || !editable" @click="clearAll">
               清空勾選
             </button>
           </div>
@@ -329,9 +328,10 @@ onMounted(async () => {
             <label v-for="code in allCodes" :key="`${selected.id}-${code}`" class="permission-card"
               :class="{ checked: displayedPermissions.includes(code), unavailable: !protectedAccount && !available(code) }">
               <input v-if="protectedAccount" type="checkbox" checked disabled :aria-label="permissionNames[code]" />
-              <input v-else-if="selected.draftRole === 'STAFF'" v-model="selected.selected" type="checkbox" :value="code"
-                :disabled="busy || !canEditCode(code)" :aria-label="permissionNames[code]" />
-              <input v-else type="checkbox" :checked="displayedPermissions.includes(code)" disabled :aria-label="permissionNames[code]" />
+              <input v-else-if="selected.draftRole === 'STAFF'" v-model="selected.selected" type="checkbox"
+                :value="code" :disabled="busy || !canEditCode(code)" :aria-label="permissionNames[code]" />
+              <input v-else type="checkbox" :checked="displayedPermissions.includes(code)" disabled
+                :aria-label="permissionNames[code]" />
               <span class="permission-copy">
                 <small class="permission-category">
                   {{ catalogByCode[code].group }}
@@ -359,7 +359,8 @@ onMounted(async () => {
         </section>
         <footer class="permissions-footer">
           <span>
-            {{ protectedAccount ? '完整權限，不需另行儲存' : roleChanged ? '角色與權限尚未儲存，可按更新角色或儲存權限變更' : dirty(selected) ? '有尚未儲存的功能權限' : '功能權限已同步' }}
+            {{ protectedAccount ? '完整權限，不需另行儲存' : roleChanged ? '角色與權限尚未儲存，可按更新角色或儲存權限變更' : dirty(selected) ?
+              '有尚未儲存的功能權限' : '功能權限已同步' }}
           </span>
           <div v-if="editable" class="footer-actions">
             <button type="button" class="secondary-action" :disabled="busy || (!roleChanged && !dirty(selected))"

@@ -7,3 +7,5 @@ import './theme.css'
 import './admin-management.css'
 import './support-extension.css'
 import './friends.css'
+
+import './staff-polish.css'

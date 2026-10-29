@@ -2,7 +2,7 @@
 import DatePicker from '../components/DatePicker.vue'
 import { computed, ref, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, session } from '../api'
+import { api, session, replaceToken } from '../api'
 import GoogleSignInButton from '../components/GoogleSignInButton.vue'
 
 const route = useRoute()
@@ -70,6 +70,7 @@ const form = ref({
 })
 watch(() => form.value.avatarUrl, () => { avatarFailed.value = false })
 
+const publisherStatus = ref({ status: 'UNKNOWN', reviewComment: '' }), publisherStatusError = ref('')
 const publisherForm = ref({
   companyName: '',
   taxId: '',
@@ -111,9 +112,12 @@ async function loadProfile() {
   if (!session.user) return
   try {
     profile.value = await api('/members/me')
+    form.value.username = profile.value.username || '' // 新增：預填目前的帳號 (例如 Player_xxx)
     form.value.birthDate = profile.value.birthDate || ''
     form.value.address = profile.value.address || ''
     form.value.avatarUrl = profile.value.avatarUrl || ''
+    publisherStatusError.value = ''
+    try { publisherStatus.value = await api('/members/publisher-application') } catch (e) { publisherStatus.value = { status: 'UNKNOWN', reviewComment: '' }; publisherStatusError.value = e.message }
     googleError.value = ''; googleLink.value = null
     try { googleLink.value = await api('/members/google-link') } catch (e) { googleError.value = e.message }
   } catch (e) { error.value = e.message }
@@ -204,12 +208,48 @@ async function uploadAvatar(event) {
 async function updateProfile() {
   loading.value = true; error.value = ''; notice.value = ''
   try {
-    profile.value = await api('/members/profile', {
-      method: 'PATCH', body: {
-        birthDate: birthdayLocked.value ? null : form.value.birthDate || null, address: form.value.address
+    const body = {
+      birthDate: birthdayLocked.value ? null : form.value.birthDate || null,
+      address: form.value.address
+    }
+
+    // 僅在尚未設定密碼 (hasPassword === false) 時，才檢查並送出帳號密碼
+    if (profile.value?.hasPassword === false) {
+      const usernameChanged = form.value.username && form.value.username !== profile.value.username
+      const hasEnteredPassword = !!form.value.newPassword
+
+      if (usernameChanged && !hasEnteredPassword) {
+        error.value = '修改登入帳號時，請一併設定登入密碼'
+        loading.value = false
+        return
       }
+
+      if (hasEnteredPassword) {
+        if (form.value.newPassword !== form.value.confirmPassword) {
+          error.value = '兩次輸入的密碼不同'
+          loading.value = false
+          return
+        }
+        body.username = form.value.username
+        body.newPassword = form.value.newPassword
+      }
+    }
+
+    const updated = await api('/members/profile', {
+      method: 'PATCH',
+      body
     })
+
+    // 如果後端有回傳新的 accessToken
+    if (updated.accessToken) {
+      await replaceToken(updated.accessToken)
+    }
+
+    profile.value = updated
+    form.value.username = profile.value.username || ''
     form.value.birthDate = profile.value.birthDate || ''
+    form.value.newPassword = ''
+    form.value.confirmPassword = ''
     notice.value = '個人資料已更新'
   } catch (e) { error.value = e.message } finally { loading.value = false }
 }
@@ -223,47 +263,13 @@ async function changePassword() {
 }
 
 async function applyPublisher() {
-  const taxIdPattern = /^\d{8}$/
-  if (!taxIdPattern.test(publisherForm.value.taxId)) {
-    error.value = '統一編號格式錯誤，請輸入 8 位數字'
-    return
-  }
-
-  const result = await send('/members/apply-publisher', {
-    companyName: publisherForm.value.companyName,
-    taxId: publisherForm.value.taxId,
-    websiteUrl: publisherForm.value.websiteUrl,
-    bankName: publisherForm.value.bankName,
-    bankAccount: publisherForm.value.bankAccount
-  })
-
+  if (loading.value || !['NONE', 'REJECTED'].includes(publisherStatus.value.status)) return
+  if (!/^[0-9]{8}$/.test(publisherForm.value.taxId)) { error.value = '統一編號必須為 8 位數字'; return }
+  const result = await send('/members/apply-publisher', { ...publisherForm.value })
   if (result) {
-    publisherForm.value.companyName = ''
-    publisherForm.value.taxId = ''
-    publisherForm.value.websiteUrl = ''
-    publisherForm.value.bankName = ''
-    publisherForm.value.bankAccount = ''
-    await loadProfile()
-  }
-  try {
-    const result = await send('/members/apply-publisher', {
-      companyName: publisherForm.value.companyName,
-      taxId: publisherForm.value.taxId,
-      websiteUrl: publisherForm.value.websiteUrl,
-      bankName: publisherForm.value.bankName,
-      bankAccount: publisherForm.value.bankAccount
-    })
-
-    if (result) {
-      publisherForm.value.companyName = ''
-      publisherForm.value.taxId = ''
-      publisherForm.value.websiteUrl = ''
-      publisherForm.value.bankName = ''
-      publisherForm.value.bankAccount = ''
-      await loadProfile()
-    }
-  } catch (e) {
-    error.value = e.message || '申請失敗，請稍後再試'
+    publisherStatus.value = { status: 'PENDING', reviewComment: '' }
+    for (const key of Object.keys(publisherForm.value)) publisherForm.value[key] = ''
+    notice.value = result.message || '發行商申請已送出，請等候審核'
   }
 }
 </script>
@@ -310,7 +316,7 @@ async function applyPublisher() {
       <!-- 重發驗證信 -->
       <form v-else-if="action === 'verification-sent'" @submit.prevent="resendVerification">
         <p v-if="verificationSent">驗證信已寄送至 <strong>{{ verificationEmail
-        }}</strong>，請查看收件匣或垃圾郵件。完成信箱驗證後，本頁會顯示驗證成功；驗證信開啟的頁面會前往會員登入。</p>
+            }}</strong>，請查看收件匣或垃圾郵件。完成信箱驗證後，本頁會顯示驗證成功；驗證信開啟的頁面會前往會員登入。</p>
         <p v-if="verificationStatusNotice" role="status">{{ verificationStatusNotice }}</p>
         <p>沒有收到或連結過期？確認註冊信箱後重新寄送。</p>
         <label>電子郵件 <input v-model.trim="form.email" type="email" required autocomplete="email" /></label>
@@ -355,6 +361,21 @@ async function applyPublisher() {
             </div>
           </div>
           <form @submit.prevent="updateProfile">
+            <!-- 新增：僅 Google 登入且尚未設定密碼 (無 password_history_id) 時顯示 -->
+            <template v-if="profile?.hasPassword === false">
+              <label>登入帳號
+                <input v-model.trim="form.username" autocomplete="username" minlength="4" maxlength="30"
+                  placeholder="4～30 位英數字或底線" />
+              </label>
+              <label>設定登入密碼
+                <input v-model="form.newPassword" type="password" autocomplete="new-password" minlength="8"
+                  maxlength="72" placeholder="設定 8～72 位密碼，下次即可用帳號密碼登入" />
+              </label>
+              <label v-if="form.newPassword">確認登入密碼
+                <input v-model="form.confirmPassword" type="password" autocomplete="new-password" minlength="8"
+                  maxlength="72" required placeholder="請再次輸入密碼" />
+              </label>
+            </template>
             <div class="profile-birthday"><span>生日</span>
               <p v-if="birthdayLocked" class="profile-static-date">{{ birthdayText }}</p>
               <template v-else>
@@ -417,23 +438,31 @@ async function applyPublisher() {
           <div v-if="profile?.isPublisher" role="status">
             <p>您目前已經是遊戲發行商身分，無需重複申請。</p>
           </div>
+          <p v-else-if="publisherStatus.status === 'PENDING'" role="status">發行商申請已送出，正在審核中，無需重複申請。</p>
+          <div v-else-if="publisherStatus.status === 'UNKNOWN'">
+            <p role="alert">{{ publisherStatusError || '正在確認申請狀態…' }}</p><button type="button"
+              @click="loadProfile">重新整理</button>
+          </div>
           <form v-else @submit.prevent="applyPublisher">
+            <p v-if="publisherStatus.status === 'REJECTED'" role="status">上次申請未通過：{{ publisherStatus.reviewComment ||
+              '請修正資料後重新申請' }}</p>
             <label>公司名稱
               <input v-model.trim="publisherForm.companyName" required maxlength="100" />
             </label>
             <label>統一編號
-              <input v-model.trim="publisherForm.taxId" required maxlength="8" />
+              <input v-model.trim="publisherForm.taxId" required maxlength="8" pattern="[0-9]{8}" inputmode="numeric" />
             </label>
-            <label>官方網站
-              <input v-model.trim="publisherForm.websiteUrl" type="url" required maxlength="255" />
+            <label>官方網站（選填）
+              <input v-model.trim="publisherForm.websiteUrl" type="url" maxlength="255" />
             </label>
             <label>
               收款銀行名稱
-              <input v-model.trim="publisherForm.bankName" required maxlength="50" />
+              <input v-model.trim="publisherForm.bankName" required maxlength="100" />
             </label>
             <label>
               收款銀行帳號
-              <input v-model.trim="publisherForm.bankAccount" required maxlength="30" />
+              <input v-model.trim="publisherForm.bankAccount" required maxlength="30" pattern="[0-9\-]+"
+                inputmode="numeric" />
             </label>
             <button class="primary" :disabled="loading">
               {{ loading ? '送出中…' : '送出發行商申請' }}
@@ -759,8 +788,7 @@ async function applyPublisher() {
 
   .member-profile-nav {
     position: static;
-    /* 改為彈性等寬平分，避免第 3 個項目被擠到下一行換行不對稱 */
-    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    grid-template-columns: 1fr 1fr;
     padding: 10px
   }
 

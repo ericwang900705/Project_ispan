@@ -8,10 +8,24 @@ import gameplatform.support.model.Actor;
 @RequestMapping("/api/coupons")
 public class CouponController {
     private final CouponService service;
-    public CouponController(CouponService service) { this.service=service; }
-    @GetMapping("/center") public Object center(Actor a) { return service.center(a); }
-    @GetMapping("/mine") public Object mine(Actor a) { return service.mine(a); }
-    @PostMapping("/{couponId}/claim") public Object claim(Actor a,@PathVariable int couponId) {
-        service.claim(a,couponId);return java.util.Map.of("message","領取成功");
+
+    public CouponController(CouponService service) {
+        this.service = service;
+    }
+
+    @GetMapping("/center")
+    public Object center(Actor a) {
+        return service.center(a);
+    }
+
+    @GetMapping("/mine")
+    public Object mine(Actor a) {
+        return service.mine(a);
+    }
+
+    @PostMapping("/{couponId}/claim")
+    public Object claim(Actor a, @PathVariable int couponId) {
+        service.claim(a, couponId);
+        return java.util.Map.of("message", "領取成功");
     }
 }

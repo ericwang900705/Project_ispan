@@ -34,11 +34,17 @@ const paths = {
 }
 </script>
 <template>
-  <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+    stroke-linejoin="round" aria-hidden="true">
     <path v-for="(path, index) in paths[name] || paths.chat" :key="index" :d="path" />
   </svg>
 </template>
 <style scoped>
 /* Scoped styles for components/UiIcon.vue; Vue supplies data-v scope. */
-.ui-icon { width: 22px; height: 22px; flex-shrink: 0; vertical-align: middle; }
+.ui-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
 </style>

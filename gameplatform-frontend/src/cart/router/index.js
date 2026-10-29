@@ -27,19 +27,11 @@ export const cartRoutes = [
         component: () => import('../views/Orders.vue')
     },
     { path: '/coupons', name: 'Coupons', component: () => import('../views/Coupons.vue') },
-    {
-        path: '/point-store',//點數商店
-        name: 'PointStore',
-        component: () => import('../views/PointStore.vue')
-    },
+    { path: '/play/:id', name: 'PlayGame', component: () => import('../views/PlayGame.vue') },
     {
         path: '/member-games',//遊戲庫
         name: 'MemberGames',
         component: () => import('../views/MemberGames.vue')
-    },
-    {
-        path: '/games',//舊的遊戲首頁網址：自動轉到首頁
-        redirect: '/'
     },
     {
         // 所有遊戲：可帶 ?genre=射擊 只看某分類、?q=關鍵字 搜尋遊戲名稱

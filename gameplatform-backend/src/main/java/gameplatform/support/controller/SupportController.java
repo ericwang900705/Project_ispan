@@ -46,6 +46,15 @@ public class SupportController {
         this.profiles = profiles;
     }
 
+    public record RefundRequestInput(
+            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 2000) String reason) {
+    }
+
+    @PostMapping("/orders/{orderId}/refund-request")
+    public Object requestRefund(Actor actor, @PathVariable int orderId, @Valid @RequestBody RefundRequestInput input) {
+        return service.requestRefund(actor, orderId, input.reason());
+    }
+
     @GetMapping("/public/config")
     public Object config() {
         return Map.of("demo", false);

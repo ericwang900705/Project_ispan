@@ -1,31 +1,32 @@
 <script setup>
+// 後台人員登入頁；使用共用品牌背景，保留原表單流程。
+import StaffAuthShell from '../components/StaffAuthShell.vue'
 import LoginForm from '../components/LoginForm.vue'
 import UiIcon from '../components/UiIcon.vue'
 
 </script>
 <template>
-  <section class="staff-login">
-    <div class="staff-login-brand">
-      <strong>赫洛</strong>
-      <span>STAFF WORKSPACE</span>
-    </div>
-    <div class="login-card staff-login-card" aria-labelledby="staff-login-title">
-      <span class="eyebrow">後台人員專用</span>
-      <h1 id="staff-login-title">工作後台登入</h1>
-      <p class="muted">最高管理員、管理員、審核及客服人員<br>請使用你的後台帳號登入。</p>
-      <LoginForm area="staff" />
-      <div class="staff-account-entry">
-        <span class="account-divider">尚未建立後台帳號？</span>
-        <RouterLink class="staff-register-link" to="/staff/register">
-          <UiIcon name="plus" />
-          <span>建立後台帳號</span>
-          <UiIcon name="chevron" />
-        </RouterLink>
-        <small>建立後需等待最高管理員授權</small>
+  <StaffAuthShell>
+    <section class="staff-login">
+
+      <div class="login-card staff-login-card" aria-labelledby="staff-login-title">
+        <span class="eyebrow">後台人員專用</span>
+        <h1 id="staff-login-title">工作後台登入</h1>
+        <p class="muted">最高管理員、管理員、審核及客服人員<br>請使用你的後台帳號登入。</p>
+        <LoginForm area="staff" />
+        <div class="staff-account-entry">
+          <span class="account-divider">尚未建立後台帳號？</span>
+          <RouterLink class="staff-register-link" to="/staff/register">
+            <UiIcon name="plus" />
+            <span>建立後台帳號</span>
+            <UiIcon name="chevron" />
+          </RouterLink>
+          <small>建立後需等待最高管理員授權</small>
+        </div>
+        <p class="staff-login-note">最高管理員進入管理主頁，其他人員依個別授權進入工作後台。</p>
       </div>
-      <p class="staff-login-note">最高管理員進入管理主頁，其他人員依個別授權進入工作後台。</p>
-    </div>
-  </section>
+    </section>
+  </StaffAuthShell>
 </template>
 
 <style scoped>

@@ -13,22 +13,22 @@ import gameplatform.recommendation.entity.MemberTagSearchStat;
 import gameplatform.recommendation.entity.MemberTagSearchStatId;
 
 public interface MemberTagSearchStatRepository
-                extends JpaRepository<MemberTagSearchStat, MemberTagSearchStatId> {
+    extends JpaRepository<MemberTagSearchStat, MemberTagSearchStatId> {
 
-        // 查詢會員最常搜尋的 Tag，直接轉成 DTO
-        @Query("""
-                        SELECT new gameplatform.recommendation.dto.TagSearchPreferenceDto(
-                            s.tagId,
-                            t.tagName,
-                            s.searchCount,
-                            s.lastSearchedAt
-                        )
-                        FROM MemberTagSearchStat s, Tag t
-                        WHERE s.tagId = t.tagId
-                          AND s.memberId = :memberId
-                        ORDER BY s.searchCount DESC, s.lastSearchedAt DESC
-                        """)
-        List<TagSearchPreferenceDto> findTopSearchPreferences(
-                        @Param("memberId") Integer memberId,
-                        Pageable pageable);
+  // 查詢會員最常搜尋的 Tag，直接轉成 DTO
+  @Query("""
+      SELECT new gameplatform.recommendation.dto.TagSearchPreferenceDto(
+          s.tagId,
+          t.tagName,
+          s.searchCount,
+          s.lastSearchedAt
+      )
+      FROM MemberTagSearchStat s, Tag t
+      WHERE s.tagId = t.tagId
+        AND s.memberId = :memberId
+      ORDER BY s.searchCount DESC, s.lastSearchedAt DESC
+      """)
+  List<TagSearchPreferenceDto> findTopSearchPreferences(
+      @Param("memberId") Integer memberId,
+      Pageable pageable);
 }

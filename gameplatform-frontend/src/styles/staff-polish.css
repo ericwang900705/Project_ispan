@@ -1,0 +1,1175 @@
+/* 後台統一視覺：僅作用於 staff-workspace，不改動會員與發行商畫面。 */
+body.support-portal.staff-workspace {
+  --hero-page-background: #edf3f8;
+  --workspace-background: #edf3f8;
+  background: #edf3f8;
+  background-image: radial-gradient(ellipse at 95% 0, #a5d5dc40, transparent 48%), radial-gradient(ellipse at 0 100%, #b2c5e029, transparent 55%);
+  background-attachment: fixed;
+  color: #243e52;
+  --staff-accent: #168297;
+  --staff-border: #dce6ee;
+  --staff-muted: #6c8293;
+}
+
+body.staff-workspace .support-ui {
+  --hero-card-radius: 14px;
+  --hero-elevation: 0 4px 18px #19394e06;
+}
+
+body.staff-workspace .site-header.management-header {
+  background: #142a40;
+  border-bottom: 1px solid #263e53;
+  box-shadow: 0 3px 15px #172d4220;
+}
+
+body.staff-workspace .management-sidebar {
+  background: #fff;
+  border-right: 1px solid #dce6ee;
+  padding-top: 28px;
+}
+
+body.staff-workspace .sidebar-group {
+  margin-bottom: 7px;
+}
+
+body.staff-workspace .sidebar-group-toggle {
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+body.staff-workspace .sidebar-children {
+  margin: 3px 0 8px 23px;
+  padding-left: 16px;
+  border-left: 1px solid #e3edf1;
+}
+
+body.staff-workspace .sidebar-children a {
+  margin: 3px 0;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+body.staff-workspace .sidebar-children a.router-link-exact-active {
+  background: #e8f5f7;
+  color: #116e82;
+  box-shadow: inset 3px 0 #168297;
+  font-weight: 650;
+}
+
+/* 精簡所有共用標題，保留頁面的資訊階層。 */
+body.staff-workspace .support-ui .management-heading,
+body.staff-workspace .support-ui .page>.page-title {
+  padding: 0 0 22px;
+  margin: 0 0 24px;
+  border: 0;
+  border-bottom: 1px solid #dce6ee;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  min-height: 0;
+}
+
+body.staff-workspace .support-ui .management-heading-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: #e5f2f4;
+  color: #147b90;
+  border: 1px solid #d7eaee;
+}
+
+body.staff-workspace .support-ui .management-heading-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+body.staff-workspace .support-ui .management-heading-main {
+  gap: 16px;
+}
+
+body.staff-workspace .support-ui .management-heading h1,
+body.staff-workspace .support-ui .page-title h1 {
+  color: #243e52;
+  font-size: 28px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+body.staff-workspace .support-ui .management-eyebrow {
+  color: #78929e;
+  font-size: 10px;
+  letter-spacing: 1.6px;
+  margin-bottom: 5px;
+}
+
+body.staff-workspace .support-ui .management-heading p {
+  color: #6c8293;
+  line-height: 1.7;
+}
+
+body.staff-workspace .support-ui .management-heading-count {
+  border-color: #dce6ee;
+  min-width: 110px;
+}
+
+body.staff-workspace .support-ui .management-heading-count strong {
+  color: #147b90;
+  font-size: 27px;
+}
+
+body.staff-workspace .support-ui :is(.management-search, .management-panel, .admin-game-card, .staff-card, .summary-card, .sx-management, .case-toolbar, .admin-filters, .support-context) {
+  background: #fff;
+  border: 1px solid #dce6ee;
+  border-radius: 14px;
+  box-shadow: 0 4px 18px #19394e05;
+  color: #29485c;
+}
+
+body.staff-workspace .support-ui :is(.management-search, .case-toolbar, .admin-filters) {
+  padding: 20px 22px;
+}
+
+body.staff-workspace .support-ui :is(input:not([type=checkbox]):not([type=radio]), select, textarea) {
+  border-color: #cddde7;
+  background: #fbfdfe;
+  color: #29485c;
+  border-radius: 8px;
+  box-shadow: none;
+  color-scheme: light;
+}
+
+body.staff-workspace .support-ui :is(input, textarea)::placeholder {
+  color: #8b9eaa;
+  opacity: 1;
+}
+
+body.staff-workspace .support-ui :is(input, select, textarea):focus-visible {
+  outline: 3px solid #16829726;
+  outline-offset: 1px;
+  border-color: #168297;
+}
+
+body.staff-workspace .support-ui button {
+  transition: background .16s, border-color .16s, box-shadow .16s;
+}
+
+body.staff-workspace .support-ui button.primary {
+  background: #168297;
+  color: #fff;
+  border-color: #168297;
+  border-radius: 8px;
+  box-shadow: 0 3px 8px #16829715;
+}
+
+body.staff-workspace .support-ui button.primary:hover:not(:disabled) {
+  background: #106d80;
+  border-color: #106d80;
+}
+
+body.staff-workspace .support-ui button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+body.staff-workspace .support-ui button.action-danger {
+  color: #a9464e;
+  background: #fff1f2;
+  border-color: #f0cbd0;
+}
+
+body.staff-workspace .support-ui button.action-success {
+  color: #257657;
+  background: #eaf7f0;
+  border-color: #c6e5d5;
+}
+
+body.staff-workspace .support-ui button.action-info {
+  color: #176c85;
+  background: #eaf5fa;
+  border-color: #c9e1eb;
+}
+
+body.staff-workspace .support-ui .management-table-wrap {
+  background: #fff;
+  border: 1px solid #dce6ee;
+  border-radius: 14px;
+  box-shadow: 0 4px 18px #19394e05;
+}
+
+body.staff-workspace .support-ui .management-table-wrap th {
+  color: #6b8292;
+  background: #f7fafc;
+  font-size: 12px;
+  padding: 15px 18px;
+  font-weight: 600;
+}
+
+body.staff-workspace .support-ui .management-table-wrap td {
+  color: #36566b;
+  border-bottom-color: #edf2f6;
+  padding: 17px 18px;
+}
+
+body.staff-workspace .support-ui .management-table-wrap tbody tr:hover {
+  background: #f4fafc;
+}
+
+body.staff-workspace .support-ui .management-pagination {
+  justify-content: center;
+  color: #6c8293;
+  gap: 18px;
+  font-size: 13px;
+}
+
+body.staff-workspace .support-ui .management-pagination button {
+  background: white;
+  border: 1px solid #d8e4ec;
+  border-radius: 8px;
+  min-height: 38px;
+  padding: 8px 14px;
+  color: #36566b;
+}
+
+body.staff-workspace .support-ui .management-tabs {
+  background: #e8eff4;
+  border-radius: 10px;
+}
+
+body.staff-workspace .support-ui .management-tabs a {
+  border: 0;
+  background: none;
+  border-radius: 7px;
+  color: #647e90;
+}
+
+body.staff-workspace .support-ui .management-tabs a.active {
+  color: #147b90;
+  background: #fff;
+  box-shadow: 0 2px 5px #19394e0a;
+}
+
+body.staff-workspace .support-ui :is(.error, .sx-error) {
+  color: #a6414a;
+}
+
+body.staff-workspace .support-ui :is(.management-notice, .sx-notice) {
+  background: #eaf7f1;
+  border: 1px solid #cce8dc;
+  color: #287052;
+  border-radius: 9px;
+}
+
+body.staff-workspace .support-ui .list-scope {
+  color: #6c8293;
+  font-size: 13px;
+  margin: 16px 2px;
+}
+
+body.staff-workspace .support-ui .ticket-detail-page .discussion-heading {
+  background: #fff;
+  border-color: #dce6ee;
+}
+
+body.staff-workspace .support-ui .support-case-page .case-admin-heading {
+  background: none;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+@media(max-width:760px) {
+  body.staff-workspace .support-ui .management-heading {
+    gap: 16px;
+    padding-bottom: 18px;
+  }
+
+  body.staff-workspace .support-ui .management-heading h1,
+  body.staff-workspace .support-ui .page-title h1 {
+    font-size: 24px;
+  }
+
+  body.staff-workspace .support-ui :is(.management-search, .case-toolbar, .admin-filters) {
+    padding: 16px;
+  }
+
+  body.staff-workspace .support-ui .management-heading-count {
+    border: 0;
+    padding: 0;
+    width: auto;
+  }
+}
+
+@media(prefers-reduced-motion:reduce) {
+  body.staff-workspace .support-ui button {
+    transition: none;
+  }
+}
+
+/* 權限管理、平台總覽與工作佇列使用相同資訊卡片。 */
+body.staff-workspace .support-ui :is(.page-heading, .platform-heading) {
+  padding: 0 0 22px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #dce6ee;
+  background: none;
+}
+
+body.staff-workspace .support-ui :is(.page-heading, .platform-heading) h1 {
+  color: #243e52;
+  font-size: 28px;
+  line-height: 1.35;
+  font-weight: 650;
+}
+
+body.staff-workspace .support-ui :is(.staff-panel, .permissions-panel, .create-form, .platform-stat, .platform-trend, .platform-footer, .overview-card, .overview-queue) {
+  background: #fff;
+  border: 1px solid #dce6ee;
+  border-radius: 14px;
+  box-shadow: 0 4px 18px #19394e05;
+  color: #36566b;
+}
+
+body.staff-workspace .support-ui .platform-stat {
+  border-top: 3px solid #88bbc6;
+}
+
+body.staff-workspace .support-ui .platform-stat strong {
+  color: #234b60;
+  font-variant-numeric: tabular-nums;
+}
+
+body.staff-workspace .support-ui .revenue-track {
+  background: #eaf1f5;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+body.staff-workspace .support-ui .revenue-track span {
+  background: linear-gradient(90deg, #258a9b, #83bec6);
+  border-radius: 5px;
+}
+
+body.staff-workspace .support-ui .staff-item.active {
+  background: #eaf6f8;
+  border-color: #abd5de;
+}
+
+body.staff-workspace .support-ui :is(.primary-action, .create-form button[type=submit]) {
+  background: #168297;
+  border-color: #168297;
+  color: white;
+  border-radius: 8px;
+}
+
+body.staff-workspace .support-ui .overview-card:hover {
+  border-color: #88bbc6;
+  box-shadow: 0 6px 22px #19394e0c;
+}
+
+@media(max-width:760px) {
+  body.staff-workspace .support-ui :is(.page-heading, .platform-heading) h1 {
+    font-size: 24px;
+  }
+}
+
+/* 客服總覽、FAQ 與常用回覆。 */
+body.staff-workspace .support-ui :is(.work-stat, .work-queue, .sx-resource-card, .queue-table-wrap, .chat-main, .chat-list) {
+  background: #fff;
+  border: 1px solid #dce6ee;
+  border-radius: 14px;
+  box-shadow: 0 4px 18px #19394e05;
+  color: #36566b;
+}
+
+body.staff-workspace .support-ui :is(.queue-table, .staff-list) th {
+  background: #f7fafc;
+  color: #6b8292;
+}
+
+body.staff-workspace .support-ui :is(.queue-heading, .sx-section-line) h2 {
+  color: #29485c;
+}
+
+body.staff-workspace .support-ui .sx-primary {
+  background: #168297;
+  color: #fff;
+  border-color: #168297;
+  border-radius: 8px;
+}
+
+body.staff-workspace .support-ui .sx-status {
+  background: #e9f5f7;
+  color: #176c85;
+  border-radius: 20px;
+}
+
+body.staff-workspace .support-ui :is(.login-card, .auth-card) {
+  background: #fff;
+  border: 1px solid #dce6ee;
+  box-shadow: 0 14px 44px #19394e0d;
+  border-radius: 18px;
+}
+
+/* ===== Back-office design system: single source for background and spacing ===== */
+html:has(body.staff-workspace) {
+  background: #edf3f8;
+}
+
+body.support-portal.staff-workspace {
+  --hero-page-background: #edf3f8;
+  --workspace-background: #edf3f8;
+  --staff-gap: 22px;
+  background-color: #edf3f8 !important;
+  background-image: radial-gradient(ellipse at 95% 0, #a5d5dc40, transparent 48%), radial-gradient(ellipse at 0 100%, #b2c5e029, transparent 55%) !important;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  color-scheme: light;
+}
+
+body.staff-workspace .support-ui.management-content,
+body.staff-workspace .support-ui.support-page:not(.auth-page) {
+  background: transparent !important;
+  min-width: 0;
+}
+
+body.staff-workspace .management-content {
+  box-sizing: border-box;
+  padding-top: 32px;
+  padding-bottom: 56px;
+}
+
+body.staff-workspace .management-content>* {
+  min-width: 0;
+}
+
+/* Consistent vertical rhythm for admin screens; avoid changing public website. */
+body.staff-workspace .support-ui :is(.admin-page, .management-page, .page, .platform-page, .support-case-page, .ticket-detail-page) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+body.staff-workspace .support-ui :is(.management-heading, .page-heading, .platform-heading, .page-title) {
+  margin-top: 0;
+  margin-bottom: 26px;
+}
+
+body.staff-workspace .support-ui :is(.management-search, .admin-filters, .case-toolbar, .management-panel, .admin-game-card, .staff-card, .summary-card, .sx-management, .staff-panel, .permissions-panel, .create-form, .platform-stat, .platform-trend, .overview-card, .overview-queue, .work-stat, .work-queue, .sx-resource-card) {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+body.staff-workspace .support-ui :is(.management-search, .admin-filters, .case-toolbar) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 14px 18px;
+  margin-bottom: 24px;
+  padding: 22px 24px;
+}
+
+body.staff-workspace .support-ui :is(.management-panel, .staff-panel, .permissions-panel, .create-form, .sx-management) {
+  padding: clamp(18px, 2vw, 28px);
+  margin-bottom: 24px;
+}
+
+body.staff-workspace .support-ui :is(.management-search, .admin-filters, .case-toolbar)>* {
+  min-width: 0;
+}
+
+body.staff-workspace .support-ui :is(input:not([type=checkbox]):not([type=radio]), select, textarea) {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-height: 40px;
+}
+
+body.staff-workspace .support-ui :is(button, .primary-action, .sx-primary) {
+  min-height: 38px;
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+body.staff-workspace .support-ui :is(.management-tabs, .management-pagination) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-block: 18px;
+}
+
+body.staff-workspace .support-ui :is(.management-table-wrap, .queue-table-wrap) {
+  overflow-x: auto;
+  max-width: 100%;
+  margin-bottom: 24px;
+}
+
+body.staff-workspace .support-ui :is(.management-table-wrap, .queue-table-wrap) table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+body.staff-workspace .support-ui :is(.management-table-wrap, .queue-table-wrap) :is(th, td) {
+  line-height: 1.55;
+  vertical-align: middle;
+}
+
+body.staff-workspace .support-ui :is(.management-table-wrap, .queue-table-wrap) td> :is(button, a)+ :is(button, a) {
+  margin-left: 8px;
+  margin-top: 4px;
+}
+
+body.staff-workspace .support-ui :is(.management-table-wrap, .queue-table-wrap) :is(td, th) {
+  overflow-wrap: anywhere;
+}
+
+body.staff-workspace .support-ui :is(.management-heading, .page-heading, .platform-heading) p {
+  line-height: 1.7;
+}
+
+@media (max-width: 900px) {
+  body.staff-workspace .management-content {
+    padding-top: 22px;
+    padding-bottom: 40px;
+  }
+
+  body.staff-workspace .support-ui :is(.management-search, .admin-filters, .case-toolbar) {
+    padding: 18px;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  body.staff-workspace .support-ui :is(.management-heading, .page-heading, .platform-heading, .page-title) {
+    margin-bottom: 20px;
+  }
+
+  body.staff-workspace .support-ui :is(.management-panel, .staff-panel, .permissions-panel, .create-form, .sx-management) {
+    padding: 16px;
+  }
+
+  body.staff-workspace .support-ui :is(.management-search, .admin-filters, .case-toolbar) {
+    padding: 16px;
+  }
+
+  body.staff-workspace .support-ui :is(.management-search, .admin-filters, .case-toolbar)> :is(input, select, button, label) {
+    max-width: 100%;
+  }
+}
+
+/* 登入後工作區的卡片層次；不覆蓋會員或發行商樣式。 */
+body.staff-workspace .support-ui :is(.management-search, .management-panel, .management-table-wrap, .staff-panel, .overview-card, .work-stat, .work-queue) {
+  box-shadow: 0 4px 20px #173d5608;
+}
+
+body.staff-workspace .support-ui .management-table-wrap th {
+  background: #f2f7fa;
+}
+
+body.staff-workspace .support-ui .management-table-wrap tbody tr:hover {
+  background: #f0f9fa;
+}
+
+/* 完整背景由登入／註冊外框繪製，避免外層頁面留白。 */
+body.staff-workspace .support-ui.support-page.auth-page {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* 登入外層背景備援：舊版登入模板也能顯示背景；不依賴插圖或遠端圖片。 */
+body.support-portal.staff-workspace .support-ui.support-page.auth-page {
+  min-height: 100dvh;
+  background-color: #0b1d30;
+  background-image:
+    radial-gradient(ellipse at 5% 5%, #174963b3, transparent 53%),
+    radial-gradient(ellipse at 96% 85%, #17657066, transparent 53%),
+    linear-gradient(125deg, #0d2339, #0c192b 60%, #0c2c3c);
+  background-attachment: fixed;
+}
+
+body.staff-workspace .auth-page>.staff-login .staff-login-brand,
+body.staff-workspace .auth-page>.staff-register-page .register-brand {
+  color: #dff6fb;
+}
+
+/* 登入後背景獨立繪製；內容、固定導覽與彈窗仍依原層級顯示。 */
+body.staff-workspace.staff-background-active .support-ui.support-page.staff-content-layer {
+  position: relative;
+  z-index: auto;
+  background: transparent !important;
+}
+
+body.staff-workspace.staff-background-active .support-ui :is(.management-heading, .page-heading, .platform-heading, .page > .page-title) {
+  border-bottom-color: #91b2cb;
+}
+
+body.staff-workspace.staff-background-active .support-ui :is(.management-search, .management-panel, .management-table-wrap, .platform-stat, .platform-trend, .work-stat, .work-queue, .overview-card) {
+  box-shadow: 0 8px 26px #2049630d;
+}
+
+/* 後台文字與卡片對比：保留層次，避免文字和背景混在一起；不作用於前台。 */
+body.staff-workspace {
+  --staff-border: #b7cad8;
+  --staff-muted: #476074;
+  color: #1c354b;
+}
+
+body.staff-workspace .support-ui.support-page {
+  font-size: 14px;
+  line-height: 1.75;
+  color: #213c52;
+}
+
+body.staff-workspace .support-ui :is(.management-heading, .page-heading, .platform-heading, .page-title) h1 {
+  font-size: 28px;
+  font-weight: 750;
+  color: #15364f;
+  letter-spacing: .2px;
+}
+
+body.staff-workspace .support-ui :is(.management-heading, .page-heading, .platform-heading, .page-title) p,
+body.staff-workspace .support-ui :is(.management-eyebrow, .eyebrow, .list-scope, .muted) {
+  color: #344f65;
+  opacity: 1;
+}
+
+body.staff-workspace .support-ui :is(.management-search, .management-panel, .platform-stat, .platform-trend, .staff-panel, .permissions-panel, .staff-card, .overview-card, .work-stat, .work-queue, .sx-management, .sx-resource-card, .support-context, .case-toolbar, .admin-filters, .queue-table-wrap, .discussion-heading, .chat-list, .chat-main) {
+  background: #fff;
+  color: #213c52;
+  border: 1px solid #b7cad8;
+  border-radius: 15px;
+  box-shadow: 0 8px 24px #1a394f12, 0 1px 3px #173d5508;
+}
+
+body.staff-workspace .support-ui :is(.management-panel, .staff-panel, .work-stat, .work-queue, .platform-trend, .sx-resource-card) :is(h2, h3) {
+  color: #1b3c54;
+  font-weight: 700;
+}
+
+body.staff-workspace .support-ui :is(.management-search, .management-panel, .staff-panel, .permissions-panel, .create-form, .sx-management, .sx-resource-card, .refund-review-dialog) label {
+  color: #2f4b61;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+body.staff-workspace .support-ui :is(.platform-stat, .work-stat, .overview-card, .summary-card) :is(small, p),
+body.staff-workspace .support-ui :is(.platform-stat > div span, .platform-trend footer, .platform-footer, .queue-description, .register-footer) {
+  color: #526b7e;
+  opacity: 1;
+  font-size: 12px;
+}
+
+body.staff-workspace .support-ui :is(.platform-stat, .work-stat) strong {
+  color: #123e56;
+  font-size: 32px;
+  font-weight: 750;
+}
+
+body.staff-workspace .support-ui .management-table-wrap {
+  background: #fff;
+  border: 1px solid #b3c9d8;
+  border-radius: 15px;
+  box-shadow: 0 8px 24px #1a394f12;
+}
+
+body.staff-workspace .support-ui :is(.management-table-wrap, .queue-table-wrap) th {
+  color: #2d4b60;
+  background: #eaf2f8;
+  font-size: 13px;
+  font-weight: 700;
+  border-bottom: 1px solid #bfd0dd;
+  padding: 16px 18px;
+}
+
+body.staff-workspace .support-ui :is(.management-table-wrap, .queue-table-wrap) td {
+  color: #213d53;
+  font-size: 14px;
+  line-height: 1.75;
+  border-bottom-color: #dce6ee;
+  padding: 17px 18px;
+}
+
+body.staff-workspace .support-ui :is(.management-table-wrap, .queue-table-wrap) td small {
+  color: #526b7e;
+  font-size: 12px;
+}
+
+body.staff-workspace .support-ui .management-table-wrap tbody tr:hover {
+  background: #edf7fb;
+}
+
+body.staff-workspace .support-ui .management-pagination {
+  color: #36556a;
+  font-size: 13px;
+}
+
+body.staff-workspace .support-ui .management-pagination button {
+  border-color: #b8ccd9;
+  color: #2c4c61;
+}
+
+body.staff-workspace .support-ui :is(input:not([type=checkbox]):not([type=radio]), select, textarea) {
+  background: #fff;
+  border-color: #abc2d2;
+  color: #1c3b51;
+  font-size: 14px;
+}
+
+body.staff-workspace .support-ui :is(input, textarea)::placeholder {
+  color: #647b8c;
+  opacity: 1;
+}
+
+body.staff-workspace .support-ui select option {
+  background: #fff;
+  color: #1c3b51;
+}
+
+body.staff-workspace .support-ui :is(button.primary, .sx-primary, .primary-action) {
+  background: #087b91;
+  border-color: #087b91;
+  color: #fff;
+  font-weight: 650;
+}
+
+body.staff-workspace .support-ui button.secondary {
+  background: #f7fbfd;
+  color: #2d526a;
+  border: 1px solid #b9cddc;
+}
+
+body.staff-workspace .support-ui :is(.management-actions, .refund-row-actions, .refund-filter-actions) button {
+  min-height: 38px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+body.staff-workspace .support-ui button.action-success {
+  background: #e6f4ed;
+  color: #1d6748;
+  border-color: #a9d2bd;
+}
+
+body.staff-workspace .support-ui button.action-danger {
+  background: #fff0f2;
+  color: #a02f43;
+  border-color: #e4b5c0;
+}
+
+body.staff-workspace .support-ui button.action-info {
+  background: #e6f3fa;
+  color: #115d7c;
+  border-color: #aecfdf;
+}
+
+body.staff-workspace .support-ui .management-notice {
+  color: #205f48;
+  background: #e8f6ed;
+  border-color: #b3d5c2;
+  font-weight: 500;
+}
+
+body.staff-workspace .support-ui :is(.error, .sx-error) {
+  color: #a1263d;
+}
+
+body.staff-workspace .management-sidebar {
+  border-right-color: #b8ccdb;
+  box-shadow: 3px 0 16px #23445908;
+}
+
+body.staff-workspace .management-sidebar :is(.sidebar-dashboard, .sidebar-group-toggle) {
+  color: #2e4b62;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+body.staff-workspace .management-sidebar .sidebar-children a {
+  color: #3a596f;
+  font-size: 13px;
+}
+
+body.staff-workspace .management-sidebar .sidebar-children a.sidebar-active {
+  color: #075f76;
+  background: #dfeff6;
+  box-shadow: inset 3px 0 #0c8195;
+  font-weight: 700;
+}
+
+body.staff-workspace .management-sidebar :is(.sidebar-note, .sidebar-heading small) {
+  color: #597185;
+  font-size: 11px;
+}
+
+body.staff-workspace .site-header .brand span {
+  color: #edf8fc;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: .5px;
+}
+
+body.staff-workspace .site-header .header-workspace-title {
+  color: #d3e5ef;
+  font-size: 13px;
+}
+
+body.staff-workspace .site-header .header-actions>span {
+  color: #f0f7fb;
+  font-size: 13px;
+}
+
+@media(max-width:700px) {
+  body.staff-workspace .support-ui :is(.management-heading, .page-heading, .platform-heading, .page-title) h1 {
+    font-size: 24px;
+  }
+
+  body.staff-workspace .support-ui :is(.management-table-wrap, .queue-table-wrap) :is(th, td) {
+    padding: 13px 14px;
+  }
+}
+
+/* 比背景更明確的卡片邊界與陰影。 */
+body.staff-workspace.staff-background-active .support-ui :is(.management-search, .management-panel, .management-table-wrap, .platform-stat, .platform-trend, .staff-panel, .permissions-panel, .overview-card, .work-stat, .work-queue) {
+  border-color: #abc0d0;
+  box-shadow: 0 8px 24px #1a394f1a, 0 1px 3px #173d550d;
+}
+
+
+/* 2026-10-28: 客服內容、案件與退款工作區的留白和響應式佈局。
+   限定後台路由，避免污染會員商城樣式。 */
+body.staff-workspace .support-ui .sx-management {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: clamp(20px, 2.4vw, 34px);
+}
+
+body.staff-workspace .support-ui .sx-management .sx-content-grid,
+body.staff-workspace .support-ui .sx-management .sx-content-grid.sx-editing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 24px;
+}
+
+body.staff-workspace .support-ui .sx-management .sx-content-grid>div {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+}
+
+body.staff-workspace .support-ui .sx-management .sx-resource-card {
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: 20px 24px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+
+body.staff-workspace .support-ui .sx-management .sx-resource-card .sx-section-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin-bottom: 12px;
+}
+
+body.staff-workspace .support-ui .sx-management .sx-content-editor {
+  position: static;
+  min-width: 0;
+  width: 100%;
+  padding: clamp(20px, 2.3vw, 30px);
+  border-radius: 16px;
+}
+
+body.staff-workspace .support-ui .sx-management .sx-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 14px 18px;
+  margin: 24px 0 28px;
+  padding: 20px 22px;
+}
+
+body.staff-workspace .support-ui .sx-management .sx-search>input {
+  flex: 2 1 260px;
+  width: auto;
+  min-width: 0;
+}
+
+body.staff-workspace .support-ui .sx-management .sx-search>select {
+  flex: 1 1 160px;
+  width: auto;
+}
+
+body.staff-workspace .support-ui .sx-management .sx-search>button {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+body.staff-workspace .support-ui .support-case-page .case-toolbar,
+body.staff-workspace .support-ui .support-case-page .admin-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px 22px;
+  align-items: end;
+  padding: 22px 26px;
+  margin: 0 0 24px;
+}
+
+body.staff-workspace .support-ui .support-case-page .case-toolbar .toolbar-search {
+  grid-column: span 2;
+}
+
+body.staff-workspace .support-ui .support-case-page .case-toolbar>*,
+body.staff-workspace .support-ui .support-case-page .admin-filters>* {
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+}
+
+body.staff-workspace .support-ui .support-case-page :is(.toolbar-search, .case-status-filter, .admin-filters label) {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  align-self: stretch;
+}
+
+body.staff-workspace .support-ui .support-case-page .admin-filters :is(input, select),
+body.staff-workspace .support-ui .support-case-page .case-toolbar select {
+  width: 100%;
+  min-width: 0;
+}
+
+body.staff-workspace .support-ui .refund-requests-page {
+  width: 100%;
+  min-width: 0;
+}
+
+body.staff-workspace .support-ui .refund-requests-page> :is(.management-heading, .management-search, .management-table-wrap, .management-pagination) {
+  margin-bottom: 24px;
+}
+
+body.staff-workspace .support-ui .refund-requests-page .refund-search {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(170px, 1fr) auto;
+  align-items: end;
+  gap: 18px 24px;
+  padding: 24px 26px;
+}
+
+body.staff-workspace .support-ui .refund-requests-page .refund-search>* {
+  min-width: 0;
+  margin: 0;
+}
+
+body.staff-workspace .support-ui .refund-requests-page .refund-search label {
+  display: grid;
+  gap: 10px;
+}
+
+body.staff-workspace .support-ui .refund-requests-page .refund-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+body.staff-workspace .support-ui .refund-requests-page .management-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+body.staff-workspace .support-ui .refund-requests-page td {
+  padding: 18px 20px;
+}
+
+@media (min-width: 1550px) {
+  body.staff-workspace .support-ui .sx-management .sx-content-grid.sx-editing {
+    grid-template-columns: minmax(0, 1.2fr) minmax(370px, 0.8fr);
+    gap: 32px;
+  }
+}
+
+@media (max-width: 1100px) {
+  body.staff-workspace .support-ui .refund-requests-page .refund-search {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.staff-workspace .support-ui .refund-requests-page .refund-filter-actions {
+    grid-column: 1 / -1;
+  }
+
+  body.staff-workspace .support-ui .support-case-page .admin-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+
+  body.staff-workspace .support-ui .support-case-page :is(.case-toolbar, .admin-filters),
+  body.staff-workspace .support-ui .refund-requests-page .refund-search {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 18px;
+  }
+
+  body.staff-workspace .support-ui .support-case-page .case-toolbar .toolbar-search,
+  body.staff-workspace .support-ui .refund-requests-page .refund-filter-actions {
+    grid-column: auto;
+  }
+
+  body.staff-workspace .support-ui .sx-management .sx-search> :is(input, select, button) {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  body.staff-workspace .support-ui .sx-management .sx-resource-card {
+    padding: 18px;
+  }
+}
+
+
+/* ===== 2026-10 Back-office button system (staff only) =====
+   Scoped to the authenticated staff shell. Navigation, icon-only controls,
+   checkboxes, and pagination keep their specialized behavior. */
+body.staff-workspace .support-ui :is(.management-content, .management-page, .admin-page, .support-case-page,
+  .sx-management, .refund-requests-page, .ticket-detail-page,
+  .support-content-page, .staff-panel, .permissions-panel,
+  .overview-page, .platform-page, .page) button:not(.sidebar-group-toggle):not(.sidebar-mobile-toggle):not(.icon-btn):not(.icon-button):not(.notification-bell):not(.close-button):not(.close-btn):not(.tab):not(.tab-button) {
+  --staff-btn-text: #245067;
+  --staff-btn-bg: #f8fcff;
+  --staff-btn-border: #c5d9e6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 15px;
+  margin: 0;
+  border: 1px solid var(--staff-btn-border);
+  border-radius: 9px;
+  background: var(--staff-btn-bg);
+  color: var(--staff-btn-text);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: .01em;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(24, 59, 83, .055);
+  transition: background-color .16s ease, border-color .16s ease, color .16s ease,
+    box-shadow .16s ease, transform .16s ease;
+}
+
+body.staff-workspace .support-ui :is(.management-content, .management-page, .admin-page, .support-case-page, .sx-management, .refund-requests-page, .ticket-detail-page, .staff-panel, .permissions-panel, .page) button:not(:disabled):hover:not(.sidebar-group-toggle):not(.sidebar-mobile-toggle):not(.icon-btn):not(.icon-button) {
+  border-color: #75b9c9;
+  background: #eaf7fb;
+  box-shadow: 0 5px 13px rgba(25, 94, 124, .12);
+  transform: translateY(-1px);
+}
+
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button:focus-visible {
+  outline: 3px solid rgba(27, 137, 168, .30);
+  outline-offset: 2px;
+}
+
+/* Primary / submit / search actions */
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button:is(.primary, .sx-primary, .primary-action, .action-primary, .btn-primary, [type="submit"]):not(.sidebar-group-toggle) {
+  --staff-btn-bg: #087e98;
+  --staff-btn-border: #087e98;
+  --staff-btn-text: #fff;
+  box-shadow: 0 3px 9px rgba(8, 126, 152, .17);
+}
+
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button:is(.primary, .sx-primary, .primary-action, .action-primary, .btn-primary, [type="submit"]):hover:not(:disabled) {
+  background: #096b81;
+  border-color: #096b81;
+  color: #fff;
+}
+
+/* Positive outcomes: approval, publish, restore */
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button:is(.action-success, .btn-success, .approve, .approve-btn, .success) {
+  --staff-btn-bg: #eaf8f0;
+  --staff-btn-border: #b7e1cb;
+  --staff-btn-text: #176a4d;
+}
+
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button:is(.action-success, .btn-success, .approve, .approve-btn, .success):hover:not(:disabled) {
+  background: #d6f0e2;
+  border-color: #80c5a1;
+  color: #10583c;
+}
+
+/* Destructive actions: rejects, suspensions, deletions */
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button:is(.action-danger, .btn-danger, .danger, .reject, .reject-btn, .review-reject-button) {
+  --staff-btn-bg: #fff0f1;
+  --staff-btn-border: #f0c4ca;
+  --staff-btn-text: #aa3543;
+}
+
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button:is(.action-danger, .btn-danger, .danger, .reject, .reject-btn, .review-reject-button):hover:not(:disabled) {
+  background: #ffe0e4;
+  border-color: #e9a0aa;
+  color: #902c38;
+}
+
+/* Info / view controls */
+body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button:is(.action-info, .btn-info) {
+  --staff-btn-bg: #ebf5ff;
+  --staff-btn-border: #c2dced;
+  --staff-btn-text: #236587;
+}
+
+/* Uniform row button spacing; no changes to click handlers */
+body.staff-workspace .support-ui :is(.management-actions, .refund-row-actions, .row-actions, .table-actions, .refund-filter-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+}
+
+body.staff-workspace .support-ui :is(.management-actions, .refund-row-actions, .row-actions, .table-actions) button {
+  min-height: 34px;
+  padding: 6px 11px;
+}
+
+/* Disabled controls should not pretend to be interactive */
+body.staff-workspace .support-ui button:disabled {
+  opacity: .50;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Preserve quiet pager buttons: first/last page logic belongs to Vue */
+body.staff-workspace .support-ui :is(.management-pagination, .unified-pager, .pager) button {
+  min-width: 70px;
+  min-height: 37px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  background: #fff;
+  color: #42637a;
+  border: 1px solid #d7e4ec;
+}
+
+@media (max-width: 640px) {
+  body.staff-workspace .support-ui :is(.management-actions, .refund-row-actions, .row-actions, .table-actions, .refund-filter-actions) {
+    gap: 8px;
+  }
+
+  body.staff-workspace .support-ui :is(.management-content, .admin-page, .sx-management, .refund-requests-page, .support-case-page, .page) button {
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.staff-workspace .support-ui button {
+    transition: none !important;
+    transform: none !important;
+  }
+}

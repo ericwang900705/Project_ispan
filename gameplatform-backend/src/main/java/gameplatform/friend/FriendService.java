@@ -34,15 +34,15 @@ public class FriendService {
     // This avoids reciprocal invitations, duplicate direct rooms and leave/send
     // races across app instances.
     private void lock() {
+        // SQL Server 的 JDBC 交易可能延後到首次寫入；只在 Spring 已管理同一資料來源時補啟動。
+        if (!TransactionSynchronizationManager.isActualTransactionActive()
+                || db.getDataSource() == null || !TransactionSynchronizationManager.hasResource(db.getDataSource()))
+            throw new Problem(409, "好友服務交易尚未啟動，請稍後重試");
         Integer result = db.queryForObject(
-                "IF @@TRANCOUNT = 0 BEGIN TRAN; " +
-                        "DECLARE @r INT; " +
-                        "EXEC @r=sys.sp_getapplock @Resource='HERO_FRIEND_GRAPH', @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=10000; "
-                        +
-                        "SELECT @r;",
+                "IF @@TRANCOUNT=0 BEGIN TRANSACTION; DECLARE @r INT; EXEC @r=sys.sp_getapplock @Resource='HERO_FRIEND_GRAPH', @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=10000; SELECT @r",
                 Integer.class);
         if (result == null || result < 0)
-            throw new Problem(409, "好友服務忙碌，請稍後重試");
+            throw new Problem(409, "好友服務忙碌，請稍後重試（鎖定代碼：" + result + "）");
     }
 
     private void active(int id) {

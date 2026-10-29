@@ -8,6 +8,7 @@ public class GoogleLoginRequest {
     @NotBlank
     @Size(max = 12000)
     private String idToken;
+
     @NotBlank
     @Size(min = 16, max = 128)
     private String nonce;

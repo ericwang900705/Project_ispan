@@ -2,7 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { session, restore, frontendArea, refreshUser, logout } from './api'
-import { homeFor, guardPage } from './permissions'
+import { homeFor, guardPage, hasPermission } from './permissions'
 import { backofficeModules } from './backoffice-modules'
 import { cartRoutes } from './cart/router/index'
 
@@ -19,20 +19,27 @@ if (frontendArea !== 'staff') {
 const storeRoutes = cartRoutes.map(route => ({
     ...route,
     meta: {
-        public: !['ShoppingCart', 'Orders', 'MemberGames', 'Coupons'].includes(route.name),
-        member: ['ShoppingCart', 'Orders', 'MemberGames', 'Coupons'].includes(route.name)
+        public: !['ShoppingCart', 'Orders', 'MemberGames', 'Coupons', 'PlayGame'].includes(route.name),
+        member: ['ShoppingCart', 'Orders', 'MemberGames', 'Coupons', 'PlayGame'].includes(route.name)
     }
 }))
 const routes = [
+    { path: '/admin/comments', component: () => import('./views/AdminOperations.vue'), meta: { staff: true, permission: 'COMMENT_REVIEW', workspaceModule: 'comments' } },
+    { path: '/admin/reviews', redirect: '/admin/comments?view=reviews' },
+    { path: '/admin/review-reports', redirect: '/admin/comments' },
+    { path: '/admin/refund-requests', component: () => import('./views/RefundRequests.vue'), meta: { staff: true, permission: 'REFUND_MANAGE' } },
+    // 舊合併紀錄網址轉回有權限的原分類頁，不再提供額外的全部紀錄頁面。
+    { path: '/admin/system-logs', redirect: () => hasPermission(session.user, 'OPERATION_LOG_VIEW') ? '/admin/operations' : '/admin/login-logs' },
     { path: '/faq', component: () => import('./views/SupportFaq.vue'), meta: { public: true } },
     { path: '/admin/support/reply-templates', component: () => import('./views/SupportContentManagement.vue'), meta: { staff: true, management: true, supportContent: 'reply-templates' } },
     { path: '/admin/support/faqs', component: () => import('./views/SupportContentManagement.vue'), meta: { staff: true, management: true, supportContent: 'faqs' } },
-    ...Object.entries(backofficeModules).map(([area, config]) => ({
+    ...Object.entries(backofficeModules).filter(([area]) => !['reviews', 'review-reports'].includes(area)).map(([area, config]) => ({
         path: '/admin/' + area, component: () =>
             import('./views/AdminOperations.vue'),
         meta: {
             staff: true,
             permission: config.permission,
+            anyPermissions: config.anyPermissions,
             workspaceModule: area
         }
     })),
@@ -81,12 +88,6 @@ const routes = [
     },
     {
         path: '/member/change-password',
-        component: () => import('./views/MemberAccount.vue'),
-        meta: { member: true }
-    },
-    // ─── 新增：申請遊戲發行商 ───
-    {
-        path: '/member/apply-publisher',
         component: () => import('./views/MemberAccount.vue'),
         meta: { member: true }
     },
@@ -175,7 +176,14 @@ const routes = [
         meta: { public: true }
     },
 
+    { path: '/member/apply-publisher', component: () => import('./views/MemberAccount.vue'), meta: { member: true } },
+
     //publisher
+    {
+        path: '/publisher/discounts',
+        component: () => import('./views/PublisherDiscounts.vue'),
+        meta: { publisher: true }
+    },
     {
         path: '/publisher/overview',
         component: () => import('./views/PublisherHome.vue'),
@@ -248,5 +256,8 @@ window.addEventListener(
     'auth-expired',
     event => router.push(event.detail?.loginPath || '/member/login')
 )
-createApp(App).use(createPinia()).use(router).mount('#app')
+const app = createApp(App).use(createPinia()).use(router)
+// 等待初次路由權限判斷，避免遊戲分頁先短暫掛載商城與社交視窗。
+await router.isReady()
+app.mount('#app')
 export { router }

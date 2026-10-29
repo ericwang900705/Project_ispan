@@ -1,12 +1,41 @@
 <script setup>
 // onMounted：元件顯示到畫面上之後要執行的動作
 import { ref, computed, onMounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
+import { miniGameOf } from '@/cart/minigames'
+import { accessToken, session } from '../../api'
 // 共用的購物車 store（遊戲庫資料也放在這裡）
 import { useCartStore } from '@/cart/stores/cart'
 import ReviewForm from '@/cart/components/ReviewForm.vue'
 
 const cart = useCartStore()
+const router = useRouter()
+const aiNames = new Set(["暗夜倖存者", "無盡深淵", "失落王國", "星露森林", "荒野生存", "戰場前線", "火柴人射擊", "火柴人紅藍競技場", "三國戰棋", "牛排大師", "火柴人羽毛球", "火柴人賽車"])
+const canPlay = entry => !!miniGameOf(entry?.game) || aiNames.has(entry?.game?.gameName)
+function versionUrl(entry) {
+  const raw = entry?.latestBuild?.file_url || ''
+  if (/^\/api\/publisher-assets\/builds\/[1-9]\d*\/[a-f0-9-]+\.zip$/.test(raw)) return raw
+  try { const url = new URL(raw); return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : '' } catch { return '' }
+}
+const canDownload = entry => entry?.isActive !== false && (versionUrl(entry) || aiNames.has(entry?.game?.gameName))
+async function downloadGame(entry) {
+  if (!canDownload(entry)) return
+  const token = accessToken()
+  const id = session.user?.id
+  if (!token || id == null) { alert('請先登入'); return }
+  const build = versionUrl(entry)
+  if (build && !build.startsWith('/api/')) { window.open(build, '_blank', 'noopener,noreferrer'); return }
+  try {
+    const response = await fetch(build || `/api/member-games/${id}/${entry.game.gameId}/ai-zip`, { headers: { Authorization: `Bearer ${token}` } })
+    if (!response.ok) throw new Error('無法下載遊戲版本，請確認已匯入 ZIP')
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `${entry.game.gameName}.zip`; a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 30000)
+  } catch (err) { alert(err.message || '下載失敗') }
+}
+
+const playError = ref('')
 // 進入頁面時向後端抓最新的遊戲庫
 onMounted(() => cart.fetchLibrary())
 
@@ -38,9 +67,11 @@ function playTime(minutes) {
   return `${Math.round((minutes / 60) * 10) / 10} 小時`
 }
 
-// 點「開始遊戲」：目前還沒有遊戲本體，先跳提示
-function play(entry) {
-  alert(`啟動 ${entry.game.gameName}（尚未實作）`)
+// 進入遊戲頁後再次檢查本人遊戲庫與可用的網頁版本。
+async function play(entry) {
+  playError.value = ''
+  try { await router.push({ name: 'PlayGame', params: { id: entry.game.gameId } }) }
+  catch (e) { playError.value = e.message }
 }
 
 // 正在寫評論的遊戲（null 代表評論視窗沒打開）
@@ -71,6 +102,8 @@ function openReview(entry) {
       </div>
     </header>
 
+    <p v-if="playError" class="game-window-error" role="alert">{{ playError }}</p>
+
     <!-- 還沒有遊戲：提示去商店逛逛 -->
     <div v-if="cart.library.length === 0" class="empty">
       <div class="empty-icon">🎮</div>
@@ -90,9 +123,10 @@ function openReview(entry) {
           <div v-else class="no-cover">{{ entry.game.gameName.charAt(0) }}</div>
           <!-- 取得途徑標籤：禮物用不同顏色 -->
           <span class="badge" :class="{ gift: entry.obtainedSource === 'GIFT' }">
-            {{ entry.obtainedSource === 'GIFT' ? '🎁 ' : '' }}{{ sourceLabel[entry.obtainedSource] ?? entry.obtainedSource }}
+            {{ entry.obtainedSource === 'GIFT' ? '🎁 ' : '' }}{{ sourceLabel[entry.obtainedSource] ??
+              entry.obtainedSource }}
           </span>
-          <button class="play" @click="play(entry)">▶ 開始遊戲</button>
+          <button class="play" @click="play(entry)">{{ canPlay(entry) ? '▶ 線上遊玩' : '查看遊玩方式' }}</button>
         </div>
 
         <!-- 文字：名稱、遊玩時數、取得日期 -->
@@ -102,9 +136,11 @@ function openReview(entry) {
             <RouterLink :to="`/games/${entry.game.gameId}`">{{ entry.game.gameName }}</RouterLink>
           </h3>
           <div class="meta">
-            <span class="time" :class="{ fresh: !entry.totalPlayMinutes }">⏱ {{ playTime(entry.totalPlayMinutes) }}</span>
+            <span class="time" :class="{ fresh: !entry.totalPlayMinutes }">⏱ {{ playTime(entry.totalPlayMinutes)
+            }}</span>
             <span class="date">{{ entry.obtainedAt?.slice(0, 10) }}</span>
           </div>
+          <button v-if="canDownload(entry)" class="ai-download" @click="downloadGame(entry)">↓ 下載版本 {{ entry.latestBuild?.version || 'ZIP' }}</button>
           <button class="review-btn" @click="openReview(entry)">✎ 評論</button>
         </div>
       </article>
@@ -117,6 +153,9 @@ function openReview(entry) {
 
 <!-- 遊戲庫頁面樣式（深藍底 + 金色重點色，和遊戲首頁同色系） -->
 <style scoped>
+.game-window-error { color: #ffd6d6; padding: 14px 18px; border: 1px solid #9c5c6b; border-radius: 10px; background: #4b243d; }
+.ai-download { margin: 8px 8px 8px 0; padding: 9px 14px; border-radius:8px; border:1px solid #d4a64a; color:#ffe1a2; background:#233968; cursor:pointer; }
+.ai-download:hover {background:#36548c;}
 /* ===== 配色：和 GamesHome.vue 一樣，要換顏色改這裡就好 ===== */
 .library {
   --bg: #0b0c32;
@@ -128,107 +167,299 @@ function openReview(entry) {
   --text-muted: #98a2c8;
   --text-dim: #5e6894;
 
-  max-width: 1180px; margin: 0 auto; padding: 16px; min-height: 70vh; color: var(--text);
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 16px;
+  min-height: 70vh;
+  color: var(--text);
 }
 
 /* ===== 標題列 ===== */
 .lib-head {
-  display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px;
-  padding-bottom: 14px; margin-bottom: 22px; border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 14px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--border);
 }
-.title { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-.title h1 { margin: 0; font-size: 28px; font-weight: bold; color: var(--gold); letter-spacing: 2px; }
-.stats { font-size: 13px; color: var(--text-muted); }
-.stats b { color: var(--text); }
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.title h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: bold;
+  color: var(--gold);
+  letter-spacing: 2px;
+}
+
+.stats {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.stats b {
+  color: var(--text);
+}
 
 /* 搜尋和排序 */
-.tools { display: flex; gap: 8px; }
-.search, .sort {
-  height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid var(--border);
-  background: var(--surface); color: var(--text); font-size: 13px; outline: none;
+.tools {
+  display: flex;
+  gap: 8px;
 }
-.search { width: 200px; }
-.search:focus, .sort:focus { border-color: var(--gold); }
-.sort { cursor: pointer; }
+
+.search,
+.sort {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+
+.search {
+  width: 200px;
+}
+
+.search:focus,
+.sort:focus {
+  border-color: var(--gold);
+}
+
+.sort {
+  cursor: pointer;
+}
 
 /* ===== 卡片格線 ===== */
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
+}
 
 .card {
-  display: flex; flex-direction: column; border-radius: 8px; overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
   background: linear-gradient(180deg, var(--surface-2), var(--surface));
-  border: 1px solid transparent; box-shadow: 0 4px 14px rgba(0, 0, 0, .4);
+  border: 1px solid transparent;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .4);
   transition: transform .2s, border-color .2s, box-shadow .2s;
 }
+
 /* 滑鼠移上去：微微浮起、金色外框 */
-.card:hover { transform: translateY(-4px); border-color: var(--gold); box-shadow: 0 10px 24px rgba(0, 0, 0, .55); }
+.card:hover {
+  transform: translateY(-4px);
+  border-color: var(--gold);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .55);
+}
 
 /* 封面：固定 16:9 比例 */
-.cover { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: var(--bg); }
-.cover img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .35s; }
-.card:hover .cover img { transform: scale(1.06); }
+.cover {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform .35s;
+}
+
+.card:hover .cover img {
+  transform: scale(1.06);
+}
+
 /* 沒有封面：漸層底 + 遊戲名稱第一個字 */
 .no-cover {
-  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-  font-size: 48px; font-weight: bold; color: var(--gold);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  font-weight: bold;
+  color: var(--gold);
   background: linear-gradient(135deg, #1f3a8a, #3a1f6b);
 }
 
 /* 左上角取得途徑標籤 */
 .badge {
-  position: absolute; top: 8px; left: 8px; padding: 2px 8px; border-radius: 10px;
-  font-size: 11px; background: rgba(11, 12, 50, .8); color: var(--text-muted); border: 1px solid var(--border);
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  background: rgba(11, 12, 50, .8);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
 }
-.badge.gift { color: #f0c060; border-color: var(--gold); }
+
+.badge.gift {
+  color: #f0c060;
+  border-color: var(--gold);
+}
 
 /* 開始遊戲按鈕：平常隱藏，滑鼠移到卡片上才出現在封面正中間 */
 .play {
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -40%); opacity: 0;
-  border: none; border-radius: 4px; padding: 8px 18px; font-size: 14px; font-weight: bold; cursor: pointer;
-  color: #1b0f0d; background: linear-gradient(to bottom, #e8be63, #b8892f);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, .5); transition: opacity .2s, transform .2s;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -40%);
+  opacity: 0;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #1b0f0d;
+  background: linear-gradient(to bottom, #e8be63, #b8892f);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .5);
+  transition: opacity .2s, transform .2s;
 }
-.card:hover .play { opacity: 1; transform: translate(-50%, -50%); }
-.play:hover { background: linear-gradient(to bottom, #f5d27f, #c99a3a); }
+
+.card:hover .play {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+}
+
+.play:hover {
+  background: linear-gradient(to bottom, #f5d27f, #c99a3a);
+}
 
 /* 卡片文字 */
-.info { padding: 10px 12px 12px; }
-.info h3 {
-  margin: 0 0 6px; font-size: 15px; font-weight: bold; color: var(--text);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.info {
+  padding: 10px 12px 12px;
 }
-.meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
-.info h3 a { color: inherit; }
-.info h3 a:hover { color: var(--gold); }
+
+.info h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: bold;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.info h3 a {
+  color: inherit;
+}
+
+.info h3 a:hover {
+  color: var(--gold);
+}
+
 /* 評論按鈕 */
 .review-btn {
-  width: 100%; margin-top: 10px; padding: 5px 0; border-radius: 4px; font-size: 13px; cursor: pointer;
-  border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
+  width: 100%;
+  margin-top: 10px;
+  padding: 5px 0;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
   transition: border-color .2s, color .2s;
 }
-.review-btn:hover { border-color: var(--gold); color: var(--gold); }
-.time { color: #9bd46a; }
-.time.fresh { color: var(--text-dim); }
-.date { color: var(--text-dim); }
+
+.review-btn:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.time {
+  color: #9bd46a;
+}
+
+.time.fresh {
+  color: var(--text-dim);
+}
+
+.date {
+  color: var(--text-dim);
+}
 
 /* ===== 空的遊戲庫 ===== */
 .empty {
-  display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 70px 16px;
-  border: 1px dashed var(--border); border-radius: 10px; color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 70px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--text-muted);
 }
-.empty-icon { font-size: 54px; }
-.empty p { margin: 0; font-size: 16px; }
+
+.empty-icon {
+  font-size: 54px;
+}
+
+.empty p {
+  margin: 0;
+  font-size: 16px;
+}
+
 .btn {
-  margin-top: 6px; padding: 8px 20px; border-radius: 4px; font-weight: bold;
-  color: #1b0f0d; background: linear-gradient(to bottom, #e8be63, #b8892f);
+  margin-top: 6px;
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-weight: bold;
+  color: #1b0f0d;
+  background: linear-gradient(to bottom, #e8be63, #b8892f);
 }
-.btn:hover { background: linear-gradient(to bottom, #f5d27f, #c99a3a); }
-.none { text-align: center; color: var(--text-muted); padding: 40px 0; }
+
+.btn:hover {
+  background: linear-gradient(to bottom, #f5d27f, #c99a3a);
+}
+
+.none {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 40px 0;
+}
 
 /* 手機：搜尋框撐滿，卡片小一點 */
 @media (max-width: 700px) {
-  .tools { width: 100%; }
-  .search { flex: 1; width: auto; }
-  .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .tools {
+    width: 100%;
+  }
+
+  .search {
+    flex: 1;
+    width: auto;
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
 }
 </style>

@@ -21,8 +21,10 @@ const days = computed(() => {
   const first = new Date(year.value, month.value, 1), start = 1 - first.getDay()
   return Array.from({ length: 42 }, (_, i) => {
     const d = new Date(year.value, month.value, start + i), value = dateText(d)
-    return { value, day: d.getDate(), outside: d.getMonth() !== month.value,
-      today: value === dateText(new Date()), disabled: !allowed(value) }
+    return {
+      value, day: d.getDate(), outside: d.getMonth() !== month.value,
+      today: value === dateText(new Date()), disabled: !allowed(value)
+    }
   })
 })
 function allowed(value) {
@@ -74,22 +76,32 @@ function escape(event) { event.preventDefault(); close() }
         @input="emit('update:modelValue', $event.target.value)" @click.prevent="open" @keydown.alt.down.prevent="open">
       <button type="button" class="calendar-trigger" :disabled="disabled" :aria-label="`開啟${label}日曆`"
         aria-haspopup="dialog" @click.prevent="open">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 2v6m10-6v6M3 11h18M7 15h2m3 0h2m3 0h1M7 18h2m3 0h2"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="16" rx="3" />
+          <path d="M7 2v6m10-6v6M3 11h18M7 15h2m3 0h2m3 0h1M7 18h2m3 0h2" />
+        </svg>
       </button>
     </span>
     <dialog ref="dialog" class="hero-calendar" :aria-label="`選擇${label}`" @cancel="escape" @click.stop>
-      <div class="calendar-heading"><strong>選擇{{ label }}</strong><button type="button" aria-label="關閉日曆" @click="close">✕</button></div>
+      <div class="calendar-heading"><strong>選擇{{ label }}</strong><button type="button" aria-label="關閉日曆"
+          @click="close">✕</button></div>
       <div class="calendar-navigation">
         <button type="button" aria-label="上個月" @click="move(-1)">‹</button>
-        <select v-model.number="year" aria-label="年份"><option v-for="y in years" :key="y" :value="y">{{ y }} 年</option></select>
-        <select v-model.number="month" aria-label="月份"><option v-for="m in 12" :key="m" :value="m - 1">{{ m }} 月</option></select>
+        <select v-model.number="year" aria-label="年份">
+          <option v-for="y in years" :key="y" :value="y">{{ y }} 年</option>
+        </select>
+        <select v-model.number="month" aria-label="月份">
+          <option v-for="m in 12" :key="m" :value="m - 1">{{ m }} 月</option>
+        </select>
         <button type="button" aria-label="下個月" @click="move(1)">›</button>
       </div>
-      <div class="calendar-week" aria-hidden="true"><span v-for="day in ['日','一','二','三','四','五','六']" :key="day">{{ day }}</span></div>
+      <div class="calendar-week" aria-hidden="true"><span v-for="day in ['日', '一', '二', '三', '四', '五', '六']"
+          :key="day">{{ day
+          }}</span></div>
       <div class="calendar-days">
         <button v-for="day in days" :key="day.value" type="button" class="calendar-day"
-          :class="{ outside: day.outside, today: day.today }" :disabled="day.disabled"
-          :aria-label="day.value" :aria-pressed="day.value === selected" :aria-current="day.today ? 'date' : undefined"
+          :class="{ outside: day.outside, today: day.today }" :disabled="day.disabled" :aria-label="day.value"
+          :aria-pressed="day.value === selected" :aria-current="day.today ? 'date' : undefined"
           @click="choose(day.value)">{{ day.day }}</button>
       </div>
       <label v-if="dateTime" class="calendar-time">時間<input v-model="time" type="time" aria-label="時間"></label>
@@ -104,33 +116,236 @@ function escape(event) { event.preventDefault(); close() }
 </template>
 
 <style scoped>
-.hero-date-picker { display: block; width: 100%; min-width: 0; }
-.date-field { display: flex; position: relative; width: 100%; }
-.hero-date-picker .date-value { width: 100%; min-width: 0; box-sizing: border-box; padding-right: 50px; }
-.date-value::-webkit-calendar-picker-indicator { display: none; }
-.hero-date-picker .calendar-trigger { display: grid; place-items: center; position: absolute; right: 5px; top: 50%; transform: translateY(-50%); width: 36px; height: 34px; min-height: 0; padding: 7px; margin: 0; border: 0; border-radius: 7px; color: #17647d; background: #e8f3f8; cursor: pointer; }
-.calendar-trigger svg { width: 21px; height: 21px; }
-.hero-calendar { position: fixed; inset: 0; box-sizing: border-box; width: min(360px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; margin: auto; padding: 20px; background: #fff; color: #234456; border: 1px solid #bad4e2; border-radius: 18px; box-shadow: 0 20px 70px #102b4f55; font: 14px/1.5 system-ui, 'Microsoft JhengHei', sans-serif; }
-.hero-calendar::backdrop { background: #102b4f66; }
-.hero-calendar button { box-sizing: border-box; font: inherit; cursor: pointer; }
-.calendar-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
-.hero-calendar .calendar-heading button { border: 0; background: #edf4f8; color: #34576b; border-radius: 8px; width: 32px; height: 32px; padding: 0; margin: 0; }
-.calendar-navigation { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.hero-calendar .calendar-navigation button { flex: 0 0 30px; border: 0; background: #edf4f8; color: #17647d; border-radius: 8px; height: 36px; padding: 0; margin: 0; font-size: 24px; }
-.hero-calendar .calendar-navigation select { width: auto; min-width: 0; flex: 1; height: 36px; margin: 0; padding: 0 5px; background: #f7fbfd; color: #234456; border: 1px solid #cadfe8; border-radius: 7px; font: inherit; }
-.calendar-week, .calendar-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; text-align: center; }
-.calendar-week { color: #6d8795; font-size: 12px; padding: 6px 0; }
-.hero-calendar .calendar-day { border: 1px solid transparent; background: transparent; color: #234456; border-radius: 8px; min-height: 36px; padding: 6px 0; margin: 0; font-size: 13px; }
-.hero-calendar .calendar-day.outside { color: #8298a5; }
-.hero-calendar .calendar-day.today { border-color: #27869d; }
-.hero-calendar .calendar-day:hover:not(:disabled) { background: #e5f4f8; }
-.hero-calendar .calendar-day[aria-pressed='true'] { background: #176e89; color: #fff; }
-.hero-calendar .calendar-day[aria-pressed='true']:hover:not(:disabled) { background: #125a70; color: #fff; }
-.hero-calendar button:disabled { opacity: .35; cursor: not-allowed; }
-.hero-calendar button:focus-visible, .hero-calendar select:focus-visible { outline: 2px solid #16839c; outline-offset: 2px; }
-.hero-calendar .calendar-time { display: flex; flex-direction: row; gap: 12px; align-items: center; margin: 18px 0 0; color: #34576b; font-size: 13px; }
-.hero-calendar .calendar-time input { flex: 1; width: auto; min-width: 0; margin: 0; padding: 8px 10px; border: 1px solid #cadfe8; border-radius: 8px; color: #234456; background: #f7fbfd; }
-.calendar-footer { display: flex; justify-content: flex-end; gap: 6px; margin-top: 18px; }
-.hero-calendar .calendar-text-button { background: #edf4f8; color: #17647d; border: 0; border-radius: 7px; padding: 8px 10px; margin: 0; font-size: 13px; }
-.hero-calendar .calendar-confirm { background: #176e89; color: #fff; border: 0; border-radius: 7px; padding: 8px 14px; margin: 0; font-size: 13px; }
+.hero-date-picker {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.date-field {
+  display: flex;
+  position: relative;
+  width: 100%;
+}
+
+.hero-date-picker .date-value {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding-right: 50px;
+}
+
+.date-value::-webkit-calendar-picker-indicator {
+  display: none;
+}
+
+.hero-date-picker .calendar-trigger {
+  display: grid;
+  place-items: center;
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 34px;
+  min-height: 0;
+  padding: 7px;
+  margin: 0;
+  border: 0;
+  border-radius: 7px;
+  color: #17647d;
+  background: #e8f3f8;
+  cursor: pointer;
+}
+
+.calendar-trigger svg {
+  width: 21px;
+  height: 21px;
+}
+
+.hero-calendar {
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  margin: auto;
+  padding: 20px;
+  background: #fff;
+  color: #234456;
+  border: 1px solid #bad4e2;
+  border-radius: 18px;
+  box-shadow: 0 20px 70px #102b4f55;
+  font: 14px/1.5 system-ui, 'Microsoft JhengHei', sans-serif;
+}
+
+.hero-calendar::backdrop {
+  background: #102b4f66;
+}
+
+.hero-calendar button {
+  box-sizing: border-box;
+  font: inherit;
+  cursor: pointer;
+}
+
+.calendar-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.hero-calendar .calendar-heading button {
+  border: 0;
+  background: #edf4f8;
+  color: #34576b;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
+}
+
+.calendar-navigation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.hero-calendar .calendar-navigation button {
+  flex: 0 0 30px;
+  border: 0;
+  background: #edf4f8;
+  color: #17647d;
+  border-radius: 8px;
+  height: 36px;
+  padding: 0;
+  margin: 0;
+  font-size: 24px;
+}
+
+.hero-calendar .calendar-navigation select {
+  width: auto;
+  min-width: 0;
+  flex: 1;
+  height: 36px;
+  margin: 0;
+  padding: 0 5px;
+  background: #f7fbfd;
+  color: #234456;
+  border: 1px solid #cadfe8;
+  border-radius: 7px;
+  font: inherit;
+}
+
+.calendar-week,
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+  text-align: center;
+}
+
+.calendar-week {
+  color: #6d8795;
+  font-size: 12px;
+  padding: 6px 0;
+}
+
+.hero-calendar .calendar-day {
+  border: 1px solid transparent;
+  background: transparent;
+  color: #234456;
+  border-radius: 8px;
+  min-height: 36px;
+  padding: 6px 0;
+  margin: 0;
+  font-size: 13px;
+}
+
+.hero-calendar .calendar-day.outside {
+  color: #8298a5;
+}
+
+.hero-calendar .calendar-day.today {
+  border-color: #27869d;
+}
+
+.hero-calendar .calendar-day:hover:not(:disabled) {
+  background: #e5f4f8;
+}
+
+.hero-calendar .calendar-day[aria-pressed='true'] {
+  background: #176e89;
+  color: #fff;
+}
+
+.hero-calendar .calendar-day[aria-pressed='true']:hover:not(:disabled) {
+  background: #125a70;
+  color: #fff;
+}
+
+.hero-calendar button:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+.hero-calendar button:focus-visible,
+.hero-calendar select:focus-visible {
+  outline: 2px solid #16839c;
+  outline-offset: 2px;
+}
+
+.hero-calendar .calendar-time {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: center;
+  margin: 18px 0 0;
+  color: #34576b;
+  font-size: 13px;
+}
+
+.hero-calendar .calendar-time input {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #cadfe8;
+  border-radius: 8px;
+  color: #234456;
+  background: #f7fbfd;
+}
+
+.calendar-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 18px;
+}
+
+.hero-calendar .calendar-text-button {
+  background: #edf4f8;
+  color: #17647d;
+  border: 0;
+  border-radius: 7px;
+  padding: 8px 10px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.hero-calendar .calendar-confirm {
+  background: #176e89;
+  color: #fff;
+  border: 0;
+  border-radius: 7px;
+  padding: 8px 14px;
+  margin: 0;
+  font-size: 13px;
+}
 </style>

@@ -247,7 +247,8 @@ onUnmounted(() => {
         </p>
       </div>
 
-      <article v-for="m in messages" :key="m.id" class="message" :class="{ mine: m.senderType === senderTypeFor(session.user?.role) }">
+      <article v-for="m in messages" :key="m.id" class="message"
+        :class="{ mine: m.senderType === senderTypeFor(session.user?.role) }">
         <small>
           {{ m.senderType === 'ADMIN' ? '客服' : m.senderName }} ·
           {{ timeText(m.sentAt) }}
@@ -312,4 +313,3 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
-

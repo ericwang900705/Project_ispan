@@ -70,7 +70,9 @@ async function send() {
   <div class="support" :class="{ open }">
     <!-- 標題列：點一下展開 / 收合 -->
     <button class="bar" @click="emit('toggle')">
-      <span class="avatar">客<span class="dot"></span></span>
+      <span class="avatar">客
+        <span class="dot"></span>
+      </span>
       <span class="bar-text">
         <span class="bar-title">客服</span>
         <span class="bar-sub">有問題找我們</span>

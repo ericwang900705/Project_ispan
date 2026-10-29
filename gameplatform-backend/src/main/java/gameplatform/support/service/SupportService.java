@@ -96,6 +96,34 @@ public class SupportService {
             throw Problem.denied();
     }
 
+    /** 直接建立退款申請；需要補件時才另外建立案件。 */
+    public Map<String, Object> requestRefund(Actor actor, int orderId, String reason) {
+        member(actor);
+        if (reason == null || reason.isBlank() || reason.length() > 2000)
+            throw new Problem(400, "請填寫退款原因（最多 2000 字）");
+        String query = sqlServer
+                ? "SELECT order_status,paid_at FROM orders WITH (UPDLOCK,ROWLOCK) WHERE order_id=? AND member_id=?"
+                : "SELECT order_status,paid_at FROM orders WHERE order_id=? AND member_id=? FOR UPDATE";
+        var orders = db.queryForList(query, orderId, actor.id());
+        if (orders.isEmpty()) throw Problem.missing();
+        var previous = db.queryForList("SELECT refund_id,status,ticket_id FROM refund_requests WHERE order_id=? AND member_id=?", orderId, actor.id());
+        if (!previous.isEmpty()) return Map.of("refundId", previous.getFirst().get("refund_id"), "message", "此訂單已有退款申請，請在我的訂單查看處理結果");
+        var order = orders.getFirst();
+        Timestamp paidAt = (Timestamp) order.get("paid_at");
+        if (!"PAID".equals(order.get("order_status")) || paidAt == null
+                || !paidAt.toLocalDateTime().plusDays(14).isAfter(java.time.LocalDateTime.now()))
+            throw new Problem(409, "此訂單不在付款後 14 天的申請期限內，請聯絡客服核對");
+        // 正常退款直接加入退款申請表；客服案件僅在後續需要補件/諮詢時建立。
+        int refundId = insert("refund_id", "INSERT INTO refund_requests(order_id,member_id,reason) VALUES(?,?,?)",
+                orderId, actor.id(), reason.strip());
+        events.changed(actor.id());
+        if (notifications != null) {
+            notifications.refundQueue("新的退款申請", "訂單 #" + orderId);
+            notifications.member(actor.id(), "REFUND_REQUESTED", "退款申請已送出", "訂單 #" + orderId, "/orders?refundOrder=" + orderId);
+        }
+        return Map.of("refundId", refundId, "message", "退款申請已送出，請在我的訂單查看進度");
+    }
+
     private void admin(Actor a) {
         if (!a.canSupport())
             throw Problem.denied();

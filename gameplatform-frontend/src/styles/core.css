@@ -1,12 +1,31 @@
 /* HERO core.css — 整合後共用樣式。單一畫面 CSS 請在對應 Vue 的 scoped style 修改。 */
 
 /* ===== global/base.css ===== */
-html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft JhengHei",sans-serif} button,input,textarea,select{font:inherit} #app{min-height:100dvh}
+html,
+body {
+  margin: 0;
+  min-width: 320px
+}
+
+body {
+  font-family: system-ui, "Microsoft JhengHei", sans-serif
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit
+}
+
+#app {
+  min-height: 100dvh
+}
 
 
 /* ===== global/common.css ===== */
 /* Shared: background, theme, base controls, header, login and responsive rules. */
-.support-ui{
+.support-ui {
   font-family: 'Noto Sans TC', system-ui, sans-serif;
   color: #17364a;
   /* 主題色 */
@@ -33,59 +52,84 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   --shadow-soft:
     0 8px 28px rgba(7, 53, 108, 0.08);
 }
-.support-ui *, .support-ui *::before, .support-ui *::after{
+
+.support-ui *,
+.support-ui *::before,
+.support-ui *::after {
   box-sizing: border-box;
 }
-.support-ui a{
+
+.support-ui a {
   color: inherit;
   text-decoration: none;
 }
-.support-ui button, .support-ui input, .support-ui select, .support-ui textarea{
+
+.support-ui button,
+.support-ui input,
+.support-ui select,
+.support-ui textarea {
   font: inherit;
   -webkit-tap-highlight-color: transparent;
 }
-.support-ui button{
+
+.support-ui button {
   cursor: pointer;
   border: 0;
   background: transparent;
   color: inherit;
 }
-.support-ui button:disabled{
+
+.support-ui button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.support-ui button:focus-visible, .support-ui a:focus-visible{
+
+.support-ui button:focus-visible,
+.support-ui a:focus-visible {
   outline: 3px solid rgba(66, 169, 191, 0.40);
   outline-offset: 3px;
 }
-.support-ui input:focus, .support-ui textarea:focus, .support-ui select:focus{
+
+.support-ui input:focus,
+.support-ui textarea:focus,
+.support-ui select:focus {
   outline: 2px solid #67aebd;
   outline-offset: 1px;
 }
-.support-ui h1, .support-ui h2, .support-ui h3, .support-ui p{
+
+.support-ui h1,
+.support-ui h2,
+.support-ui h3,
+.support-ui p {
   margin: 0 0 10px;
 }
-.support-ui h1{
+
+.support-ui h1 {
   font-size: 34px;
   letter-spacing: -1px;
   line-height: 1.4;
   color: #143c53;
 }
-.support-ui h2{
+
+.support-ui h2 {
   font-size: 21px;
   line-height: 1.5;
   color: #173f52;
 }
-.support-ui h3{
+
+.support-ui h3 {
   font-size: 18px;
 }
-.support-ui p{
+
+.support-ui p {
   line-height: 1.85;
 }
-.support-ui small{
+
+.support-ui small {
   font-size: 12px;
 }
-.support-ui label{
+
+.support-ui label {
   display: flex;
   flex-direction: column;
   gap: 9px;
@@ -93,7 +137,10 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   font-size: 13px;
   font-weight: 600;
 }
-.support-ui input, .support-ui select, .support-ui textarea{
+
+.support-ui input,
+.support-ui select,
+.support-ui textarea {
   width: 100%;
   color: var(--ink);
   background:
@@ -107,23 +154,33 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
     box-shadow 0.18s ease,
     background 0.18s ease;
 }
-.support-ui input:hover, .support-ui select:hover, .support-ui textarea:hover{
+
+.support-ui input:hover,
+.support-ui select:hover,
+.support-ui textarea:hover {
   border-color: rgba(55, 125, 148, 0.50);
 }
-.support-ui input:focus, .support-ui select:focus, .support-ui textarea:focus{
+
+.support-ui input:focus,
+.support-ui select:focus,
+.support-ui textarea:focus {
   background: #fff;
   border-color: #4d9fb4;
   box-shadow:
     0 0 0 3px rgba(74, 162, 188, 0.10);
 }
-.support-ui textarea{
+
+.support-ui textarea {
   resize: vertical;
   line-height: 1.65;
 }
-.support-ui select{
+
+.support-ui select {
   cursor: pointer;
 }
-.support-ui .primary, .support-ui .secondary{
+
+.support-ui .primary,
+.support-ui .secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -139,7 +196,8 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
     transform 0.18s ease,
     box-shadow 0.18s ease;
 }
-.support-ui .primary{
+
+.support-ui .primary {
   color: #fff;
   background:
     linear-gradient(135deg,
@@ -148,7 +206,8 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   box-shadow:
     0 7px 18px rgba(9, 80, 109, 0.18);
 }
-.support-ui .primary:hover:not(:disabled){
+
+.support-ui .primary:hover:not(:disabled) {
   background:
     linear-gradient(135deg,
       #20838c,
@@ -157,37 +216,45 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   box-shadow:
     0 9px 22px rgba(9, 80, 109, 0.22);
 }
-.support-ui .secondary{
+
+.support-ui .secondary {
   border:
     1px solid rgba(81, 129, 143, 0.30);
   background:
     rgba(255, 255, 255, 0.94);
   color: #245467;
 }
-.support-ui .secondary:hover:not(:disabled){
+
+.support-ui .secondary:hover:not(:disabled) {
   background: #edf8fa;
   border-color: #8ec5cf;
 }
-.support-ui .small{
+
+.support-ui .small {
   padding: 9px 12px;
 }
-.support-ui .full{
+
+.support-ui .full {
   width: 100%;
 }
-.support-ui .text-button{
+
+.support-ui .text-button {
   padding: 5px 8px;
   font-size: 12px;
   color: #446b79;
   text-decoration: underline;
   text-underline-offset: 4px;
 }
-.support-ui .text-button:hover{
+
+.support-ui .text-button:hover {
   color: #176d78;
 }
-.support-ui .muted{
+
+.support-ui .muted {
   color: var(--muted);
 }
-.support-ui .eyebrow{
+
+.support-ui .eyebrow {
   display: block;
   margin-bottom: 14px;
   color: #477889;
@@ -195,7 +262,8 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   font-weight: 700;
   letter-spacing: 2px;
 }
-.support-ui .error{
+
+.support-ui .error {
   padding: 10px 14px;
   border:
     1px solid rgba(201, 105, 96, 0.35);
@@ -205,13 +273,16 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   color: var(--danger);
   font-size: 13px;
 }
-.support-ui .banner{
+
+.support-ui .banner {
   margin: 12px 4vw;
 }
-.support-ui .inline-error{
+
+.support-ui .inline-error {
   margin: 8px 14px;
 }
-.support-ui .status{
+
+.support-ui .status {
   display: inline-block;
   padding: 7px 14px;
   border-radius: 20px;
@@ -221,15 +292,18 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   font-weight: 600;
   white-space: nowrap;
 }
-.support-ui .status.IN_PROGRESS{
+
+.support-ui .status.IN_PROGRESS {
   background: #fff1d2;
   color: #8d6722;
 }
-.support-ui .status.CLOSED{
+
+.support-ui .status.CLOSED {
   background: #edf1f2;
   color: #738086;
 }
-.support-ui .site-header{
+
+.support-ui .site-header {
   height: 85px;
   padding: 0 5vw;
   display: flex;
@@ -246,7 +320,8 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   position: relative;
   z-index: 30;
 }
-.support-ui .brand{
+
+.support-ui .brand {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -255,7 +330,8 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   letter-spacing: 3px;
   color: #16465e;
 }
-.support-ui .brand span{
+
+.support-ui .brand span {
   padding-left: 12px;
   border-left:
     1px solid rgba(85, 125, 140, 0.35);
@@ -263,52 +339,62 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   font-size: 9px;
   letter-spacing: 2px;
 }
-.support-ui .site-header nav{
+
+.support-ui .site-header nav {
   display: flex;
   align-items: center;
   gap: 32px;
   font-size: 13px;
 }
-.support-ui .site-header nav a{
+
+.support-ui .site-header nav a {
   padding: 31px 0;
   color: #466473;
 }
-.support-ui .site-header nav a:hover{
+
+.support-ui .site-header nav a:hover {
   color: #176d78;
 }
-.support-ui .site-header nav .router-link-exact-active{
+
+.support-ui .site-header nav .router-link-exact-active {
   border-bottom:
     3px solid #167284;
   color: #155b6d;
   font-weight: 700;
 }
-.support-ui .account{
+
+.support-ui .account {
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 12px;
   font-size: 12px;
 }
-.support-ui .page{
+
+.support-ui .page {
   max-width: 1250px;
   margin: auto;
   padding: 48px 38px 60px;
 }
-.support-ui .page-title{
+
+.support-ui .page-title {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 28px;
   margin-bottom: 25px;
 }
-.support-ui .page-title .muted{
+
+.support-ui .page-title .muted {
   margin: 0;
 }
-.support-ui .filter{
+
+.support-ui .filter {
   min-width: 180px;
   margin: 0;
 }
-.support-ui .hero{
+
+.support-ui .hero {
   min-height: 330px;
   padding: 50px;
   display: flex;
@@ -328,7 +414,8 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
       rgba(222, 242, 245, 0.93));
   box-shadow: var(--shadow);
 }
-.support-ui .hero::after{
+
+.support-ui .hero::after {
   content: '';
   position: absolute;
   width: 320px;
@@ -339,18 +426,21 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   background:
     rgba(57, 143, 178, 0.10);
 }
-.support-ui .hero p{
+
+.support-ui .hero p {
   margin-bottom: 26px;
   color: #637e8a;
   font-size: 14px;
 }
-.support-ui .hero-art{
+
+.support-ui .hero-art {
   min-width: 300px;
   height: 230px;
   margin-left: 30px;
   position: relative;
 }
-.support-ui .art-ring{
+
+.support-ui .art-ring {
   width: 230px;
   height: 230px;
   position: absolute;
@@ -360,7 +450,8 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
     1px solid rgba(64, 135, 153, 0.36);
   border-radius: 50%;
 }
-.support-ui .bubble{
+
+.support-ui .bubble {
   position: absolute;
   z-index: 1;
   border-radius: 25px;
@@ -369,7 +460,8 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   box-shadow:
     0 12px 25px rgba(11, 68, 100, 0.15);
 }
-.support-ui .bubble.big{
+
+.support-ui .bubble.big {
   left: 8px;
   top: 35px;
   padding: 24px 36px;
@@ -380,7 +472,8 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
       #175f82);
   transform: rotate(-7deg);
 }
-.support-ui .bubble.little{
+
+.support-ui .bubble.little {
   left: 66px;
   top: 124px;
   padding: 24px;
@@ -389,27 +482,32 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   font-size: 16px;
   transform: rotate(4deg);
 }
-.support-ui .section-label{
+
+.support-ui .section-label {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin: 38px 0 20px;
 }
-.support-ui .section-label h2{
+
+.support-ui .section-label h2 {
   margin: 0;
   font-size: 19px;
 }
-.support-ui .section-label span{
+
+.support-ui .section-label span {
   color: #68818e;
   font-size: 12px;
 }
-.support-ui .card-grid{
+
+.support-ui .card-grid {
   display: grid;
   grid-template-columns:
     repeat(3, 1fr);
   gap: 20px;
 }
-.support-ui .feature-card{
+
+.support-ui .feature-card {
   display: block;
   padding: 27px;
   text-align: left;
@@ -425,21 +523,25 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
     border-color 0.18s ease,
     box-shadow 0.18s ease;
 }
-.support-ui .feature-card.soft{
+
+.support-ui .feature-card.soft {
   background:
     rgba(232, 248, 250, 0.93);
 }
-.support-ui .feature-card:hover{
+
+.support-ui .feature-card:hover {
   transform: translateY(-3px);
   border-color: #82bdc9;
   box-shadow:
     0 14px 35px rgba(9, 62, 96, 0.13);
 }
-.support-ui .feature-card p{
+
+.support-ui .feature-card p {
   color: #6a838d;
   font-size: 13px;
 }
-.support-ui .icon-box{
+
+.support-ui .icon-box {
   display: inline-block;
   margin-bottom: 25px;
   padding: 9px 12px;
@@ -449,12 +551,14 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   font-size: 13px;
   font-weight: 700;
 }
-.support-ui .card-link{
+
+.support-ui .card-link {
   color: #25667b;
   font-size: 12px;
   font-weight: 600;
 }
-.support-ui .help-strip{
+
+.support-ui .help-strip {
   margin-top: 30px;
   padding-top: 24px;
   display: flex;
@@ -462,22 +566,26 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   border-top:
     1px solid rgba(95, 147, 162, 0.25);
 }
-.support-ui .help-strip h3{
+
+.support-ui .help-strip h3 {
   flex-shrink: 0;
   font-size: 14px;
 }
-.support-ui .help-strip p{
+
+.support-ui .help-strip p {
   max-width: 700px;
   color: #69818c;
   font-size: 12px;
 }
-.support-ui footer{
+
+.support-ui footer {
   padding: 24px 10px 35px;
   text-align: center;
   color: rgba(239, 249, 255, 0.90);
   font-size: 11px;
 }
-.support-ui .login-layout{
+
+.support-ui .login-layout {
   max-width: 1050px;
   min-height: 740px;
   margin: auto;
@@ -488,25 +596,30 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   gap: 100px;
   padding: 65px 40px;
 }
-.support-ui .login-story h1{
+
+.support-ui .login-story h1 {
   margin-top: 20px;
   color: #113e58;
   font-size: 52px;
   font-weight: 600;
 }
-.support-ui .login-story p{
+
+.support-ui .login-story p {
   color: #607c8b;
   font-size: 14px;
 }
-.support-ui .login-story>small{
+
+.support-ui .login-story>small {
   color: #557b8e;
   letter-spacing: 2px;
 }
-.support-ui .orbit-art{
+
+.support-ui .orbit-art {
   height: 190px;
   position: relative;
 }
-.support-ui .orbit-art>div{
+
+.support-ui .orbit-art>div {
   width: 150px;
   height: 150px;
   display: grid;
@@ -521,14 +634,16 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   font-size: 90px;
   transform: rotate(-12deg);
 }
-.support-ui .small-orbit{
+
+.support-ui .small-orbit {
   position: absolute;
   left: 165px;
   top: 50px;
   color: #8cc6d0;
   font-size: 55px;
 }
-.support-ui .login-card{
+
+.support-ui .login-card {
   padding: 36px;
   border:
     1px solid rgba(150, 190, 202, 0.35);
@@ -538,14 +653,17 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   box-shadow: var(--shadow);
   backdrop-filter: blur(14px);
 }
-.support-ui .login-card h2{
+
+.support-ui .login-card h2 {
   font-size: 27px;
 }
-.support-ui .login-card>.muted{
+
+.support-ui .login-card>.muted {
   margin-bottom: 27px;
   font-size: 13px;
 }
-.support-ui .demo-note{
+
+.support-ui .demo-note {
   margin-top: 26px;
   padding: 17px;
   border-radius: 11px;
@@ -554,33 +672,39 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   color: #607d84;
   font-size: 12px;
 }
-.support-ui .demo-note p{
+
+.support-ui .demo-note p {
   margin: 10px 0;
   line-height: 1.6;
 }
-.support-ui .page .origin-panel{
+
+.support-ui .page .origin-panel {
   margin-top: 48px;
   border-radius: 18px;
   border: 1px solid rgba(125, 178, 194, 0.34);
   background: rgba(255, 255, 255, 0.97);
   box-shadow: 0 15px 38px rgba(5, 54, 88, 0.12);
 }
-@media (max-width: 900px){
-.support-ui .site-header{
+
+@media (max-width: 900px) {
+  .support-ui .site-header {
     gap: 25px;
     padding:
       0 24px;
   }
-.support-ui .brand span{
+
+  .support-ui .brand span {
     display: none;
   }
-.support-ui .page{
+
+  .support-ui .page {
     padding:
       38px 24px 50px;
   }
 }
-@media (max-width: 650px){
-.support-ui .site-header{
+
+@media (max-width: 650px) {
+  .support-ui .site-header {
     height: auto;
     padding:
       15px 20px;
@@ -588,76 +712,103 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
     gap:
       12px 25px;
   }
-.support-ui .site-header nav{
+
+  .support-ui .site-header nav {
     order: 3;
     width: 100%;
     gap: 25px;
     overflow-x: auto;
   }
-.support-ui .site-header nav a{
+
+  .support-ui .site-header nav a {
     padding:
       12px 0;
     white-space: nowrap;
   }
-.support-ui .page{
+
+  .support-ui .page {
     padding:
       28px 16px 42px;
   }
-.support-ui .page-title{
+
+  .support-ui .page-title {
     align-items: flex-start;
     flex-direction: column;
     gap: 18px;
   }
-.support-ui .hero{
+
+  .support-ui .hero {
     padding:
       34px 24px;
     min-height: auto;
   }
-.support-ui .hero-art{
+
+  .support-ui .hero-art {
     display: none;
   }
-.support-ui .card-grid{
+
+  .support-ui .card-grid {
     grid-template-columns: 1fr;
   }
-.support-ui .login-layout{
+
+  .support-ui .login-layout {
     display: block;
     min-height: auto;
     padding:
       32px 22px;
   }
-.support-ui .login-story{
+
+  .support-ui .login-story {
     margin-bottom: 30px;
   }
-.support-ui .login-story h1{
+
+  .support-ui .login-story h1 {
     font-size: 39px;
   }
-.support-ui .login-story .orbit-art, .support-ui .login-story>small{
+
+  .support-ui .login-story .orbit-art,
+  .support-ui .login-story>small {
     display: none;
   }
-.support-ui .login-card{
+
+  .support-ui .login-card {
     padding: 28px 22px;
   }
 }
-@media (max-width: 650px){
-.support-ui .page .origin-panel{
+
+@media (max-width: 650px) {
+  .support-ui .page .origin-panel {
     margin-top: 32px;
     border-radius: 15px;
   }
 }
-@media (max-width: 420px){
-.support-ui h1{
+
+@media (max-width: 420px) {
+  .support-ui h1 {
     font-size: 28px;
   }
-.support-ui .brand{
+
+  .support-ui .brand {
     font-size: 21px;
   }
-.support-ui .page{
+
+  .support-ui .page {
     padding:
       24px 12px 38px;
   }
 }
-.support-page {min-height:calc(100vh - 80px);padding:24px 0;background:transparent;color:var(--ink)}
-.support-ui{color:var(--ink);font-family:system-ui,sans-serif}
+
+.support-page {
+  min-height: calc(100vh - 80px);
+  padding: 24px 0;
+  background: transparent;
+  color: var(--ink)
+}
+
+.support-ui {
+  color: var(--ink);
+  font-family: system-ui, sans-serif
+}
 
 
 /* ===== features/store-shell.css ===== */
@@ -670,6 +821,16 @@ html,body {margin:0; min-width:320px} body {font-family:system-ui,"Microsoft Jhe
   color: var(--color-text);
   background: transparent;
 }
-.hero-store-layout a { color:inherit; text-decoration:none; }
-.hero-store-layout a:hover { color:#0b8aa4; }
-.hero-store-layout > * { box-sizing:border-box; }
+
+.hero-store-layout a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.hero-store-layout a:hover {
+  color: #0b8aa4;
+}
+
+.hero-store-layout>* {
+  box-sizing: border-box;
+}

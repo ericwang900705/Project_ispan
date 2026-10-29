@@ -89,13 +89,8 @@ onUnmounted(() => {
 
 <template>
   <div ref="root" class="support-bell-wrap global-bell">
-    <button
-      class="support-notification-bell"
-      type="button"
-      aria-label="通知中心"
-      :aria-expanded="opened"
-      @click="opened = !opened; if (opened) refresh()"
-    >
+    <button class="support-notification-bell" type="button" aria-label="通知中心" :aria-expanded="opened"
+      @click="opened = !opened; if (opened) refresh()">
       <UiIcon name="bell" />
       <b v-if="unread" class="global-bell-count">{{ unread > 99 ? '99+' : unread }}</b>
     </button>
@@ -116,15 +111,8 @@ onUnmounted(() => {
         <span>客服訊息、案件更新與遊戲審核通知會顯示在這裡。</span>
       </div>
 
-      <button
-        v-for="item in items"
-        :key="item.notification_id"
-        class="support-bell-item global-bell-item"
-        :class="{ unread: !item.read_at }"
-        type="button"
-        :disabled="busy"
-        @click="openNotification(item)"
-      >
+      <button v-for="item in items" :key="item.notification_id" class="support-bell-item global-bell-item"
+        :class="{ unread: !item.read_at }" type="button" :disabled="busy" @click="openNotification(item)">
         <span class="global-bell-item-title">
           <span v-if="!item.read_at" class="global-bell-dot" aria-label="未讀" />
           <strong>{{ item.title }}</strong>

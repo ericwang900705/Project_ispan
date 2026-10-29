@@ -1,7 +1,7 @@
 <script setup>
 import SupportContext from '../components/SupportContext.vue'
 
-import { canSupport, canUseTickets, homeFor, roleName } from '../permissions'
+import { canSupport, canUseTickets, homeFor, roleName, hasPermission } from '../permissions'
 
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { api, session, timeText, statusText } from '../api'
@@ -136,6 +136,14 @@ async function changePriority(priority) {
 </script>
 
 <template>
+  <p v-if="isAdmin && ticket?.categoryName === '退款問題' && !hasPermission(session.user, 'REFUND_MANAGE')"
+    class="refund-role-note">
+    客服可在此回覆與補齊資料；退款決定請由具有退款管理權限的人員到「退款申請管理」辦理。
+  </p>
+  <RouterLink v-if="isAdmin && ticket?.categoryName === '退款問題' && hasPermission(session.user, 'REFUND_MANAGE')"
+    class="refund-management-entry" :to="{ path: '/admin/refund-requests', query: { q: ticket.ticketNo } }">
+    前往退款申請管理 →
+  </RouterLink>
   <div class="page ticket-detail-page">
     <!-- 返回 -->
     <RouterLink to="/tickets" class="back-link">
@@ -257,7 +265,7 @@ async function changePriority(priority) {
             <button v-if="
               !ticket.adminId &&
               ticket.status !== 'CLOSED'
-            " class=primary full:disabled="busy" @click="action('claim')">
+            " class="primary full" :disabled="busy" @click="action('claim')">
               {{
                 busy
                   ? '處理中…'
@@ -286,30 +294,18 @@ async function changePriority(priority) {
             </span>
 
             <button v-for="r in origins" :key="r.id" type="button" class="origin-link"
-              :aria-expanded="origin?.id === r.id" :class="{
-                active:
-                  origin?.id === r.id
-              }" @click="toggleOrigin(r)">
+              :aria-expanded="origin?.id === r.id" :class="{ active: origin?.id === r.id }" @click="toggleOrigin(r)">
 
               <span class="origin-link-icon">
                 ◇
               </span>
 
               <span class="origin-link-text">
-                {{
-                  origin?.id === r.id
-                    ? '收起'
-                    : '查看'
-                }}
-                原始聊天 #{{ r.id }}
+                {{ origin?.id === r.id ? '收起' : '查看' }} 原始聊天 #{{ r.id }}
               </span>
 
               <span class="origin-link-arrow">
-                {{
-                  origin?.id === r.id
-                    ? '↑'
-                    : '↗'
-                }}
+                {{ origin?.id === r.id ? '↑' : '↗' }}
               </span>
             </button>
           </div>
@@ -339,7 +335,8 @@ async function changePriority(priority) {
 
       </div>
 
-      <SupportContext scope="tickets" :id="ticket.id" :context-state="ticket.status + ':' + ticket.adminId" />
+      <SupportContext v-if="isAdmin" scope="tickets" :id="ticket.id"
+        :context-state="ticket.status + ':' + ticket.adminId" />
       <!-- 原始聊天展開區 -->
       <section v-if="origin" class="origin-panel" aria-label="原始聊天紀錄">
         <div class="discussion-heading">
@@ -370,3 +367,29 @@ async function changePriority(priority) {
 
   </div>
 </template>
+<style scoped>
+.refund-management-entry {
+  display: inline-flex;
+  margin: 0 0 16px;
+  padding: 10px 16px;
+  border: 1px solid #9bcbd4;
+  border-radius: 9px;
+  background: #e9f7fa;
+  color: #17647d;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+</style>
+
+<style scoped>
+.refund-role-note {
+  padding: 12px 16px;
+  border: 1px solid #b5d0dc;
+  background: #f2f9fc;
+  color: #2b5267;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+</style>

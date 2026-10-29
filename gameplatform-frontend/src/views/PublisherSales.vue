@@ -1,11 +1,12 @@
 <script setup>
 import DatePicker from '../components/DatePicker.vue'
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api } from '../api'
 
 const data = ref(null), from = ref(''), to = ref(''), gameId = ref(''), loading = ref(false), error = ref('')
 let run = 0
+const ready = ref(false)
 const money = v => new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 2 }).format(Number(v || 0))
 const maximum = computed(() => Math.max(1, ...(data.value?.daily || []).map(x => Number(x.paid_amount))))
 async function load(initial = false) {
@@ -41,7 +42,8 @@ function exportCsv() {
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
   const link = document.createElement('a'); link.href = url; link.download = `HERO_銷售報表_${report.from}_${report.to}.csv`; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
-onMounted(() => load(true))
+watch([gameId, from, to], () => { if (ready.value && from.value && to.value && from.value <= to.value) load() })
+onMounted(async () => { await load(true); ready.value = true })
 onUnmounted(() => { run++ })
 </script>
 <template>
@@ -150,3 +152,14 @@ onUnmounted(() => { run++ })
     <p v-else-if="loading" role="status">正在載入統計…</p>
   </section>
 </template>
+
+<style scoped>
+/* 銷售表維持前台深色底，明確指定文字與列背景，避免共用表格樣式互相覆蓋。 */
+.publisher-insights .publisher-sales-table { width: 100%; border: 1px solid #435a81; background: #13223f; border-radius: 12px; color: #e8f0ff; font-size: 14px; }
+.publisher-insights .publisher-sales-table :is(th,td) { padding: 16px 15px; background: #142540; color: #e7efff; border-bottom: 1px solid #344e74; font-variant-numeric: tabular-nums; }
+.publisher-insights .publisher-sales-table th { background: #2a3e60; color: #f0d29a; font-size: 12px; font-weight: 700; }
+.publisher-insights .publisher-sales-table tr:nth-child(even) td { background: #192c4c; }.publisher-insights .publisher-sales-table tbody tr:hover td { background: #253d61; }
+.publisher-insights .publisher-sales-table a { color: #f5d38b; font-size: 14px; font-weight: 650; text-decoration: none; }.publisher-insights .publisher-sales-table a:hover { color: #ffe6ae; text-decoration: underline; }.publisher-insights .publisher-table-scroll { border: 1px solid #40587e; border-radius: 12px; overflow: auto; margin-top: 18px; }
+.publisher-insights .publisher-sales-filter { display: grid; grid-template-columns: repeat(3,minmax(150px,1fr)) auto; gap: 18px; align-items: end; }.publisher-insights .publisher-sales-filter label { display: grid; gap: 9px; }.publisher-insights .publisher-sales-filter > button { min-height: 44px; margin: 0; padding: 12px 20px; white-space: nowrap; }
+@media(max-width:850px) { .publisher-insights .publisher-sales-filter { grid-template-columns: repeat(2,minmax(0,1fr)); } }@media(max-width:500px) { .publisher-insights .publisher-sales-filter { grid-template-columns: 1fr; } }
+</style>

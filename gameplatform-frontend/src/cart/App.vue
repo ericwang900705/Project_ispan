@@ -49,7 +49,6 @@ onMounted(() => gamesStore.fetchGames())
           </div>
         </div>
         <RouterLink to="/about">平台介紹</RouterLink>
-        <RouterLink to="/point-store">點數商店</RouterLink>
         <RouterLink to="/member-games">遊戲庫</RouterLink>
         <RouterLink to="/orders">我的訂單</RouterLink>
         <RouterLink to="/shopping-cart">購物車</RouterLink>
@@ -116,8 +115,8 @@ nav a {
 }
 
 /* 第一個項目（首頁下拉選單）和它裡面的「首頁」連結：移除左側分隔線 */
-nav > :first-child,
-.dropdown > a {
+nav> :first-child,
+.dropdown>a {
   border: 0;
 }
 
@@ -131,12 +130,12 @@ nav > :first-child,
 }
 
 /* 「所有遊戲」本身當小三角形的定位基準 */
-.dropdown > a {
+.dropdown>a {
   position: relative;
 }
 
 /* 展開時在「所有遊戲」正下方出現一個指向它的小三角形（顏色同選單底色） */
-.dropdown:hover > a::after {
+.dropdown:hover>a::after {
   content: '';
   position: absolute;
   left: 50%;
@@ -213,7 +212,7 @@ nav > :first-child,
 }
 
 /* 選單展開時，「所有遊戲」保持反白 */
-.dropdown:hover > a {
+.dropdown:hover>a {
   color: #d4a64a;
 }
 
@@ -244,7 +243,8 @@ nav > :first-child,
 /* 響應式設計：螢幕寬度 ≥ 1024px（桌機）時套用 */
 @media (min-width: 1024px) {
   nav {
-    font-size: 1.4rem;   /* 桌機再放大一點 */
+    font-size: 1.4rem;
+    /* 桌機再放大一點 */
   }
 }
 </style>

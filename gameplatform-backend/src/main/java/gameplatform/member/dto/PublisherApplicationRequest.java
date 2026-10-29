@@ -15,10 +15,12 @@ public class PublisherApplicationRequest {
 
     @NotBlank(message = "統一編號不能為空")
     @Size(min = 8, max = 8, message = "統一編號必須為 8 碼")
+    @Pattern(regexp = "[0-9]{8}", message = "統一編號必須為 8 位數字")
     private String taxId;
 
     // 網址允許不填
     @URL(message = "公司網址格式不正確")
+    @Size(max = 255, message = "公司網址最多 255 字元")
     private String websiteUrl;
 
     @NotBlank(message = "銀行名稱或代碼不能為空")

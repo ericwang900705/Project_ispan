@@ -8,11 +8,14 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.transaction.annotation.Transactional;
 import gameplatform.support.model.Actor;
 import gameplatform.support.model.Problem;
 
+/** 綠界付款：沿用 CART 測試介接，保留商城訂單與 JWT 身分驗證。 */
 @Service
+@PropertySource(value = "classpath:ecpay.properties", encoding = "UTF-8")
 public class PaymentService {
     final ShopService shop;
     final boolean enabled;
@@ -22,8 +25,8 @@ public class PaymentService {
             @Value("${ecpay.merchant-id:}") String merchant, @Value("${ecpay.hash-key:}") String key,
             @Value("${ecpay.hash-iv:}") String iv,
             @Value("${ecpay.action-url:https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5}") String action,
-            @Value("${ecpay.backend-url:}") String backend,
-            @Value("${ecpay.frontend-url:http://localhost:5173}") String frontend) {
+            @Value("${ecpay.backend-url:${app.backend-url:http://127.0.0.1:8080}}") String backend,
+            @Value("${ecpay.frontend-url:${app.frontend-url:http://127.0.0.1:5173}}") String frontend) {
         this.shop = shop;
         this.enabled = enabled;
         this.merchant = merchant;
@@ -46,9 +49,37 @@ public class PaymentService {
         } catch (Exception e) {
             throw new Problem(503, "付款回呼網址設定錯誤");
         }
-        if (!"https".equals(uri.getScheme()) || uri.getHost() == null || uri.getFragment() != null
-                || uri.getQuery() != null)
-            throw new Problem(503, "請設定公開 HTTPS 付款回呼網址");
+        // CART 本機測試可透過瀏覽器回跳完成；伺服器通知仍需公開網址。
+        boolean localStage = testMode() && isLoopback(uri) && "http".equals(uri.getScheme());
+        if ((!"https".equals(uri.getScheme()) && !localStage) || uri.getHost() == null
+                || uri.getUserInfo() != null || uri.getFragment() != null || uri.getQuery() != null)
+            throw new Problem(503, "付款回呼網址須為 HTTPS；測試環境可使用本機 HTTP");
+        try {
+            URI client = URI.create(frontend);
+            if (client.getHost() == null || client.getUserInfo() != null || client.getFragment() != null
+                    || client.getQuery() != null || !("https".equals(client.getScheme())
+                            || (testMode() && isLoopback(client) && "http".equals(client.getScheme()))))
+                throw new IllegalArgumentException();
+        } catch (IllegalArgumentException e) {
+            throw new Problem(503, "前台網址須為 HTTPS；測試環境可使用本機 HTTP");
+        }
+    }
+
+    private static boolean isLoopback(URI uri) {
+        return Set.of("localhost", "127.0.0.1", "[::1]", "::1").contains(
+                uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT));
+    }
+
+    public boolean testMode() {
+        return "https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5".equals(action);
+    }
+
+    public boolean publicCallback() {
+        try {
+            return "https".equals(URI.create(backend).getScheme()) && !isLoopback(URI.create(backend));
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     public boolean available() {
@@ -67,9 +98,28 @@ public class PaymentService {
         if (!Set.of("Credit", "ATM", "CVS").contains(method))
             throw new Problem(400, "不支援的付款方式");
         var order = shop.createOrder(a, member, method);
+        shop.recordPaymentEnvironment(((Number) order.get("orderId")).intValue(), testMode());
+        String trade = order.get("orderNo").toString();
+        shop.addPaymentAttempt(((Number) order.get("orderId")).intValue(), trade, method, testMode());
+        return form(order, method, trade);
+    }
+
+    @Transactional
+    public Map<String, Object> resume(Actor actor, int member, int orderId) {
+        ready();
+        var order = shop.pendingPayment(actor, member, orderId, testMode());
+        String method = Objects.toString(order.get("paymentType"), "");
+        if (!Set.of("Credit", "ATM", "CVS").contains(method))
+            throw new Problem(409, "此訂單付款方式需人工核對");
+        String trade = "RP" + UUID.randomUUID().toString().replace("-", "").substring(0, 18).toUpperCase(Locale.ROOT);
+        shop.addPaymentAttempt(orderId, trade, method, testMode());
+        return form(order, method, trade);
+    }
+
+    private Map<String, Object> form(Map<String, Object> order, String method, String trade) {
         var p = new LinkedHashMap<String, String>();
         p.put("MerchantID", merchant);
-        p.put("MerchantTradeNo", order.get("orderNo").toString());
+        p.put("MerchantTradeNo", trade);
         p.put("MerchantTradeDate",
                 LocalDateTime.now(ZoneId.of("Asia/Taipei")).format(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss")));
         p.put("PaymentType", "aio");
@@ -106,7 +156,7 @@ public class PaymentService {
             throw new Problem(400, "金流簽章無效");
         if ("1".equals(input.get("SimulatePaid")) && action.startsWith("https://payment.ecpay.com.tw/"))
             throw new Problem(400, "正式環境不接受模擬付款");
-        return shop.payment(input, info);
+        return shop.paymentFromAttempt(input, info, testMode());
     }
 
     public URI redirect(String status, String trade) {

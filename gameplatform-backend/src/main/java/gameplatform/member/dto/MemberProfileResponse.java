@@ -24,4 +24,7 @@ public class MemberProfileResponse {
 
     private LocalDateTime createdAt;
     private Boolean hasPassword;
+
+    // 當google登入修改帳號時，回傳新的 JWT Token
+    private String accessToken;
 }

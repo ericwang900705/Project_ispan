@@ -9,6 +9,7 @@ import GlobalNotificationBell from './components/GlobalNotificationBell.vue'
 import UiIcon from './components/UiIcon.vue'
 import ChatWidget from './components/ChatWidget.vue'
 import ManagementSidebar from './components/ManagementSidebar.vue'
+import StaffWorkspaceBackdrop from './components/StaffWorkspaceBackdrop.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -34,6 +35,7 @@ watchEffect(() => {
   document.body.classList.remove('cart-portal', 'publisher-workspace')
   document.body.classList.add('support-portal')
   document.body.classList.toggle('staff-workspace', staff.value)
+  document.body.classList.toggle('staff-background-active', staff.value && !!session.user && !authPage.value)
   document.body.classList.toggle('member-workspace', !staff.value)
 })
 watch(() => route.fullPath, () => { menuOpen.value = false })
@@ -47,6 +49,7 @@ onMounted(() => window.addEventListener('keydown', escape))
 onUnmounted(() => {
   window.removeEventListener('keydown', escape);
   document.body.style.overflow = ''
+  document.body.classList.remove('staff-background-active')
 })
 async function leave() {
   const destination = loginFor(session.user?.role)
@@ -60,6 +63,7 @@ async function leave() {
 </script>
 
 <template>
+  <StaffWorkspaceBackdrop v-if="staff && session.user && !authPage" />
   <div v-if="session.user" class="support-ui"
     :class="[staff ? 'staff-ui' : 'member-ui', workspace ? 'workspace-header-shell' : 'site-header-shell']">
     <header class="site-header" :class="{ 'management-header': workspace }">
@@ -91,7 +95,7 @@ async function leave() {
 
   <ManagementSidebar v-if="workspace" :open="menuOpen" @close="menuOpen = false" />
   <main class="support-ui support-page support-scope"
-    :class="[staff ? 'staff-ui' : 'member-ui', { 'auth-page': authPage, 'management-content': workspace }]">
+    :class="[staff ? 'staff-ui' : 'member-ui', { 'auth-page': authPage, 'management-content': workspace, 'staff-content-layer': staff && !!session.user && !authPage }]">
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     <RouterView />
   </main>

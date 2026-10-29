@@ -22,12 +22,18 @@ public class PaymentController {
 
     @GetMapping("/config")
     public Object config() {
-        return Map.of("enabled", payment.available());
+        return Map.of("enabled", payment.available(), "testMode", payment.testMode(),
+                "publicCallback", payment.publicCallback());
     }
 
     @PostMapping("/{memberId}/checkout")
     public Object checkout(Actor a, @PathVariable int memberId, @RequestBody Checkout input) {
         return payment.checkout(a, memberId, input.choosePayment() == null ? "" : input.choosePayment());
+    }
+
+    @PostMapping("/{memberId}/orders/{orderId}/pay")
+    public Object resume(Actor actor, @PathVariable int memberId, @PathVariable int orderId) {
+        return payment.resume(actor, memberId, orderId);
     }
 
     @GetMapping("/{memberId}/orders/{tradeNo}")

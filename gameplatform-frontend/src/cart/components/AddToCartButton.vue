@@ -48,5 +48,11 @@ async function add() {
 </template>
 
 <style scoped>
-.coming-soon-label { display: inline-block; padding: 10px 16px; color: #e4c37c; font-weight: 600; cursor: default; }
+.coming-soon-label {
+  display: inline-block;
+  padding: 10px 16px;
+  color: #e4c37c;
+  font-weight: 600;
+  cursor: default;
+}
 </style>

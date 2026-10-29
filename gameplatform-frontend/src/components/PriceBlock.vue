@@ -25,14 +25,47 @@ defineProps({
 
 <style scoped>
 /* 折扣% 和價格並排，靠右 */
-.price-block { display: inline-flex; align-items: stretch; line-height: 1.2; }
+.price-block {
+  display: inline-flex;
+  align-items: stretch;
+  line-height: 1.2;
+}
+
 /* 折扣%：紅底、米白字 */
-.pct { background: #b23a2a; color: #fff1e0; padding: 4px 6px; font-size: 15px; font-weight: bold; display: flex; align-items: center; }
+.pct {
+  background: #b23a2a;
+  color: #fff1e0;
+  padding: 4px 6px;
+  font-size: 15px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+}
+
 /* 價格：深色底，原價在上、售價在下 */
-.prices { background: rgba(0, 0, 0, .25); padding: 2px 8px; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; }
+.prices {
+  background: rgba(0, 0, 0, .25);
+  padding: 2px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+}
+
 /* 刪除線原價：較小、灰褐色 */
-.prices s { color: #8a7a6e; font-size: 11px; }
+.prices s {
+  color: #8a7a6e;
+  font-size: 11px;
+}
+
 /* 售價：米白色；打折時改成金色 */
-.prices b { color: #e8dcc8; font-size: 13px; font-weight: normal; }
-.prices b.sale { color: #f0c060; }
+.prices b {
+  color: #e8dcc8;
+  font-size: 13px;
+  font-weight: normal;
+}
+
+.prices b.sale {
+  color: #f0c060;
+}
 </style>

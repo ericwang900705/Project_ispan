@@ -33,9 +33,12 @@ public class PublisherWorkspaceController {
         }
 
         @GetMapping("/games")
-        public Object games(Actor a, @RequestParam(defaultValue = "0") int page,
-                        @RequestParam(defaultValue = "") String q) {
-                return service.games(a, page, q);
+        public Object games(Actor a, @RequestParam(name = "page", defaultValue = "0") int page,
+                        @RequestParam(name = "q", defaultValue = "") String q,
+                        @RequestParam(name = "size", defaultValue = "20") int size,
+                        @RequestParam(name = "status", defaultValue = "") String status,
+                        @RequestParam(name = "mode", defaultValue = "") String mode) {
+                return service.games(a, page, q, size, status, mode);
         }
 
         @GetMapping("/games/{id}")
@@ -62,6 +65,11 @@ public class PublisherWorkspaceController {
         @PutMapping("/games/{id}/builds")
         public Object builds(Actor a, @PathVariable int id, @Valid @RequestBody PublisherWorkspaceService.Builds body) {
                 return service.saveBuilds(a, id, body);
+        }
+
+        @PostMapping("/games/{id}/builds/{buildId}/release")
+        public Object releaseBuild(Actor a,@PathVariable int id,@PathVariable int buildId) {
+                return service.releaseBuild(a,id,buildId);
         }
 
         @PutMapping("/games/{id}/media")

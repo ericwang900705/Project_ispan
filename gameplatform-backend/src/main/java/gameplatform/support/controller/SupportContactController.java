@@ -15,7 +15,8 @@ public class SupportContactController {
             @Value("${app.support.contact-email:${spring.mail.username:}}") String configuredEmail) {
         String value = Objects.toString(configuredEmail, "").strip();
         email = value.length() <= 254 && value.matches("[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,63}")
-                ? value : "";
+                ? value
+                : "";
     }
 
     @GetMapping("/api/public/support-contact")

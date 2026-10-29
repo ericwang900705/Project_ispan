@@ -53,9 +53,13 @@ public class SecurityConfig {
                                 .authorizeHttpRequests(a -> a
 
                                                 // 客服全域內容限最高管理員；私人資料與範本使用須即時客服授權。
-                                                .requestMatchers("/api/admin/support/faqs", "/api/admin/support/faqs/**", "/api/admin/support/reply-templates", "/api/admin/support/reply-templates/**")
+                                                .requestMatchers("/api/admin/support/faqs",
+                                                                "/api/admin/support/faqs/**",
+                                                                "/api/admin/support/reply-templates",
+                                                                "/api/admin/support/reply-templates/**")
                                                 .access(permissions.highestAdmin())
-                                                .requestMatchers("/api/admin/support/**", "/api/support/reply-templates")
+                                                .requestMatchers("/api/admin/support/**",
+                                                                "/api/support/reply-templates")
                                                 .access(permissions.require("TICKET_HANDLE"))
                                                 // 1. 公開的會員註冊與登入 API
                                                 .requestMatchers(
@@ -224,6 +228,8 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/backoffice/orders", "/api/backoffice/orders/**")
                                                 .access(permissions.require("ORDER_VIEW"))
                                                 .requestMatchers("/api/backoffice/refunds",
+                                                                "/api/backoffice/refund-requests",
+                                                                "/api/backoffice/refund-requests/**",
                                                                 "/api/backoffice/refunds/**")
                                                 .access(permissions.require("REFUND_MANAGE"))
                                                 .requestMatchers("/api/backoffice/reviews",
@@ -231,11 +237,23 @@ public class SecurityConfig {
                                                                 "/api/backoffice/review-reports",
                                                                 "/api/backoffice/review-reports/**")
                                                 .access(permissions.require("COMMENT_REVIEW"))
+                                                .requestMatchers("/api/backoffice/promotions")
+                                                .access(permissions.require("PROMOTION_MANAGE"))
                                                 .requestMatchers("/api/backoffice/tags", "/api/backoffice/tags/**")
                                                 .access(permissions.require("TAG_MANAGE"))
                                                 .requestMatchers("/api/backoffice/coupons",
-                                                                "/api/backoffice/coupons/**", "/api/backoffice/coupon-options")
+                                                                "/api/backoffice/coupons/**",
+                                                                "/api/backoffice/coupon-options")
                                                 .access(permissions.require("COUPON_MANAGE"))
+                                                .requestMatchers("/api/backoffice/system-logs")
+                                                .access((authentication,
+                                                                context) -> new org.springframework.security.authorization.AuthorizationDecision(
+                                                                                permissions.allowed(
+                                                                                                authentication.get(),
+                                                                                                "OPERATION_LOG_VIEW")
+                                                                                                || permissions.allowed(
+                                                                                                                authentication.get(),
+                                                                                                                "LOGIN_LOG_VIEW")))
                                                 .requestMatchers("/api/backoffice/login-logs")
                                                 .access(permissions.require("LOGIN_LOG_VIEW"))
                                                 .requestMatchers("/api/backoffice/operations")
