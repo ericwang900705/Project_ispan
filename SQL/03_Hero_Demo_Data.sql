@@ -1,3 +1,4 @@
+-- 2026-10-29：全新安裝用示範資料，請先完成本包 01 與原本的 02。
 -- 03｜示範帳號、訂單、遊戲庫、評論、檢舉、時數及操作紀錄；先完成 01、02（包含 12 款 AI 遊戲）。
 -- 只供全新資料庫第一次載入。若已有帳號／訂單，會停止，避免覆蓋原資料。
 -- 唯一最高管理員 hero_admin；所有本檔帳號密碼均為 HeroDemo2026!。
@@ -5,6 +6,14 @@
 USE [GamePlatformDB];
 GO
 SET NOCOUNT ON;
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_PADDING ON;
+SET ANSI_WARNINGS ON;
+SET CONCAT_NULL_YIELDS_NULL ON;
+SET ARITHABORT ON;
+SET NUMERIC_ROUNDABORT OFF;
+
 SET XACT_ABORT ON;
 DECLARE @PasswordHash VARCHAR(255)='$2a$10$DrkdUKkiWKZXAmD/ErO98u05tXJ1PCMm7Nlx0kBpMUW4pAsmz42c2';
 DECLARE @now DATETIME2=SYSDATETIME();
@@ -18,6 +27,9 @@ BEGIN TRY
  IF EXISTS(SELECT 1 FROM dbo.admin) OR EXISTS(SELECT 1 FROM dbo.orders)
   OR EXISTS(SELECT 1 FROM dbo.members WHERE username<>'demo_studio') OR EXISTS(SELECT 1 FROM dbo.game_reviews)
   THROW 51421,N'此檔只供全新資料庫首次載入；已存在帳號或資料，本次未變更。',1;
+ -- 僅檢查全新建庫結構，不執行舊資料庫修復或升級。
+ IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.refund_requests') AND name=N'ticket_id' AND is_nullable=1)
+  THROW 51431,N'退款結構不符新版全新安裝定義，請先完成本包的 01 建庫。',1;
  DECLARE @AdminRole INT=(SELECT admin_role_id FROM dbo.admin_roles WHERE role_code='ADMIN');
  IF @AdminRole IS NULL THROW 51422,N'請先完成 01 的角色初始化。',1;
  DECLARE @PublisherId INT=(SELECT member_id FROM dbo.members WHERE username='demo_studio' AND is_publisher=1);

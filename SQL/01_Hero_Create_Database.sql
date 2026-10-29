@@ -1,4 +1,4 @@
--- 01｜GamePlatformDB 完整建庫（2026-10-28）
+-- 01｜GamePlatformDB 完整建庫（2026-10-29：全新安裝版）
 -- SSMS 請先啟用「查詢 → SQLCMD 模式」，整份執行；遇錯即停止。
 -- 本檔只供全新建庫。既有 GamePlatformDB 會停止，不會自動刪除你的舊資料庫。
 -- 順序：01 建庫 → 02 六款 CART + 十二款 AI 遊戲 → 03 示範帳號與資料。
@@ -1708,7 +1708,7 @@ BEGIN TRY
             refund_id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_refund_requests PRIMARY KEY,
             order_id INT NOT NULL CONSTRAINT UQ_refund_request_order UNIQUE REFERENCES dbo.orders(order_id),
             member_id INT NOT NULL REFERENCES dbo.members(member_id),
-            ticket_id INT NOT NULL CONSTRAINT UQ_refund_request_ticket UNIQUE REFERENCES dbo.customer_service_tickets(ticket_id),
+            ticket_id INT NULL REFERENCES dbo.customer_service_tickets(ticket_id),
             reason NVARCHAR(2000) NOT NULL,
             status VARCHAR(12) NOT NULL DEFAULT('PENDING') CHECK(status IN('PENDING','REFUNDED','REJECTED')),
             requested_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
@@ -1725,6 +1725,8 @@ BEGIN TRY
         );
         CREATE INDEX IX_refund_requests_status_time ON dbo.refund_requests(status,requested_at DESC,refund_id DESC);
     END;
+    -- 案件關聯為選填；多筆一般退款可沒有案件，已關聯案件則不可重複。
+    CREATE UNIQUE INDEX UX_refund_ticket_not_null ON dbo.refund_requests(ticket_id) WHERE ticket_id IS NOT NULL;
     IF OBJECT_ID(N'dbo.payment_attempts',N'U') IS NULL
     BEGIN
         CREATE TABLE dbo.payment_attempts(
