@@ -297,7 +297,7 @@ public class SupportExtensionService {
         c.memberId(),
         "writable",
         !c.status().equals("CLOSED") &&
-            (actor.isMember() || Objects.equals(c.adminId(), actor.id())));
+            !actor.isMember() && Objects.equals(c.adminId(), actor.id()));
   }
 
   public void link(
@@ -307,6 +307,8 @@ public class SupportExtensionService {
       String kind,
       int target,
       boolean remove) {
+    // 關聯訂單與優惠券僅限具客服權限的後台人員；案件會員也不可自行新增或移除。
+    requireSupport(actor);
     if (!Set.of("order", "coupon").contains(kind) || target <= 0)
       throw bad(
           "關聯資料不正確");
