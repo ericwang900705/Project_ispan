@@ -1,12 +1,13 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { session, restore, frontendArea, refreshUser, logout } from './api'
+import { session, restore, frontendArea, refreshUser, logout, activateArea, hasAreaSession } from './api'
 import { homeFor, guardPage, hasPermission } from './permissions'
 import { backofficeModules } from './backoffice-modules'
 import { cartRoutes } from './cart/router/index'
 
 import App from './App.vue'
+import { areaForRoute, isMemberRole, isStaffRole, isStaffPath } from './auth-area.js'
 
 import './styles/shared.js'
 
@@ -25,7 +26,7 @@ const storeRoutes = cartRoutes.map(route => ({
 }))
 // 前後台分頁名稱；合併模式依目前路由區分。
 const updatePageTitle = route => {
-    const staffPage = frontendArea === 'staff' || (frontendArea === 'combined' && /^\/(admin|staff|support)(?:\/|$)/.test(route.path))
+    const staffPage = areaForRoute(route, session.loginArea, frontendArea) === 'staff'
     document.title = staffPage ? 'HERO 後台管理' : 'HERO 遊戲平台'
 }
 const routes = [
@@ -169,6 +170,9 @@ const routes = [
         meta: { staff: true }
     },
 
+    // 補齊後台根入口，不再讓 /staff 落入公開 404。
+    { path: '/staff', redirect: '/staff/home' },
+
     //staff
     {
         path: '/staff/register',
@@ -231,9 +235,24 @@ const router = createRouter({
     history: createWebHashHistory(),
     routes
 })
-await restore()
+const initialRoute = router.resolve(location.hash.slice(1) || '/')
+const initialArea = areaForRoute(initialRoute, session.loginArea, frontendArea)
+// 在網址列直接輸入後台路徑時，也先辨識已有的前台登入，再由守衛擋回前台。
+const restoreArea = frontendArea === 'combined' && initialArea === 'staff'
+    && !['/staff/login', '/staff/register'].includes(initialRoute.path.toLowerCase())
+    && !hasAreaSession('staff') && hasAreaSession('member') ? 'member' : initialArea
+await restore(restoreArea)
 router.afterEach(updatePageTitle)
 router.beforeEach(async to => {
+    const targetArea = areaForRoute(to, session.loginArea, frontendArea)
+    const staffLogin = ['/staff/login', '/staff/register'].includes(to.path.toLowerCase())
+    if (targetArea === 'staff' && isMemberRole(session.user?.role) && !staffLogin && !hasAreaSession('staff'))
+        return homeFor(session.user.role)
+    await activateArea(targetArea)
+    // 保護保留的後台網址前綴，包括沒有對應頁面的路徑。
+    if (isStaffPath(to.path) && !staffLogin && !isStaffRole(session.user?.role))
+        return { path: '/staff/login', query: { redirect: to.fullPath } }
+
     if (session.user && !['MEMBER', 'PUBLISHER'].includes(session.user.role)) {
         try { await refreshUser() }
         catch { await logout(); return '/staff/login' }
@@ -254,9 +273,9 @@ router.beforeEach(async to => {
         return '/'
     if (frontendArea === 'staff' && to.meta.public && !['/staff/login', '/staff/register'].includes(to.path))
         return session.user ? homeFor(session.user.role) : '/staff/login'
-    if (to.meta.public && !['/member/login', '/staff/login'].includes(to.path))
+    if (to.meta.public && !['/member/login', '/staff/login'].includes(to.path.toLowerCase()))
         return true
-    return guardPage(to, session.user, frontendArea)
+    return guardPage(to, session.user, session.loginArea)
 })
 window.addEventListener(
     'auth-expired',

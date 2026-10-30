@@ -1,3 +1,4 @@
+import { isStaffPath } from './auth-area.js'
 export const staffRoles = [
   'ADMIN',
   'STAFF',
@@ -202,7 +203,9 @@ export function guardPage(to, user, lastArea = 'member') {
     '/member/login',
     '/staff/login',
     '/login'
-  ].includes(to.path)
+  ].includes(to.path.toLowerCase())
+  if (isStaffPath(to.path) && !loginPage && to.path.toLowerCase() !== '/staff/register' && !staffRoles.includes(user?.role))
+    return user ? homeFor(user.role) : { path: '/staff/login', query: { redirect: to.fullPath } }
   if (!user) {
     if (loginPage) return true
     return {

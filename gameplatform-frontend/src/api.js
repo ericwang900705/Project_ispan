@@ -1,17 +1,30 @@
 import { reactive } from 'vue'
 import { readJsonResponse } from './response-body.js'
 import { loginFor } from './permissions.js'
+import { areaForRoute, isMemberRole, isStaffRole } from './auth-area.js'
 export const frontendArea = ['staff', 'member'].includes(import.meta.env.MODE) ? import.meta.env.MODE : 'combined'
 
-// --- 全域會話狀態 ---
+const LEGACY_SESSION_KEY = 'support-auth-session-shared-jwt-v2'
+const SESSION_KEYS = { member: 'hero-auth-member-v3', staff: 'hero-auth-staff-v3' }
+const LAST_AREA_KEY = 'hero-auth-last-area-v3'
+let previousArea = 'member'
+try {
+  // 舊版共用憑證無法安全判斷使用入口，更新後重新登入一次。
+  sessionStorage.removeItem(LEGACY_SESSION_KEY)
+  previousArea = sessionStorage.getItem(LAST_AREA_KEY) === 'staff' ? 'staff' : 'member'
+} catch { }
+let activeArea = areaForRoute({ path: typeof location === 'undefined' ? '/' : (location.hash.slice(1).split('?')[0] || '/') }, previousArea, frontendArea)
+const sessionKey = () => SESSION_KEYS[activeArea]
+const validRoleForArea = (role, area) => area === 'staff' ? isStaffRole(role) : isMemberRole(role)
+
+// 畫面只使用目前入口的會話；另一區的憑證保留在獨立 sessionStorage key。
 export const session = reactive({
   user: null,
   ready: false,
   online: false,
-  loginArea: frontendArea
+  loginArea: activeArea
 })
 
-const SESSION_KEY = 'support-auth-session-shared-jwt-v2'
 let authGeneration = 0
 let token = null
 let stream = null
@@ -22,22 +35,31 @@ let generation = 0
 const memberLogoutChannel = typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined'
   ? new BroadcastChannel('hero-member-logout-v1') : null
 if (memberLogoutChannel) memberLogoutChannel.onmessage = event => {
-  if (event.data?.type === 'member-logout' && ['MEMBER', 'PUBLISHER'].includes(session.user?.role)
-      && event.data.memberId === session.user.id) expired()
+  if (event.data?.type !== 'member-logout') return
+  if (activeArea === 'member' && event.data.memberId === session.user?.id) expired()
+  else {
+    // 目前在後台，也要清除同會員的休眠前台登入；不影響後台登入。
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(SESSION_KEYS.member) || 'null')
+      if (saved?.userId === event.data.memberId) sessionStorage.removeItem(SESSION_KEYS.member)
+    } catch { }
+  }
 }
 
 /** 只複製目前會員憑證至自己剛開的空白分頁，沿用原期限並由新分頁重新驗證身分。 */
 export function prepareMemberGameWindow(popup) {
   if (!token || !['MEMBER', 'PUBLISHER'].includes(session.user?.role)) throw Error('請先登入會員再開啟遊戲')
   const expiresAt = expiresAtOf(token)
-  popup.sessionStorage.setItem(SESSION_KEY, JSON.stringify({ accessToken: token, expiresAt }))
+  popup.sessionStorage.setItem(SESSION_KEYS.member, JSON.stringify({ accessToken: token, expiresAt, userId: session.user.id }))
+  popup.sessionStorage.removeItem(SESSION_KEYS.staff)
+  popup.sessionStorage.setItem(LAST_AREA_KEY, 'member')
   popup.opener = null
 }
 
 // --- 清除本地驗證與狀態 ---
 function clearLocal(removeStored = true) {
   authGeneration++
-  if (removeStored) { try { sessionStorage.removeItem(SESSION_KEY) } catch { } }
+  if (removeStored) { try { sessionStorage.removeItem(sessionKey()) } catch { } }
   token = null
   clearTimeout(expiryTimer)
   stopEvents()
@@ -128,12 +150,16 @@ function scheduleExpiry(expiresAt) {
   if (expiresAt !== null) expiryTimer = setTimeout(expired, Math.max(0, expiresAt - Date.now()))
 }
 
-export async function restore() {
+export async function restore(area = activeArea) {
+  if (!['member', 'staff'].includes(area) || (frontendArea !== 'combined' && area !== frontendArea)) throw Error('請使用對應的登入入口')
   clearLocal(false)
+  activeArea = area
+  session.loginArea = area
   session.ready = false
+  try { sessionStorage.setItem(LAST_AREA_KEY, area) } catch { }
   const run = authGeneration
   try {
-    const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null')
+    const saved = JSON.parse(sessionStorage.getItem(sessionKey()) || 'null')
     if (!saved) return
     if (typeof saved.accessToken !== 'string' || !saved.accessToken ||
       (saved.expiresAt !== null && (!Number.isFinite(saved.expiresAt) || saved.expiresAt <= Date.now()))) {
@@ -145,12 +171,12 @@ export async function restore() {
     scheduleExpiry(expiresAt)
     const user = await api('/auth/me')
     if (run !== authGeneration) return
-    if (!(frontendArea === 'member' ? ['MEMBER', 'PUBLISHER'] : frontendArea === 'staff' ? ['ADMIN', 'STAFF', 'SUPPORT', 'REVIEWER'] : ['MEMBER', 'PUBLISHER', 'ADMIN', 'STAFF', 'SUPPORT', 'REVIEWER']).includes(user.role)) {
+    if (!validRoleForArea(user.role, activeArea)) {
       clearLocal()
       return
     }
     session.user = user
-    session.loginArea = ['MEMBER', 'PUBLISHER'].includes(user.role) ? 'member' : 'staff'
+    session.loginArea = activeArea
 
     connectEvents()
   } catch {
@@ -160,9 +186,36 @@ export async function restore() {
   }
 }
 
-// Refresh live grants before routing to a staff feature.
+export function hasAreaSession(area) {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(SESSION_KEYS[area]) || 'null')
+    return typeof saved?.accessToken === 'string' && saved.accessToken.length > 0 &&
+      Number.isFinite(saved.expiresAt) && saved.expiresAt > Date.now()
+  } catch { return false }
+}
+export async function activateArea(area) {
+  if (area !== activeArea || !session.ready) await restore(area)
+}
+
+// 更新角色時同樣維持入口限制，避免角色異動後留在錯誤區域。
 export async function refreshUser() {
-  if (session.user) session.user = await api('/auth/me')
+  if (!session.user) return
+  const user = await api('/auth/me')
+  if (!validRoleForArea(user.role, activeArea)) {
+    clearLocal()
+    throw Error('此帳號不適用這個登入入口')
+  }
+  session.user = user
+}
+function beginLogin(area) {
+  if (!['member', 'staff'].includes(area) || (frontendArea !== 'combined' && area !== frontendArea)) throw Error('請使用對應的登入入口')
+  if (area !== activeArea) {
+    clearLocal(false)
+    activeArea = area
+  }
+  session.loginArea = area
+  try { sessionStorage.setItem(LAST_AREA_KEY, area) } catch { }
+  clearLocal()
 }
 
 // --- 登入方法 ---
@@ -176,9 +229,8 @@ function expiresAtOf(value) {
   } catch { throw Error('登入回傳的 JWT 無效或已過期') }
 }
 
-export async function login(username, password, area = frontendArea) {
-  if (frontendArea !== 'combined' && area !== frontendArea) throw Error('請使用對應的登入入口')
-  clearLocal()
+export async function login(username, password, area = activeArea) {
+  beginLogin(area)
   const run = authGeneration
   try {
     const data = await request(area === 'member' ? '/auth/login' : '/admin/auth/login',
@@ -198,7 +250,7 @@ export async function login(username, password, area = frontendArea) {
 
 export async function loginWithGoogle(idToken, nonce) {
   if (frontendArea === 'staff') throw Error('請使用前臺會員登入入口')
-  clearLocal();
+  beginLogin('member');
   const run = authGeneration
   try {
     const value = await request('/auth/google-login', { method: 'POST', body: { idToken, nonce } }, 'text');
@@ -215,13 +267,13 @@ async function finishLogin(area, run) {
   const user = await api('/auth/me')
 
   if (run !== authGeneration) throw Error('登入操作已取消')
-  const correctArea = area === 'member' ? ['MEMBER', 'PUBLISHER'].includes(user.role) : ['ADMIN', 'STAFF', 'SUPPORT', 'REVIEWER'].includes(user.role)
+  const correctArea = validRoleForArea(user.role, area) && activeArea === area
   if (!correctArea) throw Error('此帳號不適用這個登入入口')
   session.user = user
   session.loginArea = area
   try {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-      accessToken: token, expiresAt
+    sessionStorage.setItem(sessionKey(), JSON.stringify({
+      accessToken: token, expiresAt, userId: user.id
     }))
   } catch { }
   scheduleExpiry(expiresAt)

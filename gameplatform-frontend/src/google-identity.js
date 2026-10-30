@@ -70,7 +70,8 @@ export async function mountGoogleButton(element, receive, active, link = false) 
         id.renderButton(element, {
             type: 'standard',
             theme: 'outline',
-            size: 'large',
+            // medium 為 Google 官方支援的不顯示個人化帳號資訊模式。
+            size: 'medium',
             text: link ? 'continue_with' : 'signin_with',
             shape: 'pill',
             logo_alignment: 'center',
