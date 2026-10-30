@@ -1,0 +1,68 @@
+2. 安裝 Nginx
+從 官方下載頁 下載 nginx/Windows ZIP，解壓後確認：
+C:\nginx\nginx.exe
+
+3. 打包前端並部署
+在 PowerShell 執行：
+cd C:\Users\User\Downloads\Project_ispan\Project_ispan
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy\nginx-lan\Install-Lan.ps1
+
+會自動安裝套件、打包前後台、設定並啟動 Nginx。
+
+部署後不用執行 npm run dev。
+4. 準備資料庫
+啟動 SQL Server，確認原本後端能連線。
+
+已經有資料庫就不用重建。 若遊戲素材網址仍指向 localhost:5173，先備份，再執行：
+SQL\06_Hero_LAN_Asset_URLs.sql
+
+不要在既有資料庫重新執行建庫及示範資料 SQL。
+5. 註冊及安裝 ngrok
+到 ngrok 控制台 註冊，選 Share Localhost → Windows。
+
+安裝：
+winget install ngrok -s msstore
+
+重新開 PowerShell，執行控制台提供的私人 Token 指令：
+ngrok config add-authtoken "你的實際Token"
+
+Token 不用分享，也不要放 GitHub。
+6. 啟動公開入口
+ngrok http 80 --url https://reassign-shelve-pleat.ngrok-free.dev
+
+看到 Session Status online 與 Forwarding 後，保持視窗開啟。
+7. 使用公開設定啟動後端
+停止原本正在執行的後端，另開 PowerShell：
+cd C:\Users\User\Downloads\Project_ispan\Project_ispan
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy\nginx-lan\Start-Backend-Public.ps1
+
+後端視窗也要保持開啟。 不要同時從 VS Code 再啟動另一份。
+8. 開啟網站測試
+頁面	網址
+首頁	https://reassign-shelve-pleat.ngrok-free.dev
+會員登入	https://reassign-shelve-pleat.ngrok-free.dev/#/member/login
+後台登入	https://reassign-shelve-pleat.ngrok-free.dev/#/staff/login
+
+
+第一次若有提示頁，按 Visit Site。
+
+組員可以從其他網路進入，不必同 Wi-Fi。先測帳密登入，再測圖片、遊戲、客服與好友聊天。
+9. 設定 Google 登入
+由管理原本 Google 登入專案的組員操作：
+1. 開啟 Google Cloud Console。
+2. 選原專案，找到目前使用的 Web application OAuth Client。
+3. 在「已授權的 JavaScript 來源」新增：
+https://reassign-shelve-pleat.ngrok-free.dev
+
+4. 儲存，等待生效，再回公開登入頁測試。
+不要加 /#/member/login 或 /api。 現有程式使用 popup，不需新增後端 callback 網址。
+以後每天開機
+只需：
+1. 確認 SQL Server 啟動。
+2. 啟動 Nginx：
+   Start-Process -FilePath 'C:\nginx\nginx.exe' -WorkingDirectory 'C:\nginx'
+3. 執行 Start-Backend-Public.ps1。
+4. 執行上面的 ngrok http 80 ...。
+5. 開公開網址。
