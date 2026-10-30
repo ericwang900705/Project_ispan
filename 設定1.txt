@@ -1,0 +1,96 @@
+1. 打開 ngrok 註冊頁。
+2. 選擇 Google 帳號註冊，或使用 Email 註冊。
+3. 如果使用 Email，依畫面指示完成信箱驗證。
+4. 如果出現用途或身分問卷，依你們的情況選擇「學生／學習、開發測試」等相近選項。
+5. 進入控制台後，開啟 Your Authtoken。
+接著在要執行後端與 Nginx 的那台電腦開 PowerShell，執行：
+winget install ngrok -s msstore
+
+安裝完成後，關掉 PowerShell 再重新開啟，貼上控制台提供的完整指令，形式如下：
+ngrok config add-authtoken "你的Token"
+
+Token 是私人憑證，不要貼給我或放進 GitHub。
+
+等 Nginx 已啟動、你這台能開啟網站後，執行：
+ngrok http 80
+
+找到輸出中的 Forwarding 那一行，把它顯示的 HTTPS 公開網址貼給我即可。這個視窗先保持開啟。
+
+現在依序做：
+1. 點畫面上的 Microsoft Store Installer，進入商店安裝 ngrok。
+2. 安裝後開啟 PowerShell，確認：
+   ngrok --version
+3. 回到網頁，點 Show authtoken，複製完整指令到 PowerShell 執行：
+   ngrok config add-authtoken "你的實際Token"
+   
+   不要直接輸入 $YOUR_AUTHTOKEN，也不用把 Token 傳給我。
+4. 確認 Nginx 已啟動後，執行畫面下方的指令：
+   ngrok http 80 --url https://reassign-shelve-pleat.ngrok-free.dev
+執行後保持視窗開啟。 如果公開網址出現 502，通常是 Nginx 尚未啟動或沒有監聽 80 埠。
+
+確認 Nginx 網站能開啟
+
+在你這台瀏覽器開啟：
+
+http://localhost
+- 出現 HERO 網站：繼續下一步。
+- 出現 Nginx 歡迎頁或無法連線：還需要執行更新包的 Install-Lan.ps1。
+2. 後端改用公開網址啟動
+
+先停止原本的 Java 後端，另開 PowerShell：
+cd C:\Users\User\Downloads\Project_ispan\Project_ispan\gameplatform-backend
+
+$env:HERO_LAN_URL = "https://reassign-shelve-pleat.ngrok-free.dev"
+
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=lan"
+
+這次直接使用以上指令，先不要用先前的 Start-Backend-Lan.ps1，那支腳本目前只接受 HTTP 網址。
+
+啟動完成後，開公開網址測試。第一次若出現 ngrok 提示頁，按 Visit Site。Google 登入還需要到 Google 控制台加入這個網址，才算設定完成。
+
+設定 Nginx，ngrok 視窗保持開著即可。
+
+① 覆蓋更新包
+
+把 Hero_Project10_Nginx_LAN_Update.zip 解壓，放進原專題，覆蓋同名檔案。確認這三個資料夾在同一層：
+gameplatform-frontend
+gameplatform-backend
+deploy
+
+② 下載 Nginx
+
+打開 Nginx 官方下載頁，找 nginx/Windows 的 ZIP 下載。
+
+解壓後，把包含 nginx.exe 的資料夾改名為 nginx，放到 C 槽，確認路徑是：
+C:\nginx\nginx.exe
+
+注意不要多包一層資料夾。
+
+③ 執行部署
+
+開啟 PowerShell，貼上：
+cd C:\Users\User\Downloads\Project_ispan\Project_ispan
+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy\nginx-lan\Install-Lan.ps1
+
+它會自動打包前端、套用 Nginx 設定並啟動。
+
+④ 檢查
+
+完成後開啟：
+
+http://localhost
+
+先確認出現 HERO 網站。後端還沒啟動時，資料載入可能失敗；先把部署指令的執行結果貼給我，再接著設定後端。
+
+接著把後端設定成 ngrok 公開網址：
+1. 停止目前的後端。
+2. 在後端資料夾開 PowerShell，執行：
+$env:HERO_LAN_URL = "https://reassign-shelve-pleat.ngrok-free.dev"
+
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=lan"
+
+3. 保持 Nginx、後端、ngrok 都在執行，開啟：
+https://reassign-shelve-pleat.ngrok-free.dev
+
+若看到 ngrok 提示頁，按 Visit Site。先測試帳密登入、圖片、客服與好友聊天；也可以用手機關閉 Wi-Fi、改用行動網路測試是否能從外部進入。
