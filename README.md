@@ -1,4 +1,9 @@
-https://reassign-shelve-pleat.ngrok-free.dev/
+ngrok部屬後的網址
+平台端
+https://possibly-gulf-straining.ngrok-free.dev/?utm_source=chatgpt.com#/member/login
+
+系統端
+https://possibly-gulf-straining.ngrok-free.dev/?utm_source=chatgpt.com#/admin
 
 
 ## 本次更新功能與頁面
