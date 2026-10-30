@@ -8,7 +8,7 @@ const safe = value => {
   if (/^\/uploads\/publisher\/[0-9a-f-]{36}\.(png|jpg)$/.test(value || '') || /^\/uploads\/publisher-files\/videos\/[1-9][0-9]*\/[0-9a-f-]{36}\.mp4$/.test(value || ''))
     return value;
   try {
-    const u = new URL(value);
+    const u = value.startsWith('/') && !value.startsWith('//') ? new URL(value, window.location.origin) : new URL(value);
     return ['http:', 'https:'].includes(u.protocol) && !u.username && !u.password ? u.href : ''
   } catch {
     return ''

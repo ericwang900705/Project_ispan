@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#101737"/>
+      <stop offset="1" stop-color="#26365c"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="640" height="360" fill="url(#bg)"/>
+  <rect y="290" width="640" height="70" fill="#1b3151"/>
+  <rect y="290" width="640" height="3" fill="#3bd6ff"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="7" filter="url(#glow)">
+    <g stroke="#56efff" transform="translate(190 290)">
+      <circle cy="-116" r="17"/>
+      <path d="M0-99V-53M0-53L-18-5M0-53L19-5M0-91L-23-72L-32-51M0-91L33-86L67-87"/>
+    </g>
+    <g stroke="#ff6d9c" transform="translate(430 290) scale(-1 1)">
+      <circle cy="-116" r="17"/>
+      <path d="M0-99V-53M0-53L-18-5M0-91L-23-72L-32-51M0-91L22-104L32-89M0-53L39-56L83-70"/>
+    </g>
+  </g>
+  <circle cx="300" cy="205" r="15" fill="#56efff" filter="url(#glow)"/>
+  <text x="320" y="64" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" font-weight="900" fill="#8ff9ff">火柴人格鬥</text>
+  <text x="320" y="100" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#ff9ec0" letter-spacing="6">霓虹對決</text>
+</svg>
+

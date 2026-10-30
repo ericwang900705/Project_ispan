@@ -1,10 +1,11 @@
+import { browserUuid } from '../../browser-uuid'
 // 在使用者點擊時先開付款分頁，再向後端取簽章表單，避免非同步請求後被瀏覽器擋下。
 const gateways = new Set([
   'https://payment-stage.ecpay.com.tw/Cashier/AioCheckOut/V5',
   'https://payment.ecpay.com.tw/Cashier/AioCheckOut/V5'
 ])
 export async function openEcpayPayment(createPayment) {
-  const target = `hero-payment-${crypto.randomUUID()}`
+  const target = `hero-payment-${browserUuid()}`
   const tab = window.open('about:blank', target)
   if (!tab) throw new Error('付款分頁被瀏覽器阻擋，請允許此網站開啟新分頁後再試一次。')
   tab.opener = null

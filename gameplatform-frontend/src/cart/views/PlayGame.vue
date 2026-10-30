@@ -1,4 +1,6 @@
 <script setup>
+import { browserUuid } from '../../browser-uuid'
+
 // 沿用 GitHub cart 分支的遊玩時間算法：可見分頁才計時，每 15 秒檢查，滿分鐘先入帳，離開時四捨五入剩餘秒數。
 // API 保持目前整合專題的 JWT 身分驗證，不使用 CART 舊版固定的 MEMBER_ID。
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
@@ -8,6 +10,7 @@ import { useCartStore } from '@/cart/stores/cart'
 import { readGameSave, writeGameSave, sandboxGameHtml, gameSaveMessage } from '@/cart/utils/gameSave'
 import { miniGameOf } from '@/cart/minigames'
 import { createPlaytimeSync } from '@/cart/utils/playtimeSync'
+import { readJsonResponse } from '../../response-body'
 
 const route = useRoute()
 const cart = useCartStore()
@@ -20,7 +23,7 @@ const aiNames = new Set(["暗夜倖存者", "無盡深淵", "失落王國", "星
 const isAi = computed(() => aiNames.has(entry.value?.game?.gameName))
 const html = ref('')
 const gameFrame = ref(null)
-const saveChannel = crypto.randomUUID()
+const saveChannel = browserUuid()
 const saveKey = `hero-game-save:${member}:${gameId}`
 function onGameSave(event) {
   if (!validIdentity() || !gameFrame.value) return
@@ -61,10 +64,13 @@ const playSync = createPlaytimeSync({
     if (!keepalive) return api(path, { method: 'POST', body })
     const response = await fetch('/api' + path, {
       method: 'POST', keepalive: true,
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
       body: JSON.stringify(body)
     })
     if (!response.ok) throw Error('伺服器尚未接受本批時數')
+    const confirmed = await readJsonResponse(response)
+    if (!Number.isInteger(confirmed?.minutesAdded) || confirmed.minutesAdded < 0 || confirmed.batchId !== batch.batchId)
+      throw Error('伺服器尚未確認本批時數，將保留並重試。')
   },
   onError: message => { if (alive) syncError.value = message },
   onBusy: value => { if (alive) syncing.value = value },

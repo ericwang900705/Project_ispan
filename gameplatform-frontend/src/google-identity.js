@@ -31,6 +31,8 @@ function sdk() {
     return sdkPromise
 }
 export async function mountGoogleButton(element, receive, active, link = false) {
+    if (!window.isSecureContext)
+        throw Error('Google 登入與綁定需要 HTTPS 網址；教室區域網路請先使用帳號密碼登入。')
     const config = await api('/public/google-login');
     if (!active())
         return () => { }

@@ -4,7 +4,8 @@
 USE [GamePlatformDB];
 GO
 SET XACT_ABORT ON;
-DECLARE @FrontendBase VARCHAR(200)='http://127.0.0.1:5173';
+-- 同來源素材，由 Nginx 提供；不綁定開發電腦的 5173 埠。
+DECLARE @FrontendBase VARCHAR(200)='';
 DECLARE @now DATETIME2=SYSDATETIME();
 BEGIN TRY
  BEGIN TRANSACTION;

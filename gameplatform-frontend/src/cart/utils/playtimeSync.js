@@ -1,3 +1,4 @@
+import { browserUuid } from '../../browser-uuid'
 // 每批分鐘以固定 UUID 暫存；收到後端確認才移除，重送由後端去重。
 // 不儲存 JWT、帳號密碼或遊戲存檔；僅重試目前登入會員的這款遊戲。
 export function createPlaytimeSync({ memberId, gameId, validIdentity, sendBatch, onError = () => {}, onSynced = () => {}, onBusy = () => {}, storage: suppliedStorage }) {
@@ -24,7 +25,7 @@ export function createPlaytimeSync({ memberId, gameId, validIdentity, sendBatch,
     if (!Number.isInteger(minutes) || minutes < 1 || !validIdentity()) return
     while (minutes > 0) {
       const amount = Math.min(minutes, 1440)
-      const batch = { batchId: crypto.randomUUID(), minutes: amount, createdAt: Date.now() }
+      const batch = { batchId: browserUuid(), minutes: amount, createdAt: Date.now() }
       pending.set(batch.batchId, batch)
       try {
         if (!storage) throw Error('storage unavailable')

@@ -57,7 +57,7 @@ function expired() {
 // --- 核心請求包裝函式 ---
 async function request(path, options = {}, responseType = 'json') {
   const method = options.method || 'GET'
-  const headers = { ...options.headers }
+  const headers = { ...options.headers, 'ngrok-skip-browser-warning': '1' }
   const requestToken = token
   const requestGeneration = authGeneration
 
@@ -267,6 +267,7 @@ function connectEvents() {
           const r = await fetch('/api/events', {
             headers: {
               Authorization: `Bearer ${token}`,
+              'ngrok-skip-browser-warning': '1',
               Accept: 'text/event-stream'
             },
             credentials: 'omit',
@@ -278,7 +279,7 @@ function connectEvents() {
             expired()
             return
           }
-          if (!r.ok || !r.body) throw Error('SSE connection failed')
+          if (!r.ok || !r.body || !r.headers.get('Content-Type')?.toLowerCase().includes('text/event-stream')) throw Error('SSE connection failed')
 
           session.online = true
           window.dispatchEvent(new Event('support-refresh'))

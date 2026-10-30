@@ -15,7 +15,7 @@ const canPlay = entry => !!miniGameOf(entry?.game) || aiNames.has(entry?.game?.g
 function versionUrl(entry) {
   const raw = entry?.latestBuild?.file_url || ''
   if (/^\/api\/publisher-assets\/builds\/[1-9]\d*\/[a-f0-9-]+\.zip$/.test(raw)) return raw
-  try { const url = new URL(raw); return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : '' } catch { return '' }
+  try { const url = raw.startsWith('/') && !raw.startsWith('//') ? new URL(raw, window.location.origin) : new URL(raw); return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : '' } catch { return '' }
 }
 const canDownload = entry => entry?.isActive !== false && (versionUrl(entry) || aiNames.has(entry?.game?.gameName))
 async function downloadGame(entry) {
@@ -26,7 +26,7 @@ async function downloadGame(entry) {
   const build = versionUrl(entry)
   if (build && !build.startsWith('/api/')) { window.open(build, '_blank', 'noopener,noreferrer'); return }
   try {
-    const response = await fetch(build || `/api/member-games/${id}/${entry.game.gameId}/ai-zip`, { headers: { Authorization: `Bearer ${token}` } })
+    const response = await fetch(build || `/api/member-games/${id}/${entry.game.gameId}/ai-zip`, { headers: { Authorization: `Bearer ${token}`, 'ngrok-skip-browser-warning': '1' } })
     if (!response.ok) throw new Error('無法下載遊戲版本，請確認已匯入 ZIP')
     const blob = await response.blob()
     const url = URL.createObjectURL(blob)

@@ -1,0 +1,1 @@
+import{Y as e}from"./_plugin-vue_export-helper-C4rwz915.js";var t=e(``),n;function r(e){clearTimeout(n),t.value=e,n=setTimeout(()=>{t.value=``},5e3)}export{t as n,r as t};
